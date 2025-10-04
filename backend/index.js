@@ -3,9 +3,14 @@ import dotenv from "dotenv";
 import cors from "cors";
 import { connectDB } from "./src/lib/db.js";
 import path from "path";
+import { fileURLToPath } from 'url';
+
+// ✅ Correct __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import userRoutes from "./src/routes/userRoutes.js";
-import authRoutes from "./src/routes/authRoutes.js"
+import authRoutes from "./src/routes/authRoutes.js";
 import productRoutes from "./src/routes/productRoutes.js";
 import purchaseRoutes from "./src/routes/purchaseRoutes.js";
 import productionRoutes from "./src/routes/productionRoutes.js";
@@ -19,7 +24,6 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const __dirname = path.resolve();
 
 app.use(cors({
   origin: process.env.NODE_ENV === "production" ? true : "http://localhost:5173",
