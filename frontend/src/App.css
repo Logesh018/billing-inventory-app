@@ -1,0 +1,46 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+/* Custom sidebar scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+	width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+	background-color: rgba(100, 116, 139, 0.7);
+	border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+/* Scroll animation for text */
+@keyframes scrollText {
+	0% {
+		transform: translateX(0);
+	}
+	100% {
+		transform: translateX(-40%);
+	}
+}
+
+/* Scroll animation for icon */
+@keyframes scrollIcon {
+	0% {
+		transform: translateX(0);
+	}
+	100% {
+		transform: translateX(-100%);
+	}
+}
+
+/* Apply animation on hover for text */
+.group:hover .group-hover\:animate-scrollText {
+	animation: scrollText 5s linear infinite;
+}
+
+/* Apply animation on hover for icon */
+.group:hover .group-hover\:animate-scrollIcon {
+	animation: scrollIcon 5s linear infinite;
+}
