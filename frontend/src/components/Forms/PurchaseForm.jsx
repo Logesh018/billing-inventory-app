@@ -18,11 +18,12 @@ const FabricColorRows = ({ item, onUpdate, disabled }) => {
   const updateColorRow = (index, field, value) => {
     const newColors = [...item.colors];
     newColors[index] = { ...newColors[index], [field]: value };
-    if (field === 'kg' || field === 'costPerKg') {
-      const kg = parseFloat(newColors[index].kg) || 0;
-      const costPerKg = parseFloat(newColors[index].costPerKg) || 0;
-      newColors[index].total = kg * costPerKg;
-    }
+
+    // Handle empty strings as 0 and recalculate total for this color row
+    const kg = newColors[index].kg === '' ? 0 : parseFloat(newColors[index].kg) || 0;
+    const costPerKg = newColors[index].costPerKg === '' ? 0 : parseFloat(newColors[index].costPerKg) || 0;
+    newColors[index].total = kg * costPerKg;
+
     onUpdate(newColors);
   };
 
@@ -468,7 +469,7 @@ const PurchaseItemsSection = ({ purchaseItems, setPurchaseItems, grandTotal }) =
   };
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="space-y-3 w-full">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-800">Purchase Items</h3>
         <button
@@ -633,9 +634,9 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel }) => {
 
   return (
     <div className="w-full mx-auto bg-white">
-      <div className="space-y-6">
+      <div className="space-y-2">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b">
+        <div className="flex items-center justify-between pb-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Purchase Form</h2>
             <p className="text-sm text-gray-600 mt-1">Add purchase details for materials and accessories</p>

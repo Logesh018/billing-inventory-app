@@ -131,11 +131,11 @@ export default function Sidebar() {
     <div className="flex w-full h-[calc(100vh-56px)]">
       {/* Sidebar */}
       <aside
-        className={`h-full flex flex-col bg-slate-900 transition-all duration-500 ease-in-out ${isCollapsed ? "w-22" : "w-60"
+        className={`h-full flex flex-col bg-slate-900 transition-all duration-500 ease-in-out ${isCollapsed ? "w-21" : "w-60"
           }`}
       >
         {/* Menu */}
-        <nav className="flex-1 px-3 py-4 space-y-1 bg-slate-800 overflow-y-auto custom-scrollbar  transition-all duration-300">
+        <nav className="flex-1 px-3 py-4 space-y-1 bg-slate-800 overflow-y-auto custom-scrollbar transition-all duration-300">
           {menuItems.map((item) => {
             const isActive = item.subMenu
               ? isSubMenuActive(item.subMenu)
@@ -153,7 +153,7 @@ export default function Sidebar() {
                           : "text-gray-300 hover:bg-slate-900 hover:text-green-500"
                         }`}
                     >
-                      <div className="flex items-center min-w-0 flex-1 overflow-hidden">
+                      <div className="flex items-center min-w-10 flex-1 overflow-hidden">
                         <item.icon className="w-6 h-6 flex-shrink-0 text-gray-300 group-hover:animate-scrollIcon hover:text-green-500" />
                         {!isCollapsed && (
                           <span className="ml-3 whitespace-nowrap group-hover:animate-scrollText">
@@ -182,7 +182,7 @@ export default function Sidebar() {
                       }`
                     }
                   >
-                    <div className="flex items-center min-w-0 flex-1 overflow-hidden">
+                    <div className="flex items-center min-w-10 flex-1 overflow-hidden">
                       <item.icon className="w-6 h-6 flex-shrink-0 hover:text-green-500 group-hover:animate-scrollIcon" />
                       {!isCollapsed && (
                         <span className="ml-3 whitespace-nowrap group-hover:animate-scrollText hover:text-green-500">
