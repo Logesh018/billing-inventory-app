@@ -85,6 +85,21 @@ export function useBuyerSearch() {
   };
 }
 
+// hooks/useSupplierSearch.js
+// Specific supplier search hook
+export function useSupplierSearch() {
+  const searchHook = useSearch("/purchases/search/suppliers");
+
+  return {
+    ...searchHook,
+    searchSuppliers: searchHook.search,
+    supplierSuggestions: searchHook.suggestions,
+    showSupplierDropdown: searchHook.showDropdown,
+    setShowSupplierDropdown: searchHook.setShowDropdown,
+    selectSupplier: searchHook.selectItem,
+  };
+}
+
 // hooks/useProductSearch.js
 // Specific product search hook
 export function useProductSearch() {
@@ -102,6 +117,8 @@ export function useProductSearch() {
 
 // services/searchService.js
 // Generic search service for any entity type
+//import { axiosInstance } from '../lib/axios';
+
 class SearchService {
   constructor(baseURL = "") {
     this.baseURL = baseURL;
@@ -191,12 +208,15 @@ class SearchService {
     });
   }
 
-  async searchCustomers(searchTerm, options = {}) {
-    return this.search("/customers/search", searchTerm, options);
+  async searchSuppliers(searchTerm, options = {}) {
+    return this.search("/purchases/search/suppliers", searchTerm, {
+      ...options,
+      deduplicateBy: ['_id', 'name', 'mobile', 'code']
+    });
   }
 
-  async searchSuppliers(searchTerm, options = {}) {
-    return this.search("/suppliers/search", searchTerm, options);
+  async searchCustomers(searchTerm, options = {}) {
+    return this.search("/customers/search", searchTerm, options);
   }
 
   // Clear cache
@@ -258,11 +278,8 @@ export function SearchDropdown({
   );
 }
 
-// Example usage components
-
 // components/Forms/BuyerSearchInput.jsx
 import { SearchableInput } from '../UI/FormComponents';
-
 export function BuyerSearchInput({
   value,
   onChange,
@@ -304,6 +321,59 @@ export function BuyerSearchInput({
         <div>
           <div className="font-medium">{buyer.name}</div>
           <div className="text-gray-500">{buyer.mobile}</div>
+        </div>
+      )}
+    />
+  );
+}
+
+// components/Forms/SupplierSearchInput.jsx
+// import { SearchableInput } from '../UI/FormComponents';
+// import { useSupplierSearch } from '../../hooks/useSearch';
+
+export function SupplierSearchInput({
+  value,
+  onChange,
+  onSelect,
+  label = "Supplier",
+  placeholder = "Enter supplier name",
+  required = false,
+  className = ""
+}) {
+  const {
+    supplierSuggestions,
+    showSupplierDropdown,
+    searchSuppliers,
+    selectSupplier,
+    setShowSupplierDropdown
+  } = useSupplierSearch();
+
+  const handleSelect = (supplier) => {
+    // Add safety check
+    if (supplier && onSelect) {
+      selectSupplier(supplier, onSelect);
+    }
+  };
+
+  return (
+    <SearchableInput
+      label={label}
+      value={value}
+      onChange={onChange}
+      onSearch={searchSuppliers}
+      onSelect={handleSelect}
+      suggestions={supplierSuggestions}
+      showDropdown={showSupplierDropdown}
+      onDropdownToggle={setShowSupplierDropdown}
+      placeholder={placeholder}
+      required={required}
+      className={className}
+      renderSuggestion={(supplier) => (
+        <div>
+          <div className="font-medium">{supplier.name}</div>
+          <div className="text-gray-500">
+            {supplier.mobile || supplier.code || supplier.email}
+          </div>
         </div>
       )}
     />

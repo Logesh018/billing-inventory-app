@@ -1,28 +1,28 @@
 import { useEffect, useState } from "react";
-import { Plus, Edit, Trash2, User } from "lucide-react";
+import { Plus, Edit, Trash2, Package } from "lucide-react";
 import { axiosInstance } from "../../../lib/axios";
 
-// Buyer API with axiosInstance
-const buyerApi = {
+// Supplier API with axiosInstance
+const supplierApi = {
   getAll: async () => {
-    const { data } = await axiosInstance.get("/buyers");
+    const { data } = await axiosInstance.get("/suppliers");
     return data;
   },
-  create: async (buyerData) => {
-    const { data } = await axiosInstance.post("/buyers", buyerData);
+  create: async (supplierData) => {
+    const { data } = await axiosInstance.post("/suppliers", supplierData);
     return data;
   },
-  update: async (id, buyerData) => {
-    const { data } = await axiosInstance.put(`/buyers/${id}`, buyerData);
+  update: async (id, supplierData) => {
+    const { data } = await axiosInstance.put(`/suppliers/${id}`, supplierData);
     return data;
   },
   delete: async (id) => {
-    const { data } = await axiosInstance.delete(`/buyers/${id}`);
+    const { data } = await axiosInstance.delete(`/suppliers/${id}`);
     return data;
   }
 };
 
-function BuyerForm({ onSubmit, onClose, initialValues = {} }) {
+function SupplierForm({ onSubmit, onClose, initialValues = {} }) {
   const [formData, setFormData] = useState({
     name: "",
     code: "",
@@ -73,7 +73,7 @@ function BuyerForm({ onSubmit, onClose, initialValues = {} }) {
     const newErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Buyer name is required";
+      newErrors.name = "Supplier name is required";
     }
 
     if (!formData.mobile.trim()) {
@@ -99,8 +99,8 @@ function BuyerForm({ onSubmit, onClose, initialValues = {} }) {
     try {
       await onSubmit(formData);
     } catch (error) {
-      console.error("Error submitting buyer:", error);
-      alert(`Failed to save buyer: ${error.message}`);
+      console.error("Error submitting supplier:", error);
+      alert(`Failed to save supplier: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,7 @@ function BuyerForm({ onSubmit, onClose, initialValues = {} }) {
         <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4">
           <div className="text-center mb-3">
             <h1 className="text-xl font-bold text-gray-800">
-              {initialValues._id ? "Edit Buyer" : "Create New Buyer"}
+              {initialValues._id ? "Edit Supplier" : "Create New Supplier"}
             </h1>
           </div>
 
@@ -125,10 +125,10 @@ function BuyerForm({ onSubmit, onClose, initialValues = {} }) {
             <div className="grid grid-cols-4 gap-2">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Buyer Name*
+                  Supplier Name*
                 </label>
                 <input
-                  placeholder="Enter buyer name"
+                  placeholder="Enter supplier name"
                   className={`w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 ${
                     errors.name 
                       ? 'border-red-500 focus:ring-red-400' 
@@ -143,7 +143,7 @@ function BuyerForm({ onSubmit, onClose, initialValues = {} }) {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Buyer Code
+                  Supplier Code
                 </label>
                 <input
                   placeholder="Auto-generated if empty"
@@ -271,7 +271,7 @@ function BuyerForm({ onSubmit, onClose, initialValues = {} }) {
                   Business Type
                 </label>
                 <input
-                  placeholder="e.g., Retail, Wholesale"
+                  placeholder="e.g., Manufacturer, Distributor"
                   className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
                   value={formData.businessType}
                   onChange={(e) => handleChange('businessType', e.target.value)}
@@ -313,7 +313,7 @@ function BuyerForm({ onSubmit, onClose, initialValues = {} }) {
                 onChange={(e) => handleChange('isActive', e.target.checked)}
                 className="rounded"
               />
-              <span className="font-medium">Active Buyer</span>
+              <span className="font-medium">Active Supplier</span>
             </label>
           </div>
 
@@ -333,7 +333,7 @@ function BuyerForm({ onSubmit, onClose, initialValues = {} }) {
               disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-1.5 text-xs font-medium disabled:opacity-50"
             >
-              {loading ? "Saving..." : initialValues._id ? "Update Buyer" : "Create Buyer"}
+              {loading ? "Saving..." : initialValues._id ? "Update Supplier" : "Create Supplier"}
             </button>
           </div>
         </div>
@@ -399,57 +399,57 @@ function DataTable({ columns, data, actions }) {
   );
 }
 
-export default function Buyers() {
-  const [buyers, setBuyers] = useState([]);
+export default function Suppliers() {
+  const [suppliers, setSuppliers] = useState([]);
   const [filter, setFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
-  const [editBuyer, setEditBuyer] = useState(null);
+  const [editSupplier, setEditSupplier] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchBuyers();
+    fetchSuppliers();
   }, []);
 
-  const fetchBuyers = async () => {
+  const fetchSuppliers = async () => {
     try {
       setLoading(true);
-      const data = await buyerApi.getAll();
-      setBuyers(Array.isArray(data) ? data : []);
+      const data = await supplierApi.getAll();
+      setSuppliers(Array.isArray(data) ? data : []);
       setError(null);
     } catch (error) {
-      console.error("Error fetching buyers:", error);
-      setError("Failed to fetch buyers");
-      setBuyers([]);
+      console.error("Error fetching suppliers:", error);
+      setError("Failed to fetch suppliers");
+      setSuppliers([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this buyer?")) {
+    if (window.confirm("Are you sure you want to delete this supplier?")) {
       try {
-        await buyerApi.delete(id);
-        await fetchBuyers();
+        await supplierApi.delete(id);
+        await fetchSuppliers();
       } catch (error) {
-        console.error("Error deleting buyer:", error);
-        alert(`Failed to delete buyer: ${error.message}`);
+        console.error("Error deleting supplier:", error);
+        alert(`Failed to delete supplier: ${error.message}`);
       }
     }
   };
 
   const handleFormSubmit = async (data) => {
     try {
-      if (editBuyer) {
-        await buyerApi.update(editBuyer._id, data);
+      if (editSupplier) {
+        await supplierApi.update(editSupplier._id, data);
       } else {
-        await buyerApi.create(data);
+        await supplierApi.create(data);
       }
       setShowForm(false);
-      setEditBuyer(null);
-      await fetchBuyers();
+      setEditSupplier(null);
+      await fetchSuppliers();
     } catch (error) {
-      console.error("Error saving buyer:", error);
+      console.error("Error saving supplier:", error);
       throw error;
     }
   };
@@ -459,25 +459,25 @@ export default function Buyers() {
     return str.length > max ? str.substring(0, max) + "…" : str;
   };
 
-  const filteredBuyers = filter === "all" 
-    ? buyers 
+  const filteredSuppliers = filter === "all" 
+    ? suppliers 
     : filter === "active" 
-    ? buyers.filter(b => b.isActive) 
-    : buyers.filter(b => !b.isActive);
+    ? suppliers.filter(s => s.isActive) 
+    : suppliers.filter(s => !s.isActive);
 
   const columns = [
     {
       key: "name",
-      label: "Buyer Name",
+      label: "Supplier Name",
       width: "180px",
-      render: (b) => (
+      render: (s) => (
         <div>
-          <div className="font-medium text-sm text-gray-800" title={b.name}>
-            {truncate(b.name, 20)}
+          <div className="font-medium text-sm text-gray-800" title={s.name}>
+            {truncate(s.name, 20)}
           </div>
-          {b.company && (
-            <div className="text-xs text-gray-500" title={b.company}>
-              {truncate(b.company, 20)}
+          {s.company && (
+            <div className="text-xs text-gray-500" title={s.company}>
+              {truncate(s.company, 20)}
             </div>
           )}
         </div>
@@ -487,9 +487,9 @@ export default function Buyers() {
       key: "code",
       label: "Code",
       width: "80px",
-      render: (b) => (
+      render: (s) => (
         <span className="font-mono text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-          {b.code || "—"}
+          {s.code || "—"}
         </span>
       )
     },
@@ -497,12 +497,12 @@ export default function Buyers() {
       key: "contact",
       label: "Contact",
       width: "150px",
-      render: (b) => (
+      render: (s) => (
         <div className="text-xs">
-          <div className="font-medium text-gray-800">{b.mobile}</div>
-          {b.email && (
-            <div className="text-gray-500" title={b.email}>
-              {truncate(b.email, 20)}
+          <div className="font-medium text-gray-800">{s.mobile}</div>
+          {s.email && (
+            <div className="text-gray-500" title={s.email}>
+              {truncate(s.email, 20)}
             </div>
           )}
         </div>
@@ -512,9 +512,9 @@ export default function Buyers() {
       key: "gst",
       label: "GST",
       width: "120px",
-      render: (b) => (
-        <div className="font-mono text-xs text-gray-700" title={b.gst}>
-          {b.gst ? truncate(b.gst, 15) : "—"}
+      render: (s) => (
+        <div className="font-mono text-xs text-gray-700" title={s.gst}>
+          {s.gst ? truncate(s.gst, 15) : "—"}
         </div>
       )
     },
@@ -522,29 +522,29 @@ export default function Buyers() {
     //   key: "business",
     //   label: "Business",
     //   width: "120px",
-    //   render: (b) => (
+    //   render: (s) => (
     //     <div className="text-xs">
-    //       {b.businessType ? (
-    //         <div className="text-gray-700">{truncate(b.businessType, 15)}</div>
+    //       {s.businessType ? (
+    //         <div className="text-gray-700">{truncate(s.businessType, 15)}</div>
     //       ) : (
     //         <span className="text-gray-400">—</span>
     //       )}
-    //       {b.paymentTerms && (
-    //         <div className="text-gray-500 text-xs">{truncate(b.paymentTerms, 15)}</div>
+    //       {s.paymentTerms && (
+    //         <div className="text-gray-500 text-xs">{truncate(s.paymentTerms, 15)}</div>
     //       )}
     //     </div>
     //   )
     // },
     {
-      key: "orders",
-      label: "Orders",
+      key: "purchases",
+      label: "Purchases",
       width: "80px",
-      render: (b) => (
+      render: (s) => (
         <div className="text-center">
-          <div className="font-semibold text-gray-800 text-sm">{b.totalOrders || 0}</div>
-          {b.lastOrderDate && (
+          <div className="font-semibold text-gray-800 text-sm">{s.totalPurchases || 0}</div>
+          {s.lastPurchaseDate && (
             <div className="text-xs text-gray-500">
-              {new Date(b.lastOrderDate).toLocaleDateString('en-IN', {
+              {new Date(s.lastPurchaseDate).toLocaleDateString('en-IN', {
                 day: '2-digit',
                 month: 'short'
               })}
@@ -557,9 +557,9 @@ export default function Buyers() {
       key: "creditLimit",
       label: "Credit",
       width: "90px",
-      render: (b) => (
+      render: (s) => (
         <div className="text-xs text-gray-700">
-          {b.creditLimit > 0 ? `₹${b.creditLimit.toLocaleString('en-IN')}` : "—"}
+          {s.creditLimit > 0 ? `₹${s.creditLimit.toLocaleString('en-IN')}` : "—"}
         </div>
       )
     },
@@ -567,13 +567,13 @@ export default function Buyers() {
       key: "status",
       label: "Status",
       width: "80px",
-      render: (b) => (
+      render: (s) => (
         <span className={`px-2 py-1 rounded text-xs font-medium ${
-          b.isActive 
+          s.isActive 
             ? "bg-green-100 text-green-700" 
             : "bg-gray-100 text-gray-700"
         }`}>
-          {b.isActive ? "Active" : "Inactive"}
+          {s.isActive ? "Active" : "Inactive"}
         </span>
       )
     }
@@ -584,8 +584,8 @@ export default function Buyers() {
       label: "Edit",
       icon: Edit,
       className: "bg-blue-500 text-white hover:bg-blue-600",
-      onClick: (buyer) => {
-        setEditBuyer(buyer);
+      onClick: (supplier) => {
+        setEditSupplier(supplier);
         setShowForm(true);
       },
     },
@@ -593,14 +593,14 @@ export default function Buyers() {
       label: "Delete",
       icon: Trash2,
       className: "bg-red-500 text-white hover:bg-red-600",
-      onClick: (buyer) => handleDelete(buyer._id),
+      onClick: (supplier) => handleDelete(supplier._id),
     },
   ];
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-lg text-gray-600">Loading buyers...</div>
+        <div className="text-lg text-gray-600">Loading suppliers...</div>
       </div>
     );
   }
@@ -608,29 +608,29 @@ export default function Buyers() {
   return (
     <div className="space-y-4">
       {showForm ? (
-        <BuyerForm
+        <SupplierForm
           onSubmit={handleFormSubmit}
-          initialValues={editBuyer || {}}
+          initialValues={editSupplier || {}}
           onClose={() => {
             setShowForm(false);
-            setEditBuyer(null);
+            setEditSupplier(null);
           }}
         />
       ) : (
         <>
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Buyers Management</h1>
-              <p className="text-gray-600 text-sm mt-1">Manage your customer database</p>
+              <h1 className="text-xl font-bold text-gray-800">Suppliers Management</h1>
+              <p className="text-gray-600 text-sm mt-1">Manage your supplier database</p>
             </div>
             <button
               onClick={() => {
                 setShowForm(true);
-                setEditBuyer(null);
+                setEditSupplier(null);
               }}
               className="flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 shadow-sm text-sm"
             >
-              <Plus className="w-4 h-4 mr-1" /> Create Buyer
+              <Plus className="w-4 h-4 mr-1" /> Create Supplier
             </button>
           </div>
 
@@ -643,9 +643,9 @@ export default function Buyers() {
           <div className="border-b border-gray-200">
             <div className="flex space-x-4">
               {[
-                { key: "all", label: "All Buyers", count: buyers.length },
-                { key: "active", label: "Active", count: buyers.filter(b => b.isActive).length },
-                { key: "inactive", label: "Inactive", count: buyers.filter(b => !b.isActive).length }
+                { key: "all", label: "All Suppliers", count: suppliers.length },
+                { key: "active", label: "Active", count: suppliers.filter(s => s.isActive).length },
+                { key: "inactive", label: "Inactive", count: suppliers.filter(s => !s.isActive).length }
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -665,22 +665,22 @@ export default function Buyers() {
             </div>
           </div>
 
-          {filteredBuyers.length > 0 ? (
+          {filteredSuppliers.length > 0 ? (
             <div className="w-full">
               <DataTable
                 columns={columns}
-                data={filteredBuyers}
+                data={filteredSuppliers}
                 actions={actions}
               />
             </div>
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <User className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <div className="text-gray-500 text-lg mb-2">No buyers found</div>
+              <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <div className="text-gray-500 text-lg mb-2">No suppliers found</div>
               <div className="text-gray-400 text-sm mb-4">
                 {filter === "all"
-                  ? "Create your first buyer to get started"
-                  : `No ${filter} buyers found`
+                  ? "Create your first supplier to get started"
+                  : `No ${filter} suppliers found`
                 }
               </div>
               <button
@@ -688,7 +688,7 @@ export default function Buyers() {
                 className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Create First Buyer
+                Create First Supplier
               </button>
             </div>
           )}

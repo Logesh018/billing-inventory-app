@@ -5,12 +5,12 @@ import {
   FormGrid,
   FormInput,
   FormSelect,
-  SearchableInput,
+  // SearchableInput, // Not used directly in ProductionForm, but kept for context if it were
 } from "../UI/FormComponents";
 
 export default function ProductionForm({
   onSubmit,
-  onClose,
+  onClose = () => {}, // FIX: Provide a default no-op function for onClose
   initialValues = {},
   orders = [],
   purchases = [],
@@ -18,6 +18,7 @@ export default function ProductionForm({
   const [formData, setFormData] = useState({
     orderId: "",
     poDate: new Date().toISOString().split("T")[0],
+    poNumber: "",
     factoryReceivedDate: "",
     receivedFabric: "",
     goodsType: "",
@@ -28,111 +29,42 @@ export default function ProductionForm({
     tagMtr: "0",
     cuttingMtr: "0",
     shortageMtr: "0",
+    measurementUnit: "Meters",
     status: "Pending Production",
     remarks: "",
   });
 
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [orderSuggestions, setOrderSuggestions] = useState([]);
-  const [showOrderDropdown, setShowOrderDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Initialize form for editing
   useEffect(() => {
     if (initialValues && Object.keys(initialValues).length > 0) {
-      const order = orders.find((o) => o._id === initialValues.order?._id) || {};
-      setSelectedOrder(order);
-
       setFormData({
-        orderId: initialValues.order?._id || "",
+        orderId: initialValues.order || "",
         poDate: initialValues.poDate
           ? new Date(initialValues.poDate).toISOString().split("T")[0]
           : new Date().toISOString().split("T")[0],
+        poNumber: initialValues.poNumber || initialValues.PoNo || "",
         factoryReceivedDate: initialValues.factoryReceivedDate
           ? new Date(initialValues.factoryReceivedDate).toISOString().split("T")[0]
           : "",
-        receivedFabric: initialValues.receivedFabric || getFallbackValue(order, purchases, "fabricType"),
-        goodsType: initialValues.goodsType || getFallbackValue(order, purchases, "fabricStyle"),
-        color: initialValues.color || getFallbackValue(order, purchases, "fabricColor"),
-        requiredQty: initialValues.requiredQty || getFallbackValue(order, purchases, "totalQty"),
+        receivedFabric: initialValues.receivedFabric || "",
+        goodsType: initialValues.goodsType || "",
+        color: initialValues.color || "",
+        requiredQty: initialValues.requiredQty || "",
         expectedQty: initialValues.expectedQty || "0",
         dcMtr: initialValues.dcMtr || "0",
         tagMtr: initialValues.tagMtr || "0",
         cuttingMtr: initialValues.cuttingMtr || "0",
         shortageMtr: initialValues.shortageMtr || "0",
+        measurementUnit: initialValues.measurementUnit || "Meters",
         status: initialValues.status || "Pending Production",
         remarks: initialValues.remarks || "",
       });
     }
-  }, [initialValues, orders, purchases]);
-
-  // Fallback logic based on Order Type (FOB vs JOB-WORKS)
-  const getFallbackValue = (order, purchases, field) => {
-    if (!order) return "";
-
-    const isFob = order.orderType === "FOB";
-    const relatedPurchase = isFob
-      ? purchases.find((p) => p.order?._id === order._id && p.purchaseKg > 0)
-      : null;
-
-    switch (field) {
-      case "fabricType":
-        return isFob
-          ? relatedPurchase?.fabricType || ""
-          : order.fabric?.type || "";
-      case "fabricStyle":
-        return isFob
-          ? relatedPurchase?.fabricStyles?.[0] || ""
-          : order.fabric?.style || "";
-      case "fabricColor":
-        return isFob
-          ? relatedPurchase?.fabricColors?.[0] || ""
-          : order.fabric?.color || "";
-      case "totalQty":
-        return isFob
-          ? relatedPurchase?.purchaseKg || ""
-          : order.totalQty || "";
-      default:
-        return "";
-    }
-  };
-
-  const searchOrders = (searchTerm) => {
-    if (searchTerm.length < 2) {
-      setOrderSuggestions([]);
-      setShowOrderDropdown(false);
-      return;
-    }
-
-    const filtered = orders.filter(
-      (order) =>
-        order.orderNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.buyerDetails?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    setOrderSuggestions(filtered);
-    setShowOrderDropdown(true);
-  };
-
-  const selectOrder = (order) => {
-    setSelectedOrder(order);
-    setFormData((prev) => ({
-      ...prev,
-      orderId: order._id,
-      receivedFabric: getFallbackValue(order, purchases, "fabricType"),
-      goodsType: getFallbackValue(order, purchases, "fabricStyle"),
-      color: getFallbackValue(order, purchases, "fabricColor"),
-      requiredQty: getFallbackValue(order, purchases, "totalQty"),
-      status: order.status || "Pending Production",
-    }));
-    setShowOrderDropdown(false);
-    setOrderSuggestions([]);
-  };
+  }, [initialValues]);
 
   const handleInputChange = (field, value) => {
-    if (field === "orderId") {
-      searchOrders(value);
-    }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -180,59 +112,81 @@ export default function ProductionForm({
     }
   };
 
-  const totalInfo = selectedOrder
-    ? `${selectedOrder.orderType} • Order: ${selectedOrder.orderNo || "N/A"}`
-    : "Select an order to begin";
+  // Extract unique suppliers from production document
+  const getUniqueSuppliers = () => {
+    const suppliersMap = new Map();
+
+    // Collect all unique suppliers from fabric, buttons, and packets purchases
+    if (initialValues.fabricPurchases) {
+      initialValues.fabricPurchases.forEach(item => {
+        if (item.vendor || item.vendorId) {
+          const key = `${item.vendor || item.vendorId?.name}-${item.vendorCode || item.vendorId?.code || ""}`;
+          if (!suppliersMap.has(key)) {
+            suppliersMap.set(key, {
+              name: item.vendor || item.vendorId?.name || "N/A",
+              code: item.vendorCode || item.vendorId?.code || "N/A"
+            });
+          }
+        }
+      });
+    }
+
+    if (initialValues.buttonsPurchases) {
+      initialValues.buttonsPurchases.forEach(item => {
+        if (item.vendor || item.vendorId) {
+          const key = `${item.vendor || item.vendorId?.name}-${item.vendorCode || item.vendorId?.code || ""}`;
+          if (!suppliersMap.has(key)) {
+            suppliersMap.set(key, {
+              name: item.vendor || item.vendorId?.name || "N/A",
+              code: item.vendorCode || item.vendorId?.code || "N/A"
+            });
+          }
+        }
+      });
+    }
+
+    if (initialValues.packetsPurchases) {
+      initialValues.packetsPurchases.forEach(item => {
+        if (item.vendor || item.vendorId) {
+          const key = `${item.vendor || item.vendorId?.name}-${item.vendorCode || item.vendorId?.code || ""}`;
+          if (!suppliersMap.has(key)) {
+            suppliersMap.set(key, {
+              name: item.vendor || item.vendorId?.name || "N/A",
+              code: item.vendorCode || item.vendorId?.code || "N/A"
+            });
+          }
+        }
+      });
+    }
+
+    return Array.from(suppliersMap.values());
+  };
+
+  const totalInfo = initialValues
+    ? `${initialValues.orderType} • Order: ${initialValues.PoNo || "N/A"} • Buyer: ${initialValues.buyerName || "N/A"}`
+    : "Create new production";
+
+  // Get the current unit label based on selection
+  const getUnitLabel = () => {
+    return formData.measurementUnit;
+  };
+
+  // Handle cancel button click
+  const handleCancel = () => {
+    onClose(); // Now onClose is guaranteed to be a function (either provided or the default no-op)
+  };
 
   return (
     <FormContainer
-      title={initialValues?._id ? "Edit Production" : "Create Production"}
-      onClose={onClose}
+      title={initialValues._id ? "Edit Production" : "Create Production"}
+      onClose={handleCancel}
       onSubmit={handleSubmit}
       loading={loading}
-      submitText={initialValues?._id ? "Update Production" : "Create Production"}
+      submitText={initialValues._id ? "Update Production" : "Create Production"}
       totalInfo={totalInfo}
     >
-      {/* Order Selection */}
-      <FormSection title="Order Selection" color="blue">
-        <FormGrid columns={1}>
-          <SearchableInput
-            label="Select Order*"
-            value={formData.orderId ? selectedOrder?.orderNo || "" : ""}
-            onChange={(value) => handleInputChange("orderId", value)}
-            placeholder="Search by Order No or Buyer Name..."
-            suggestions={orderSuggestions}
-            onSelect={selectOrder}
-            showDropdown={showOrderDropdown}
-            onBlur={() => setTimeout(() => setShowOrderDropdown(false), 200)}
-          />
-          {selectedOrder && (
-            <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded mt-1">
-              <div>
-                <strong>Buyer:</strong> {selectedOrder.buyerDetails?.name || "N/A"}
-              </div>
-              <div>
-                <strong>Type:</strong>{" "}
-                <span
-                  className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    selectedOrder.orderType === "FOB"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-green-100 text-green-800"
-                  }`}
-                >
-                  {selectedOrder.orderType}
-                </span>
-              </div>
-              <div>
-                <strong>Total Qty:</strong> {selectedOrder.totalQty || "N/A"}
-              </div>
-            </div>
-          )}
-        </FormGrid>
-      </FormSection>
-
-      {/* Production Details */}
-      <FormSection title="Production Details" color="green">
+      {/* Order Information */}
+      <FormSection title="Order Information" color="blue">
         <FormGrid columns={3} gap={4}>
           <FormInput
             label="PO Date*"
@@ -241,11 +195,87 @@ export default function ProductionForm({
             onChange={(value) => handleInputChange("poDate", value)}
           />
           <FormInput
+            label="PO Number*"
+            value={formData.poNumber}
+            onChange={(value) => handleInputChange("poNumber", value)}
+            placeholder="Enter PO number"
+          />
+          <FormInput
             label="Factory Received Date"
             type="date"
             value={formData.factoryReceivedDate}
             onChange={(value) => handleInputChange("factoryReceivedDate", value)}
           />
+        </FormGrid>
+
+        {initialValues && Object.keys(initialValues).length > 0 && (
+          <div className="flex gap-4 text-xs text-gray-600 bg-blue-50 p-2 rounded mt-2">
+            {/* Buyer Details */}
+            <div className="flex-1">
+              <div className="font-semibold text-blue-700 mb-1">Buyer Details</div>
+              <div className="border border-gray-200 rounded overflow-hidden">
+                <div className="grid grid-cols-4 bg-gray-100 text-gray-700 font-medium text-xs">
+                  <div className="p-1 border-r border-gray-200">Name</div>
+                  <div className="p-1 border-r border-gray-200">Code</div>
+                  <div className="p-1 border-r border-gray-200">Type</div>
+                  <div className="p-1">Total Qty</div>
+                </div>
+                <div className="grid grid-cols-4 border-t border-gray-200">
+                  <div className="p-1 border-r border-gray-200">{initialValues.buyerName || "N/A"}</div>
+                  <div className="p-1 border-r border-gray-200">{initialValues.buyerCode || "N/A"}</div>
+                  <div className="p-1 border-r border-gray-200">
+                    <span
+                      className={`px-2 py-0.5 rounded text-xs font-medium ${initialValues.orderType === "FOB"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-purple-100 text-purple-800"
+                        }`}
+                    >
+                      {initialValues.orderType}
+                    </span>
+                  </div>
+                  <div className="p-1">{initialValues.totalQty || "N/A"}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Supplier Details */}
+            <div className="flex-1 border-l border-blue-200 pl-4">
+              <div className="font-semibold text-blue-700 mb-1">Supplier Details</div>
+              {getUniqueSuppliers().length > 0 ? (
+                <div className="border border-gray-200 rounded overflow-hidden">
+                  <div className="grid grid-cols-2 bg-gray-100 text-gray-700 font-medium text-xs">
+                    <div className="p-1 border-r border-gray-200">Name</div>
+                    <div className="p-1">Code</div>
+                  </div>
+                  {getUniqueSuppliers().slice(0, 3).map((supplier, idx) => (
+                    <div key={idx} className="grid grid-cols-2 border-t border-gray-200">
+                      <div className="p-1 border-r border-gray-200 truncate" title={supplier.name}>
+                        {supplier.name}
+                      </div>
+                      <div className="p-1 truncate" title={supplier.code}>
+                        {supplier.code}
+                      </div>
+                    </div>
+                  ))}
+                  {getUniqueSuppliers().length > 3 && (
+                    <div className="text-center text-xs text-gray-500 p-1 border-t border-gray-200">
+                      +{getUniqueSuppliers().length - 3} more
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-gray-500 italic">
+                  No supplier information available
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </FormSection>
+
+      {/* Production Details */}
+      <FormSection title="Production Details" color="green">
+        <FormGrid columns={5} gap={4}>
           <FormInput
             label="Received Fabric*"
             value={formData.receivedFabric}
@@ -277,27 +307,48 @@ export default function ProductionForm({
             value={formData.expectedQty}
             onChange={(value) => handleInputChange("expectedQty", value)}
           />
+        </FormGrid>
+      </FormSection>
+
+      {/* Measurement Details with Unit Selector */}
+      <FormSection title="Measurement Details" color="orange">
+        <FormGrid columns={5} gap={4}>
+          <FormSelect
+            label="Measurement Unit*"
+            value={formData.measurementUnit}
+            onChange={(value) => handleInputChange("measurementUnit", value)}
+            options={[
+              { value: "Meters", label: "Meters" },
+              { value: "KG", label: "KG" },
+              { value: "Qty", label: "Qty" },
+              { value: "Pcs", label: "Pcs" },
+            ]}
+          />
           <FormInput
-            label="DC Meters"
+            label={`DC ${getUnitLabel()}`}
             type="number"
+            step="0.01"
             value={formData.dcMtr}
             onChange={(value) => handleInputChange("dcMtr", value)}
           />
           <FormInput
-            label="Tag Meters"
+            label={`Tag ${getUnitLabel()}`}
             type="number"
+            step="0.01"
             value={formData.tagMtr}
             onChange={(value) => handleInputChange("tagMtr", value)}
           />
           <FormInput
-            label="Cutting Meters"
+            label={`Cutting ${getUnitLabel()}`}
             type="number"
+            step="0.01"
             value={formData.cuttingMtr}
             onChange={(value) => handleInputChange("cuttingMtr", value)}
           />
           <FormInput
-            label="Shortage Meters"
+            label={`Shortage ${getUnitLabel()}`}
             type="number"
+            step="0.01"
             value={formData.shortageMtr}
             onChange={(value) => handleInputChange("shortageMtr", value)}
           />

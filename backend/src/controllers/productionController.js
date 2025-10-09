@@ -1,17 +1,7 @@
-// controllers/productionController.js
 import mongoose from "mongoose";
 import Production from "../models/production.js";
 import Order from "../models/orders.js";
 import Purchase from "../models/purchase.js";
-
-// Normalize values to array of strings
-const normalizeArray = (val) => {
-  if (!val) return [];
-  if (Array.isArray(val)) {
-    return val.map(v => (typeof v === "object" ? Object.values(v)[0] : v));
-  }
-  return [val];
-};
 
 // @desc    Create a new production entry
 // @route   POST /api/productions
@@ -29,12 +19,15 @@ export const createProduction = async (req, res) => {
       cuttingMtr,
       status,
       expectedQty,
+      receivedFabric,
+      goodsType,
+      color,
+      measurementUnit,
       remarks,
     } = req.body;
 
     console.log("POST /api/productions payload:", req.body);
 
-    // ✅ Validate orderId
     if (!orderId) {
       return res.status(400).json({ message: "orderId is required" });
     }
@@ -42,28 +35,79 @@ export const createProduction = async (req, res) => {
       return res.status(400).json({ message: "Invalid order ID format" });
     }
 
-    let order = await Order.findById(orderId);
+    const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
+    const existingProduction = await Production.findOne({ order: order._id });
+    if (existingProduction) {
+      return res.status(400).json({
+        message: "Production already exists for this order",
+        productionId: existingProduction._id
+      });
+    }
+
+    // FIX: Transform products to match Purchase structure (color -> sizes)
+    const productionProducts = order.products.map(p => {
+      const colorMap = new Map();
+
+      // Build color-to-sizes mapping from Order structure
+      p.fabricTypes?.forEach(fabricType => {
+        fabricType.sizes?.forEach(sizeEntry => {
+          sizeEntry.colors?.forEach(colorEntry => {
+            if (!colorMap.has(colorEntry.color)) {
+              colorMap.set(colorEntry.color, []);
+            }
+            colorMap.get(colorEntry.color).push({
+              size: sizeEntry.size,
+              quantity: colorEntry.qty
+            });
+          });
+        });
+      });
+
+      return {
+        productName: p.productDetails?.name || "Unknown Product",
+        fabricType: p.fabricTypes?.map(ft => ft.fabricType).join(", ") || "N/A",
+        // Use color-based structure like Purchase
+        colors: Array.from(colorMap.entries()).map(([color, sizes]) => ({
+          color: color,
+          sizes: sizes
+        })),
+        productTotalQty: p.fabricTypes?.reduce((total, ft) =>
+          total + (ft.sizes?.reduce((sTotal, sz) =>
+            sTotal + (sz.colors?.reduce((cTotal, col) => cTotal + (col.qty || 0), 0) || 0), 0) || 0), 0) || 0
+      };
+    });
+
     const productionData = {
       order: order._id,
+      orderDate: order.orderDate,
+      PoNo: order.PoNo,
+      orderType: order.orderType,
+      buyerCode: order.buyerDetails?.code || "N/A",
+      buyerName: order.buyerDetails?.name || "N/A",
+      products: productionProducts,
+      totalQty: order.totalQty || 0,
       poDate,
-      poNo,
+      poNumber: poNo,
       factoryReceivedDate,
-      dcNo,
+      dcNumber: dcNo,
       dcMtr,
       tagMtr,
       cuttingMtr,
-      status,
-      requiredQty: order.totalQty || 0, // from order
+      measurementUnit: measurementUnit || 'Meters',
+      status: status || "Pending Production",
+      requiredQty: order.totalQty || 0,
       expectedQty: expectedQty ? Number(expectedQty) : 0,
-      orderType: order.orderType,
       remarks,
+      receivedFabric: receivedFabric || '',
+      goodsType: goodsType || '',
+      color: color || '',
     };
 
-    // ✅ If FOB → require purchaseId
+    // If FOB → require purchaseId and get purchase data
     if (order.orderType === "FOB") {
       if (!purchaseId) {
         return res.status(400).json({ message: "purchaseId required for FOB orders" });
@@ -72,54 +116,98 @@ export const createProduction = async (req, res) => {
         return res.status(400).json({ message: "Invalid purchase ID format" });
       }
 
-      const purchase = await Purchase.findById(purchaseId);
+      const purchase = await Purchase.findById(purchaseId)
+        .populate("fabricPurchases.vendorId", "name code")
+        .populate("buttonsPurchases.vendorId", "name code")
+        .populate("packetsPurchases.vendorId", "name code");
+
       if (!purchase) {
         return res.status(404).json({ message: "Purchase not found" });
       }
 
-      productionData.receivedFabric = purchase.fabricType;
-      productionData.goodsType = purchase.fabricStyles?.[0] || "";
-      productionData.color = purchase.fabricColors?.[0] || "";
+      productionData.purchase = purchase._id;
+      productionData.fabricPurchases = purchase.fabricPurchases || [];
+      productionData.buttonsPurchases = purchase.buttonsPurchases || [];
+      productionData.packetsPurchases = purchase.packetsPurchases || [];
+      productionData.totalFabricCost = purchase.totalFabricCost || 0;
+      productionData.totalButtonsCost = purchase.totalButtonsCost || 0;
+      productionData.totalPacketsCost = purchase.totalPacketsCost || 0;
+      productionData.totalFabricGst = purchase.totalFabricGst || 0;
+      productionData.totalButtonsGst = purchase.totalButtonsGst || 0;
+      productionData.totalPacketsGst = purchase.totalPacketsGst || 0;
+      productionData.grandTotalCost = purchase.grandTotalCost || 0;
+      productionData.grandTotalWithGst = purchase.grandTotalWithGst || 0;
+
+      if (!receivedFabric && purchase.fabricPurchases && purchase.fabricPurchases.length > 0) {
+        const firstFabric = purchase.fabricPurchases[0];
+        productionData.receivedFabric = firstFabric.fabricType;
+        productionData.goodsType = firstFabric.productName;
+        productionData.color = firstFabric.colors && firstFabric.colors.length > 0
+          ? firstFabric.colors.join(", ")
+          : "";
+      }
     }
 
-    // ✅ If JOB-WORKS → derive from order
     if (order.orderType === "JOB-Works") {
-      productionData.receivedFabric = order.fabric?.type;
-      productionData.goodsType = order.fabric?.style;
-      productionData.color = order.fabric?.color;
+      if (!receivedFabric && order.products && order.products.length > 0) {
+        const firstProduct = order.products[0];
+        if (firstProduct.fabricTypes && firstProduct.fabricTypes.length > 0) {
+          const firstFabric = firstProduct.fabricTypes[0];
+          productionData.receivedFabric = firstFabric.fabricType;
+          productionData.goodsType = firstProduct.productDetails?.name || "";
+
+          const colors = new Set();
+          firstFabric.sizes?.forEach(size => {
+            size.colors?.forEach(color => {
+              colors.add(color.color);
+            });
+          });
+          productionData.color = Array.from(colors).join(", ");
+        }
+      }
+
+      if (purchaseId) {
+        const purchase = await Purchase.findById(purchaseId)
+          .populate("buttonsPurchases.vendorId", "name code")
+          .populate("packetsPurchases.vendorId", "name code");
+
+        if (purchase) {
+          productionData.purchase = purchase._id;
+          productionData.buttonsPurchases = purchase.buttonsPurchases || [];
+          productionData.packetsPurchases = purchase.packetsPurchases || [];
+          productionData.totalButtonsCost = purchase.totalButtonsCost || 0;
+          productionData.totalPacketsCost = purchase.totalPacketsCost || 0;
+          productionData.totalButtonsGst = purchase.totalButtonsGst || 0;
+          productionData.totalPacketsGst = purchase.totalPacketsGst || 0;
+        }
+      }
     }
 
-    if (remarks !== undefined) production.remarks = remarks;
-
-    // Save Production
     const newProduction = new Production(productionData);
     const savedProduction = await newProduction.save();
-    console.log("Saved production:", savedProduction);
+    console.log("✅ Saved production:", savedProduction._id);
 
-    // Update order status
-    if (order.orderType === "FOB") {
-      order.status = "Pending Purchase";
-    } else {
-      order.status = "Pending Production";
-    }
-    await order.save();
+    await Order.findByIdAndUpdate(orderId, { 
+      status: "Pending Production",
+      production: savedProduction._id
+    });
 
     res.status(201).json(savedProduction);
   } catch (err) {
-    console.error("Error in createProduction:", err);
+    console.error("❌ Error in createProduction:", err);
     res.status(400).json({ message: err.message, error: err });
   }
 };
 
-
-// @desc    Get all productions
-// @route   GET /api/productions
+// Keep all other functions the same...
 export const getProductions = async (req, res) => {
   try {
     const productions = await Production.find()
-      .populate("order")   // make sure to pull all order fields
-      .populate("purchase") // optional
-
+      .populate("order", "buyerDetails orderType totalQty status")
+      .populate("purchase", "PoNo status")
+      .populate("fabricPurchases.vendorId", "name code")
+      .populate("buttonsPurchases.vendorId", "name code")
+      .populate("packetsPurchases.vendorId", "name code")
       .sort({ createdAt: -1 });
 
     res.json(productions);
@@ -129,12 +217,14 @@ export const getProductions = async (req, res) => {
   }
 };
 
-// @desc    Get single production by ID
-// @route   GET /api/productions/:id
 export const getProductionById = async (req, res) => {
   try {
     const production = await Production.findById(req.params.id)
-      .populate("order", "buyerDetails orderType totalQty status");
+      .populate("order", "buyerDetails orderType totalQty status")
+      .populate("purchase", "PoNo status")
+      .populate("fabricPurchases.vendorId", "name code")
+      .populate("buttonsPurchases.vendorId", "name code")
+      .populate("packetsPurchases.vendorId", "name code");
 
     if (!production) {
       return res.status(404).json({ message: "Production not found" });
@@ -147,8 +237,6 @@ export const getProductionById = async (req, res) => {
   }
 };
 
-// @desc    Update production
-// @route   PUT /api/productions/:id
 export const updateProduction = async (req, res) => {
   try {
     const production = await Production.findById(req.params.id);
@@ -158,7 +246,6 @@ export const updateProduction = async (req, res) => {
 
     Object.assign(production, req.body);
 
-    // shortageMtr = tagMtr - cuttingMtr
     if (req.body.tagMtr !== undefined && req.body.cuttingMtr !== undefined) {
       production.shortageMtr = req.body.tagMtr - req.body.cuttingMtr;
     }
@@ -173,8 +260,6 @@ export const updateProduction = async (req, res) => {
   }
 };
 
-// @desc    Mark production as completed and update order
-// @route   PATCH /api/productions/:id/complete
 export const completeProduction = async (req, res) => {
   try {
     const production = await Production.findById(req.params.id);
@@ -196,8 +281,6 @@ export const completeProduction = async (req, res) => {
   }
 };
 
-// @desc    Delete a production
-// @route   DELETE /api/productions/:id
 export const deleteProduction = async (req, res) => {
   try {
     const production = await Production.findById(req.params.id);

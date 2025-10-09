@@ -327,40 +327,40 @@ export default function Orders() {
         );
       }
     },
-    {
-      key: "sizeQtyTotal",
-      label: "Size + Qty",
-      width: "80px",
-      render: (o) => {
-        if (!o.products || o.products.length === 0) {
-          return <span className="text-gray-400 text-xs">—</span>;
-        }
+    // {
+    //   key: "sizeQtyTotal",
+    //   label: "Size + Qty",
+    //   width: "80px",
+    //   render: (o) => {
+    //     if (!o.products || o.products.length === 0) {
+    //       return <span className="text-gray-400 text-xs">—</span>;
+    //     }
 
-        const sizeMap = {};
-        o.products.forEach(p => {
-          p.fabricTypes?.forEach(ft => {
-            ft.sizes?.forEach(s => {
-              s.colors?.forEach(c => {
-                sizeMap[s.size] = (sizeMap[s.size] || 0) + (c.qty || 0);
-              });
-            });
-          });
-        });
+    //     const sizeMap = {};
+    //     o.products.forEach(p => {
+    //       p.fabricTypes?.forEach(ft => {
+    //         ft.sizes?.forEach(s => {
+    //           s.colors?.forEach(c => {
+    //             sizeMap[s.size] = (sizeMap[s.size] || 0) + (c.qty || 0);
+    //           });
+    //         });
+    //       });
+    //     });
 
-        const sizeEntries = Object.entries(sizeMap).sort((a, b) => {
-          const sizeOrder = { XS: 0, S: 1, M: 2, L: 3, XL: 4, XXL: 5 };
-          return (sizeOrder[a[0]] || 999) - (sizeOrder[b[0]] || 999);
-        });
+    //     const sizeEntries = Object.entries(sizeMap).sort((a, b) => {
+    //       const sizeOrder = { XS: 0, S: 1, M: 2, L: 3, XL: 4, XXL: 5 };
+    //       return (sizeOrder[a[0]] || 999) - (sizeOrder[b[0]] || 999);
+    //     });
 
-        return (
-          <div className="text-xs font-mono">
-            {sizeEntries.map(([size, qty], idx) => (
-              <div key={idx} className="text-gray-600 border-b border-l border-r border-gray-200">{size}: {qty}</div>
-            ))}
-          </div>
-        );
-      }
-    },
+    //     return (
+    //       <div className="text-xs font-mono">
+    //         {sizeEntries.map(([size, qty], idx) => (
+    //           <div key={idx} className="text-gray-600 border-b border-l border-r border-gray-200">{size}: {qty}</div>
+    //         ))}
+    //       </div>
+    //     );
+    //   }
+    // },
     {
       key: "totalQty",
       label: "Total",

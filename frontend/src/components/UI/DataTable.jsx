@@ -18,7 +18,7 @@ const DataTable = ({ columns, data, actions = [], className = "" }) => {
             ))}
             {actions.length > 0 && (
               <th 
-                style={{ width: '60px' }}
+                style={{ width: '80px' }}
                 className="px-1 py-1.5 text-center text-xs font-semibold text-gray-700 uppercase tracking-tight rounded-tr-lg"
               >
                 Actions
@@ -50,7 +50,7 @@ const DataTable = ({ columns, data, actions = [], className = "" }) => {
                 ))}
                 {actions.length > 0 && (
                   <td 
-                    style={{ width: '60px' }}
+                    style={{ width: '80px' }}
                     className="px-1 py-1.5 text-center"
                   >
                     <div className="flex justify-center space-x-0.5">

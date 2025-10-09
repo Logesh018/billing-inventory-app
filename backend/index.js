@@ -15,8 +15,11 @@ import purchaseRoutes from "./src/routes/purchaseRoutes.js";
 import productionRoutes from "./src/routes/productionRoutes.js";
 import orderRoutes from "./src/routes/orderRoutes.js";
 import buyerRoutes from "./src/routes/buyerRoutes.js";
+import supplierRoutes from "./src/routes/supplierRoutes.js"
 import fabricRoutes from "./src/routes/fabricRoutes.js";
 import documentRoutes from "./src/routes/documentRoutes.js";
+import machinePurchaseRoutes from "./src/routes/machinePurchaseRoutes.js";
+import purchaseEstimationRoutes from "./src/routes/purchaseEstimationRoutes.js"
 import { invoiceRouter } from "./src/routes/invoiceRoutes.js";
 
 dotenv.config();
@@ -38,9 +41,12 @@ app.use("/api/purchases", purchaseRoutes);
 app.use("/api/productions", productionRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/buyers", buyerRoutes);
+app.use("/api/suppliers", supplierRoutes);
 app.use("/api/fabrics", fabricRoutes);
 app.use("/api/documents", documentRoutes);
-app.use("/api/invoices", invoiceRouter);
+app.use("/api/machines", machinePurchaseRoutes);
+app.use("/api/purchase-estimations", purchaseEstimationRoutes);
+//app.use("/api/invoices", invoiceRouter);
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));

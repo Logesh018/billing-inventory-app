@@ -33,7 +33,7 @@ export const createBuyer = async (req, res) => {
   }
 };
 
-// Rest of the controller functions remain unchanged
+
 export const getAllBuyers = async (req, res) => {
   try {
     const buyers = await Buyer.find().sort({ createdAt: -1 });

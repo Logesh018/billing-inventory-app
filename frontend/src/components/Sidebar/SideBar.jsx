@@ -24,7 +24,7 @@ import Products from "../../pages/Products";
 import Purchase from "../../pages/Purchase";
 import Productions from "../../pages/Productions";
 import Buyers from "./Sidebarpages/Buyers";
-import ProductCatalogPage from "./Sidebarpages/ProductCatalog";
+import Suppliers from "./Sidebarpages/Supplier";
 import EventsPage from "./Sidebarpages/Events";
 import ReportsPage from "./Sidebarpages/Reports";
 import Orders from "../../pages/Orders";
@@ -36,6 +36,7 @@ import TimeSheet from "./Timetracking/TimeSheet";
 import UsersManagement from "../../pages/UsersManagement";
 import Proforma from "../../pages/Proforma";
 import Estimations from "../../pages/Estimations";
+import PurchaseEstimation from "../../pages/PurchaseEstimation";
 
 const menuItems = [
   { name: "Home", icon: Home, path: "/" },
@@ -59,14 +60,15 @@ const menuItems = [
     icon: ShoppingCart,
     subMenu: [
       { name: "Purchases", path: "/purchases" },
-      { name: "Purchase Return", path: "/purchase/return" },
+      { name: "Purchase Return", path: "/purchase-return" },
+      { name: "Purchase Estimations", path: "/purchase-estimations" },
     ],
   },
   {
     name: "Production Progress",
     icon: Factory,
     subMenu: [
-      { name: "Production", path: "/productions" },
+      { name: "In Warehouse", path: "/productions" },
       { name: "Cutting", path: "/production/cutting" },
       { name: "Stitching", path: "/production/stitching" },
       { name: "Trimming", path: "/production/trimming" },
@@ -214,12 +216,13 @@ export default function Sidebar() {
       <main className="flex-1 p-4 overflow-y-auto">
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/vendor/suppliers" element={<ProductCatalogPage />} />
+          <Route path="/vendor/suppliers" element={<Suppliers />} />
           <Route path="/vendor/buyers" element={<Buyers />} />
           <Route path="/vendor/sales" element={<EventsPage />} />
           <Route path="/products" element={<Products />} />
           <Route path="/purchases" element={<Purchase />} />
           <Route path="/purchase/return" element={<RecurringExpenses />} />
+          <Route path="/purchase-estimations" element={<PurchaseEstimation />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/productions" element={<Productions />} />
           <Route path="/production/cutting" element={<Projects />} />

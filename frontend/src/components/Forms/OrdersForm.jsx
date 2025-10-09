@@ -412,7 +412,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                 </label>
                 <input
                   placeholder="Enter buyer name"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                  className="w-full border border-gray-300 text-gray-700 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
                   value={formData.buyer.name}
                   onChange={(e) => handleFormChange('buyer.name', e.target.value)}
                   onBlur={() => setTimeout(() => setShowBuyerDropdown(false), 200)}
@@ -422,11 +422,11 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                     {buyerSuggestions.map((buyer, index) => (
                       <div
                         key={buyer._id || index}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-xs"
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-xs text-gray-700"
                         onClick={() => selectBuyer(buyer)}
                       >
-                        <div className="font-medium">{buyer.name}</div>
-                        <div className="text-gray-500">{buyer.mobile}</div>
+                        <div className="font-medium text-gray-700">{buyer.name}</div>
+                        <div className="text-gray-500 ">{buyer.mobile}</div>
                       </div>
                     ))}
                   </div>
@@ -440,7 +440,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                 </label>
                 <input
                   placeholder="Auto generated if empty"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
                   value={formData.buyer.code}
                   onChange={(e) => handleFormChange('buyer.code', e.target.value)}
                 />
@@ -453,7 +453,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                 </label>
                 <input
                   placeholder="Mobile number"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                  className="w-full border border-gray-300 text-gray-700 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
                   value={formData.buyer.mobile}
                   onChange={(e) => handleFormChange('buyer.mobile', e.target.value)}
                 />
@@ -466,7 +466,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                 </label>
                 <input
                   placeholder="GST number"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                  className="w-full border border-gray-300 text-gray-700 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
                   value={formData.buyer.gst}
                   onChange={(e) => handleFormChange('buyer.gst', e.target.value)}
                 />
@@ -479,7 +479,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                 </label>
                 <input
                   placeholder="Email address"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                  className="w-full border border-gray-300 text-gray-700 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
                   value={formData.buyer.email}
                   onChange={(e) => handleFormChange('buyer.email', e.target.value)}
                 />
@@ -495,7 +495,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                     <textarea
                       placeholder="Address"
                       rows="2"
-                      className="w-sm border inline-flex  border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                      className="w-sm border inline-flex  border-gray-300 text-gray-700 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
                       value={formData.buyer.address}
                       onChange={(e) => handleFormChange('buyer.address', e.target.value)}
                     />
@@ -537,11 +537,11 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                   PO No
                 </label>
                 {initialValues && initialValues._id ? (
-                  <div className="w-full bg-gray-100 border border-gray-300 rounded px-2 py-1 text-xs font-medium">
+                  <div className="w-full bg-gray-100 border border-gray-300 text-gray-800 rounded px-2 py-1 text-xs font-medium">
                     {formData.PoNo || "—"}
                   </div>
                 ) : (
-                  <div className="w-full bg-gray-100 border border-gray-300 rounded px-2 py-1 text-xs font-medium">
+                  <div className="w-full bg-gray-100 border border-gray-300 text-gray-800 rounded px-2 py-1 text-xs font-medium">
                     {nextPoNo || "Loading..."}
                   </div>
                 )}
@@ -553,7 +553,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                   Type*
                 </label>
                 <select
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-400 focus:border-green-400 bg-white"
+                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-1 focus:ring-green-400 focus:border-green-400 bg-white"
                   value={formData.orderType}
                   onChange={(e) => handleFormChange('orderType', e.target.value)}
                   required
@@ -571,7 +571,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                 </label>
                 <input
                   type="date"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-400 focus:border-green-400"
+                  className="w-full border border-gray-300 text-gray-800 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-400 focus:border-green-400"
                   value={formData.orderDate}
                   onChange={(e) => handleFormChange('orderDate', e.target.value)}
                   required
@@ -611,21 +611,21 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                             <label className="block text-xs font-medium text-gray-600 mb-1">Product</label>
                             <input
                               placeholder="Product name"
-                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
                               value={product.productDetails.name}
                               onChange={(e) => handleProductChange(pIndex, "name", e.target.value)}
                               onBlur={() => setTimeout(() => setShowProductDropdown({}), 200)}
                             />
                             {showProductDropdown[pIndex] && productSuggestions.length > 0 && (
-                              <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto mt-1">
+                              <div className="absolute z-10 w-full bg-white border border-gray-300  rounded-md shadow-lg max-h-40 overflow-y-auto mt-1">
                                 {productSuggestions.map((prod, index) => (
                                   <div
                                     key={prod._id || index}
-                                    className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-xs"
+                                    className="px-3 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer text-xs"
                                     onClick={() => selectProduct(prod, pIndex)}
                                   >
-                                    <div className="font-medium">{prod.name}</div>
-                                    <div className="text-gray-500">HSN: {prod.hsn}</div>
+                                    <div className="font-medium text-gray-800">{prod.name}</div>
+                                    <div className="text-gray-700">HSN: {prod.hsn}</div>
                                   </div>
                                 ))}
                               </div>
@@ -635,7 +635,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                             <label className="block text-xs font-medium text-gray-600 mb-1">HSN</label>
                             <input
                               placeholder="HSN"
-                              className="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                              className="w-full border border-gray-200 text-gray-800 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
                               value={product.productDetails.hsn}
                               onChange={(e) => handleProductChange(pIndex, "hsn", e.target.value)}
                             />
@@ -646,7 +646,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                             </label>
                             <input
                               placeholder="Enter Fabric Type"
-                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+                              className="w-full border border-gray-300 text-gray-800 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
                               value={product.productDetails.fabricType}
                               onChange={(e) => handleProductChange(pIndex, "fabricType", e.target.value)}
                             />
@@ -680,7 +680,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                                     <td className="border-0 px-2 py-1 w-1/4">
                                       <input
                                         placeholder="Size"
-                                        className="w-full border bg-white border-gray-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        className="w-full border bg-white border-gray-300 text-gray-800 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         value={variation.size}
                                         onChange={(e) =>
                                           handleVariationChange(pIndex, vIndex, "size", e.target.value)
@@ -690,7 +690,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                                     <td className="border-0 px-2 py-1 w-1/4">
                                       <input
                                         placeholder="Color"
-                                        className="w-full border bg-white border-gray-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        className="w-full border bg-white border-gray-300 text-gray-800 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         value={variation.color}
                                         onChange={(e) =>
                                           handleVariationChange(pIndex, vIndex, "color", e.target.value)
@@ -702,7 +702,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {} }) {
                                         type="number"
                                         min="1"
                                         placeholder="Qty"
-                                        className="w-full border bg-white border-gray-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        className="w-full border bg-white border-gray-300 text-gray-800 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         value={variation.qty}
                                         onChange={(e) =>
                                           handleVariationChange(pIndex, vIndex, "qty", e.target.value)

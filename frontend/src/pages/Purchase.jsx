@@ -3,7 +3,10 @@ import { useAuth } from "../context/AuthContext";
 import { getPurchases, createPurchase, updatePurchase, deletePurchase } from "../api/purchaseApi";
 import PurchaseForm from "../components/Forms/PurchaseForm";
 import DataTable from "../components/UI/DataTable";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, ShoppingCart } from "lucide-react";
+import { getMachinePurchases, createMachinePurchase, deleteMachinePurchase } from "../api/machinePurchaseApi";
+import MachinePurchasesTable from "../pages/MachinePurchasesTable";
+import MachinePurchaseForm from "../components/Forms/MachinePurchaseForm";
 
 export default function Purchase() {
   const { user, hasAccess } = useAuth();
@@ -11,22 +14,45 @@ export default function Purchase() {
   const [filter, setFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [editPurchase, setEditPurchase] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [machinePurchases, setMachinePurchases] = useState([]);
+  const [showMachineForm, setShowMachineForm] = useState(false);
+  const [editMachine, setEditMachine] = useState(null);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isAdmin = user?.role === "Admin" || user?.role === "SuperAdmin";
 
   useEffect(() => {
     fetchPurchases();
+    fetchMachinePurchases();
   }, [hasAccess]);
 
   const fetchPurchases = async () => {
     try {
       setLoading(true);
       const res = await getPurchases();
-      const allPurchases = (Array.isArray(res.data) ? res.data : [])
+      // Filter out machine-only purchases (they should only appear in machines tab)
+      const nonMachinePurchases = (Array.isArray(res.data) ? res.data : [])
+        .filter(p => {
+          // Include if it has fabric, buttons, or packets
+          const hasMaterials = 
+            (p.fabricPurchases && p.fabricPurchases.length > 0) ||
+            (p.buttonsPurchases && p.buttonsPurchases.length > 0) ||
+            (p.packetsPurchases && p.packetsPurchases.length > 0);
+          
+          // Exclude if it ONLY has machines
+          const onlyMachines = 
+            (p.machinesPurchases && p.machinesPurchases.length > 0) &&
+            !hasMaterials;
+          
+          return !onlyMachines;
+        })
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      setPurchases(allPurchases);
+      
+      setPurchases(nonMachinePurchases);
       setError(null);
     } catch (err) {
       console.error("Error fetching purchases", err);
@@ -34,6 +60,18 @@ export default function Purchase() {
       setPurchases([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMachinePurchases = async () => {
+    try {
+      const res = await getMachinePurchases();
+      // The API returns { data: [...] }, so we extract it
+      const machineData = res.data?.data || res.data;
+      setMachinePurchases(Array.isArray(machineData) ? machineData : []);
+    } catch (err) {
+      console.error("Error fetching machine purchases:", err);
+      setMachinePurchases([]);
     }
   };
 
@@ -49,8 +87,38 @@ export default function Purchase() {
     }
   };
 
+  const handleMachineDelete = async (machine) => {
+    if (window.confirm(`Are you sure you want to delete machine purchase "${machine.machineName}"? This action cannot be undone.`)) {
+      try {
+        // Delete using the purchase document ID
+        await deleteMachinePurchase(machine.purchaseId);
+        await fetchMachinePurchases();
+      } catch (error) {
+        console.error("Error deleting machine purchase:", error);
+        alert(`Failed to delete machine purchase: ${error.response?.data?.message || error.message}`);
+      }
+    }
+  };
+
   const handleFormSubmit = async (data) => {
+    if (isSubmitting) {
+      console.log("⚠️ Already submitting, ignoring duplicate request");
+      return;
+    }
+
     try {
+      setIsSubmitting(true);
+
+      const hasPurchaseItems =
+        (data.fabricPurchases && data.fabricPurchases.length > 0) ||
+        (data.buttonsPurchases && data.buttonsPurchases.length > 0) ||
+        (data.packetsPurchases && data.packetsPurchases.length > 0);
+
+      if (!hasPurchaseItems) {
+        alert("Please add at least one purchase item (fabric, buttons, or packets)");
+        return;
+      }
+
       const payload = {
         orderId: data.orderId,
         fabricPurchases: data.fabricPurchases || [],
@@ -59,31 +127,102 @@ export default function Purchase() {
         remarks: data.remarks,
       };
 
-      // if (!payload.orderId) {
-      //   alert("Order is required");
-      //   return;
-      // }
+      console.log("📤 Submitting purchase payload:", payload);
 
-      if (editPurchase) {
+      if (editPurchase && editPurchase._id) {
+        console.log("📝 Updating existing purchase:", editPurchase._id);
         await updatePurchase(editPurchase._id, payload);
+      } else if (selectedOrder && selectedOrder._id) {
+        try {
+          const existingPurchaseResponse = await getPurchases();
+          const existingPurchase = existingPurchaseResponse.data.find(
+            p => p.order?._id === selectedOrder.orderId || p.order === selectedOrder.orderId
+          );
+
+          if (existingPurchase) {
+            console.log("📝 Found existing purchase, updating:", existingPurchase._id);
+            await updatePurchase(existingPurchase._id, payload);
+          } else {
+            console.log("📝 No existing purchase found, creating new one");
+            await createPurchase(payload);
+          }
+        } catch (error) {
+          console.error("Error finding existing purchase:", error);
+          throw error;
+        }
       } else {
+        console.log("📝 Creating new purchase (fallback)");
         await createPurchase(payload);
       }
+
       setShowForm(false);
       setEditPurchase(null);
+      setSelectedOrder(null);
       await fetchPurchases();
     } catch (error) {
       console.error("Error saving purchase:", error);
-      alert(`Failed to save purchase: ${error.response?.data?.message || error.message}`);
+
+      if (error.response?.status === 400 && error.response?.data?.message?.includes("already exists")) {
+        alert("This order already has a purchase. The form has been populated with existing data. Please update the values and try again.");
+      } else {
+        alert(`Failed to save purchase: ${error.response?.data?.message || error.message}`);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleMachineSubmit = async (data) => {
+    try {
+      await createMachinePurchase(data);
+      setShowMachineForm(false);
+      setEditMachine(null);
+      await fetchMachinePurchases();
+    } catch (error) {
+      console.error("Error creating machine purchase:", error);
+      alert(`Failed to save machine purchase: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
+  const handleCreatePurchaseForOrder = async (purchase) => {
+    try {
+      const existingPurchaseResponse = await getPurchases();
+      const existingPurchase = existingPurchaseResponse.data.find(
+        p => (p.order?._id === purchase._id || p.order === purchase._id)
+      );
+
+      if (existingPurchase) {
+        console.log("📝 Loading existing purchase for editing:", existingPurchase._id);
+        setEditPurchase(existingPurchase);
+        setSelectedOrder(null);
+      } else {
+        setSelectedOrder({
+          _id: purchase._id,
+          orderId: purchase.order?._id || purchase._id,
+          orderDate: purchase.orderDate,
+          PoNo: purchase.PoNo,
+          orderType: purchase.orderType,
+          buyerCode: purchase.buyerCode,
+          orderStatus: purchase.status,
+          products: purchase.products,
+          totalQty: purchase.totalQty,
+        });
+        setEditPurchase(null);
+      }
+
+      setShowForm(true);
+    } catch (error) {
+      console.error("Error loading purchase:", error);
+      alert("Failed to load purchase data");
     }
   };
 
   const filteredPurchases = filter === "all"
     ? purchases
     : purchases.filter((p) => {
-      const status = p.order?.status;
-      if (filter === "pending") return status === "Pending Purchase";
-      if (filter === "completed") return status === "Purchase Completed";
+      const status = p.status;
+      if (filter === "pending") return status === "Pending" || !status;
+      if (filter === "completed") return status === "Completed";
       return true;
     });
 
@@ -108,11 +247,17 @@ export default function Purchase() {
       )
     },
     {
+      key: "PURNo",
+      label: "PUR-No",
+      width: "60px",
+      render: (p) => <span className="font-medium text-xs">{p.PURNo || "—"}</span>
+    },
+    {
       key: "PoNo",
       label: "PO No",
       width: "75px",
       render: (p) => (
-        <div className="font-medium text-xs" title={p.PoNo}>
+        <div className="font-medium text-[11px]" title={p.PoNo}>
           {truncate(p.PoNo, 12) || "—"}
         </div>
       )
@@ -122,7 +267,7 @@ export default function Purchase() {
       label: "Buyer",
       width: "60px",
       render: (p) => (
-        <div className="text-xs" title={p.buyerCode}>
+        <div className="text-[11px]" title={p.buyerCode}>
           {truncate(p.buyerCode, 8) || "—"}
         </div>
       )
@@ -152,7 +297,7 @@ export default function Purchase() {
           Completed: "bg-green-500 text-white",
         };
         return (
-          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${styles[status] || "bg-gray-100 text-gray-700"}`}>
+          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${styles[status] || "bg-gray-100 text-gray-700"}`}>
             {status}
           </span>
         );
@@ -180,7 +325,7 @@ export default function Purchase() {
     {
       key: "fabricType",
       label: "Fabric",
-      width: "75px",
+      width: "70px",
       render: (p) => {
         if (!p.products || p.products.length === 0) return <span className="text-gray-400 text-xs">—</span>;
         const types = [...new Set(p.products.map(prod => prod.fabricType))];
@@ -197,34 +342,29 @@ export default function Purchase() {
     {
       key: "color",
       label: "Color",
-      width: "80px",
+      width: "70px",
       render: (p) => {
         if (!p.products || p.products.length === 0) {
           return <span className="text-gray-400 text-xs">—</span>;
         }
 
-        // Collect all color data with their sizes and quantities from products
         const colorData = {};
 
         p.products.forEach(product => {
-          // Parse colors from fabricColor string
-          const colors = product.fabricColor?.split(',').map(c => c.trim()) || [];
-
-          // For each color, map it to sizes
-          colors.forEach(color => {
-            if (!colorData[color]) {
-              colorData[color] = {};
-            }
-
-            // Add sizes for this product
-            product.sizes?.forEach(s => {
-              if (!colorData[color][s.size]) {
-                colorData[color][s.size] = 0;
+          if (product.colors && Array.isArray(product.colors)) {
+            product.colors.forEach(colorEntry => {
+              if (!colorData[colorEntry.color]) {
+                colorData[colorEntry.color] = {};
               }
-              // Distribute quantity evenly among colors (this is an approximation)
-              colorData[color][s.size] += Math.floor(s.quantity / colors.length);
+
+              colorEntry.sizes?.forEach(s => {
+                if (!colorData[colorEntry.color][s.size]) {
+                  colorData[colorEntry.color][s.size] = 0;
+                }
+                colorData[colorEntry.color][s.size] += s.quantity || 0;
+              });
             });
-          });
+          }
         });
 
         const colors = Object.keys(colorData);
@@ -256,20 +396,20 @@ export default function Purchase() {
         const colorData = {};
 
         p.products.forEach(product => {
-          const colors = product.fabricColor?.split(',').map(c => c.trim()) || [];
-
-          colors.forEach(color => {
-            if (!colorData[color]) {
-              colorData[color] = {};
-            }
-
-            product.sizes?.forEach(s => {
-              if (!colorData[color][s.size]) {
-                colorData[color][s.size] = 0;
+          if (product.colors && Array.isArray(product.colors)) {
+            product.colors.forEach(colorEntry => {
+              if (!colorData[colorEntry.color]) {
+                colorData[colorEntry.color] = {};
               }
-              colorData[color][s.size] += Math.floor(s.quantity / colors.length);
+
+              colorEntry.sizes?.forEach(s => {
+                if (!colorData[colorEntry.color][s.size]) {
+                  colorData[colorEntry.color][s.size] = 0;
+                }
+                colorData[colorEntry.color][s.size] += s.quantity || 0;
+              });
             });
-          });
+          }
         });
 
         const colors = Object.keys(colorData);
@@ -301,40 +441,6 @@ export default function Purchase() {
       }
     },
     {
-      key: "sizeQtyTotal",
-      label: "Size + Qty",
-      width: "80px",
-      render: (p) => {
-        if (!p.products || p.products.length === 0) return <span className="text-gray-400 text-xs">—</span>;
-
-        // Aggregate sizes from ALL products
-        const allSizes = p.products.flatMap(product =>
-          product.sizes?.map(s => ({ size: s.size, quantity: s.quantity })) || []
-        );
-
-        if (allSizes.length === 0) return <span className="text-gray-400 text-xs">—</span>;
-
-        // Group by size in case there are duplicates across products
-        const sizeMap = {};
-        allSizes.forEach(({ size, quantity }) => {
-          sizeMap[size] = (sizeMap[size] || 0) + quantity;
-        });
-
-        const sizeEntries = Object.entries(sizeMap).sort((a, b) => {
-          const sizeOrder = { XS: 0, S: 1, M: 2, L: 3, XL: 4, XXL: 5 };
-          return (sizeOrder[a[0]] || 999) - (sizeOrder[b[0]] || 999);
-        });
-
-        return (
-          <div className="text-xs font-mono">
-            {sizeEntries.map(([size, qty], idx) => (
-              <div key={idx} className="text-gray-600 border-b border-l border-r border-gray-200">{size}: {qty}</div>
-            ))}
-          </div>
-        );
-      }
-    },
-    {
       key: "totalQty",
       label: "Total",
       width: "60px",
@@ -346,44 +452,30 @@ export default function Purchase() {
     }
   ];
 
-  const actions = isAdmin
-    ? [
-      {
-        label: "Edit",
-        icon: Edit,
-        className: "bg-blue-500 text-white hover:bg-blue-600",
-        onClick: (purchase) => {
-          setEditPurchase(purchase);
-          setShowForm(true);
-        },
-      },
-      {
-        label: "Delete",
-        icon: Trash2,
-        className: "bg-red-500 text-white hover:bg-red-600",
-        onClick: (purchase) => handleDelete(purchase._id),
-      },
-    ]
-    : [];
-
-  const purchaseFields = [
-    { name: "orderId", label: "Order", type: "text", required: true },
+  const actions = isAdmin ? [
     {
-      name: "fabricPurchases",
-      label: "Fabric Purchases",
-      type: "array",
-      itemFields: [
-        { name: "fabricType", label: "Fabric Type", type: "text", required: true },
-        { name: "vendor", label: "Vendor", type: "text", required: true },
-        { name: "quantity", label: "Quantity", type: "number", required: true },
-        { name: "costPerUnit", label: "Cost/Unit", type: "number", required: true },
-        { name: "colors", label: "Colors", type: "array", itemFields: [{ name: "", label: "Color", type: "text" }] },
-        { name: "gsm", label: "GSM", type: "text" },
-        { name: "remarks", label: "Remarks", type: "text" },
-      ],
+      label: "Create Purchase",
+      icon: ShoppingCart,
+      className: "bg-green-500 text-white hover:bg-green-600",
+      onClick: (purchase) => handleCreatePurchaseForOrder(purchase),
     },
-    { name: "remarks", label: "General Remarks", type: "textarea" },
-  ];
+    {
+      label: "Edit",
+      icon: Edit,
+      className: "bg-blue-500 text-white hover:bg-blue-600",
+      onClick: (purchase) => {
+        setEditPurchase(purchase);
+        setSelectedOrder(null);
+        setShowForm(true);
+      },
+    },
+    {
+      label: "Delete",
+      icon: Trash2,
+      className: "bg-red-500 text-white hover:bg-red-600",
+      onClick: (purchase) => handleDelete(purchase._id),
+    },
+  ] : [];
 
   if (loading) {
     return (
@@ -397,9 +489,15 @@ export default function Purchase() {
     <div className="space-y-4">
       {showForm ? (
         <PurchaseForm
-          fields={purchaseFields}
-          initialValues={editPurchase || {
+          initialValues={editPurchase || selectedOrder || {
             orderId: "",
+            orderDate: "",
+            PoNo: "",
+            orderType: "",
+            buyerCode: "",
+            orderStatus: "",
+            products: [],
+            totalQty: 0,
             fabricPurchases: [],
             buttonsPurchases: [],
             packetsPurchases: [],
@@ -409,26 +507,41 @@ export default function Purchase() {
           onCancel={() => {
             setShowForm(false);
             setEditPurchase(null);
+            setSelectedOrder(null);
           }}
           submitLabel={editPurchase ? "Update Purchase" : "Create Purchase"}
           returnTo="/purchase"
+          isEditMode={!!editPurchase}
+          isSubmitting={isSubmitting}
+        />
+      ) : showMachineForm ? (
+        <MachinePurchaseForm
+          initialValues={editMachine}
+          isEditMode={!!editMachine}
+          onSubmit={handleMachineSubmit}
+          onCancel={() => {
+            setShowMachineForm(false);
+            setEditMachine(null);
+          }}
         />
       ) : (
         <>
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-xl font-bold text-gray-800">Purchase Management</h1>
-              <p className="text-gray-600 text-sm mt-1">Manage fabric, button & packet purchases for FOB and JOB-Works orders</p>
+              <p className="text-gray-600 text-sm mt-1">
+                {filter === "machines" 
+                  ? "Manage machine purchases and equipment inventory"
+                  : "Manage fabric, button & packet purchases for FOB and JOB-Works orders"}
+              </p>
             </div>
-            {isAdmin && (
+
+            {filter === "machines" && (
               <button
-                onClick={() => {
-                  setShowForm(true);
-                  setEditPurchase(null);
-                }}
-                className="flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 shadow-sm text-sm"
+                onClick={() => setShowMachineForm(true)}
+                className="flex items-center bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm"
               >
-                <Plus className="w-4 h-4 mr-1" /> Create Purchase
+                <Plus className="w-4 h-4 mr-2" /> New Purchase
               </button>
             )}
           </div>
@@ -444,7 +557,8 @@ export default function Purchase() {
               {[
                 { key: "all", label: "All", count: purchases.length },
                 { key: "pending", label: "Pending", count: purchases.filter(p => p.status === "Pending" || !p.status).length },
-                { key: "completed", label: "Completed", count: purchases.filter(p => p.status === "Completed").length }
+                { key: "completed", label: "Completed", count: purchases.filter(p => p.status === "Completed").length },
+                { key: "machines", label: "Machines", count: machinePurchases.length }
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -463,31 +577,29 @@ export default function Purchase() {
             </div>
           </div>
 
-          {filteredPurchases.length > 0 ? (
-            <div className="w-full">
-              <DataTable
-                columns={columns}
-                data={filteredPurchases}
-                actions={actions}
-                className="text-xs compact-table"
-              />
-            </div>
+          {filter === "machines" ? (
+            <MachinePurchasesTable 
+              machines={machinePurchases}
+              onEdit={(machine) => {
+                setEditMachine(machine);
+                setShowMachineForm(true);
+              }}
+              onDelete={handleMachineDelete}
+              isAdmin={isAdmin}
+            />
           ) : (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <div className="text-gray-500 text-lg mb-2">No purchases found</div>
-              <div className="text-gray-400 text-sm mb-4">
-                {filter === "all" ? "Create your first purchase to get started" : `No ${filter} purchases`}
+            filteredPurchases.length > 0 ? (
+              <div className="w-full">
+                <DataTable columns={columns} data={filteredPurchases} actions={actions} className="text-xs compact-table" />
               </div>
-              {isAdmin && (
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create First Purchase
-                </button>
-              )}
-            </div>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <div className="text-gray-500 text-lg mb-2">No purchases found</div>
+                <div className="text-gray-400 text-sm mb-4">
+                  {filter === "all" ? "No orders available for purchase" : `No ${filter} purchases`}
+                </div>
+              </div>
+            )
           )}
         </>
       )}

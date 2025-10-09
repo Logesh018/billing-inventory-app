@@ -8,10 +8,10 @@ import Production from "../models/production.js";
 export const getCurrentFinancialYear = () => {
   const now = new Date();
   const year = now.getFullYear();
-  const month = now.getMonth(); 
+  const month = now.getMonth();
   const fyStart = month >= 3 ? year : year - 1;
   const fyEnd = fyStart + 1;
-  return `${String(fyStart).slice(-2)}${String(fyEnd).slice(-2)}`; 
+  return `${String(fyStart).slice(-2)}${String(fyEnd).slice(-2)}`;
 };
 
 export const createOrder = async (req, res) => {
@@ -23,7 +23,7 @@ export const createOrder = async (req, res) => {
       products: productsData
     } = req.body;
 
-    const financialYear = getCurrentFinancialYear(); 
+    const financialYear = getCurrentFinancialYear();
     const lastOrder = await Order.findOne().sort({ createdAt: -1 });
     let nextNumber = 1;
     if (lastOrder?.PoNo) {
@@ -107,11 +107,11 @@ export const createOrder = async (req, res) => {
       const fabricTypes = productData.fabricTypes.map(fabricData => ({
         fabricType: fabricData.fabricType,
         sizes: fabricData.sizes.map(sizeData => ({
-          size: sizeData.size.trim(), // ADD TRIM HERE to handle trailing spaces
+          size: sizeData.size.trim(),
           colors: sizeData.colors.map(colorData => ({
             color: colorData.color,
             qty: parseInt(colorData.qty) || 0,
-          })),        
+          })),
         })),
       }));
 
@@ -122,10 +122,9 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    
     const order = new Order({
       orderDate: new Date(orderDate),
-      PoNo,  
+      PoNo,
       orderType,
       buyer: buyer._id,
       buyerDetails,
@@ -159,58 +158,61 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // Auto-create Purchase entry for BOTH FOB and JOB-Works orders
+    // In orderController.js - Replace the auto-purchase creation section
+
+    // Auto-create EMPTY Purchase entry for BOTH FOB and JOB-Works orders
+    // This creates a placeholder that will be filled when user completes the purchase form
     const purchaseProductsMap = new Map();
 
     for (const product of processedProducts) {
       const productName = product.productDetails.name;
-      
+
       if (!purchaseProductsMap.has(productName)) {
         purchaseProductsMap.set(productName, {
           productName: productName,
-          fabricType: orderType === "JOB-Works" ? "N/A" : null, // Will be set from first fabric
-          fabricColors: new Set(),
-          sizes: [],
+          fabricType: orderType === "JOB-Works" ? "N/A" : null,
+          colors: new Map(),
           productTotalQty: 0
         });
       }
-      
+
       const productEntry = purchaseProductsMap.get(productName);
-      
+
       product.fabricTypes.forEach(fabricType => {
-        // Set fabricType if not JOB-Works and not already set
         if (orderType !== "JOB-Works" && !productEntry.fabricType) {
           productEntry.fabricType = fabricType.fabricType;
         }
-        
+
         fabricType.sizes.forEach(size => {
-          // Size is already trimmed above
-          const colors = size.colors.map(color => color.color);
-          const totalQtyForSize = size.colors.reduce((sum, color) => sum + color.qty, 0);
-          
-          // Add colors to set (automatically handles duplicates)
-          colors.forEach(color => productEntry.fabricColors.add(color));
-          
-          // Add size entry
-          productEntry.sizes.push({
-            size: size.size,
-            quantity: totalQtyForSize,
+          size.colors.forEach(color => {
+            if (!productEntry.colors.has(color.color)) {
+              productEntry.colors.set(color.color, []);
+            }
+
+            productEntry.colors.get(color.color).push({
+              size: size.size,
+              quantity: color.qty
+            });
+
+            productEntry.productTotalQty += color.qty;
           });
-          
-          productEntry.productTotalQty += totalQtyForSize;
         });
       });
     }
 
-    // Convert map to array and format for Purchase schema
+    // Convert map to array with proper nested structure
     const purchaseProducts = Array.from(purchaseProductsMap.values()).map(entry => ({
       productName: entry.productName,
       fabricType: entry.fabricType || "N/A",
-      fabricColor: Array.from(entry.fabricColors).join(", "),
-      sizes: entry.sizes,
+      colors: Array.from(entry.colors.entries()).map(([color, sizes]) => ({
+        color: color,
+        sizes: sizes
+      })),
       productTotalQty: entry.productTotalQty,
     }));
 
+    // Create EMPTY purchase (status = "Pending")
+    // This will be updated when user fills the purchase form
     const newPurchase = new Purchase({
       order: savedOrder._id,
       orderDate: savedOrder.orderDate,
@@ -220,35 +222,23 @@ export const createOrder = async (req, res) => {
       orderStatus: "Pending Purchase",
       products: purchaseProducts,
       totalQty: savedOrder.totalQty,
-      remarks: `Auto-generated for ${orderType} order`,
-      status: "Pending",
+      remarks: `Pending purchase details for ${orderType} order`,
+      status: "Pending", // ALWAYS start as Pending
+      // Leave these arrays empty - user will fill them
+      fabricPurchases: [],
+      buttonsPurchases: [],
+      packetsPurchases: [],
     });
 
     const savedPurchase = await newPurchase.save();
-    console.log(`✅ ${orderType} Purchase auto-created:`, savedPurchase._id);
+    console.log(`✅ ${orderType} Purchase placeholder created:`, savedPurchase._id, "- Status: Pending");
 
     // Link purchase to order
     await Order.findByIdAndUpdate(savedOrder._id, {
       purchase: savedPurchase._id
     });
 
-    // Auto-create Production entry for both order types
-    const newProduction = new Production({
-      order: savedOrder._id,
-      purchase: savedPurchase._id,
-      orderType: savedOrder.orderType,
-      requiredQty: savedOrder.totalQty,
-      currentStage: "Pending Production",
-      remarks: `Auto-generated for ${orderType} order`,
-    });
-
-    const savedProduction = await newProduction.save();
-    console.log(`✅ ${orderType} Production auto-created:`, savedProduction._id);
-
-    // Link production to order
-    await Order.findByIdAndUpdate(savedOrder._id, {
-      production: savedProduction._id
-    });
+    // DON'T create production here - it will be created when purchase is completed
 
     // Populate and return
     const populatedOrder = await Order.findById(savedOrder._id)
@@ -274,7 +264,7 @@ export const getOrders = async (req, res) => {
       orderType,
       status,
       buyerName,
-      PoNo, 
+      PoNo,
       page = 1,
       limit = 50
     } = req.query;
@@ -289,7 +279,7 @@ export const getOrders = async (req, res) => {
       filter.status = status;
     }
 
-    if (PoNo) {  // Changed from orderNo
+    if (PoNo) {
       filter.PoNo = new RegExp(PoNo, 'i');
     }
 
@@ -298,7 +288,6 @@ export const getOrders = async (req, res) => {
       .populate("products.product", "name hsn category")
       .sort({ createdAt: -1 });
 
-    // Apply buyer name filter after population
     if (buyerName) {
       const buyers = await Buyer.find({
         name: new RegExp(buyerName, 'i')
@@ -309,7 +298,6 @@ export const getOrders = async (req, res) => {
       }
     }
 
-    // Pagination
     const skip = (page - 1) * limit;
     const orders = await query.skip(skip).limit(parseInt(limit));
     const total = await Order.countDocuments(filter);
@@ -370,7 +358,6 @@ export const updateOrder = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Handle buyer updates
     if (updateData.buyer && updateData.buyerDetails) {
       const buyer = await Buyer.findById(updateData.buyer);
       if (!buyer) {
@@ -389,12 +376,10 @@ export const updateOrder = async (req, res) => {
       }
     }
 
-    // Handle product updates with new structure
     if (updateData.products) {
       order.products = updateData.products;
     }
 
-    // Update other fields - REMOVED 'notes' and 'priority' as they're not in schema
     const allowedUpdates = ['orderDate', 'PoNo', 'orderType', 'status'];
     allowedUpdates.forEach(field => {
       if (updateData[field] !== undefined) {
@@ -404,7 +389,6 @@ export const updateOrder = async (req, res) => {
 
     const updatedOrder = await order.save();
 
-    // Populate and return
     const populatedOrder = await Order.findById(updatedOrder._id)
       .populate("buyer", "name code mobile gst")
       .populate("products.product", "name hsn");
@@ -424,7 +408,7 @@ export const updateOrder = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;  // Removed 'notes' as it's not in schema
+    const { status } = req.body;
 
     const validStatuses = [
       "Pending Purchase",
@@ -476,11 +460,9 @@ export const deleteOrder = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Delete related workflow documents
     await Purchase.findOneAndDelete({ order: id });
     await Production.findOneAndDelete({ order: id });
 
-    // Delete the order
     await Order.findByIdAndDelete(id);
 
     console.log("Deleted order & related documents:", id);
@@ -577,7 +559,7 @@ export const searchProducts = async (req, res) => {
   }
 };
 
-// Get Product Configuration (NEW)
+// Get Product Configuration
 export const getProductConfiguration = async (req, res) => {
   try {
     const { productId, fabricType } = req.query;

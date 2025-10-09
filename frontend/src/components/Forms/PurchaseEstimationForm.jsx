@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, X } from 'lucide-react';
+import { Plus, Trash2, Save, X, FileText } from 'lucide-react';
 import { axiosInstance } from '../../lib/axios';
 
-// FabricColorRows component (unchanged)
+// FabricColorRows component (reused from PurchaseForm)
 const FabricColorRows = ({ item, onUpdate, disabled, onAddItemToPurchaseList, onRemoveItemForm }) => {
   const addColorRow = () => {
     const newColors = [...item.colors, { id: Date.now(), color: '', kg: '', costPerKg: '', total: 0 }];
@@ -41,18 +41,18 @@ const FabricColorRows = ({ item, onUpdate, disabled, onAddItemToPurchaseList, on
       {item.colors.length > 0 && (
         <div className="flex flex-wrap items-end gap-2">
           <div className="w-32">
-            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Color</label>
+            <label className="text-xs text-gray-500 block mb-1">Color</label>
             <input
               type="text"
               value={item.colors[0].color}
               onChange={(e) => updateColorRow(0, 'color', e.target.value)}
               placeholder="Color"
-              className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 h-9"
               disabled={disabled}
             />
           </div>
           <div className="w-24">
-            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">{unitLabel}</label>
+            <label className="text-xs text-gray-500 block mb-1">{unitLabel}</label>
             <input
               type="number"
               value={item.colors[0].kg}
@@ -60,12 +60,12 @@ const FabricColorRows = ({ item, onUpdate, disabled, onAddItemToPurchaseList, on
               onChange={(e) => updateColorRow(0, 'kg', e.target.value)}
               placeholder={unitLabel}
               onWheel={(e) => e.target.blur()}
-              className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 h-9"
               disabled={disabled}
             />
           </div>
           <div className="w-24">
-            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">{costLabel}</label>
+            <label className="text-xs text-gray-500 block mb-1">{costLabel}</label>
             <input
               type="number"
               value={item.colors[0].costPerKg}
@@ -73,20 +73,20 @@ const FabricColorRows = ({ item, onUpdate, disabled, onAddItemToPurchaseList, on
               onChange={(e) => updateColorRow(0, 'costPerKg', e.target.value)}
               placeholder={costLabel}
               onWheel={(e) => e.target.blur()}
-              className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+              className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 h-9"
               disabled={disabled}
             />
           </div>
           <div className="w-24">
-            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Total</label>
-            <div className="px-2 py-1.5 text-xs bg-green-50 dark:bg-green-900 dark:bg-opacity-30 border border-green-200 dark:border-green-800 rounded text-green-700 dark:text-green-400 font-medium text-center h-9 flex items-center justify-center">
+            <label className="text-xs text-gray-500 block mb-1">Total</label>
+            <div className="px-2 py-1.5 text-xs bg-green-50 border border-green-200 rounded text-green-700 font-medium text-center h-9 flex items-center justify-center">
               ₹{item.colors[0].total || 0}
             </div>
           </div>
           <button
             type="button"
             onClick={addColorRow}
-            className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900 dark:hover:bg-opacity-30 rounded text-sm px-2 py-1.5 border border-blue-200 dark:border-blue-800 h-9 flex items-center justify-center mb-0"
+            className="text-blue-600 hover:bg-blue-50 rounded text-sm px-2 py-1.5 border border-blue-200 h-9 flex items-center justify-center mb-0"
             disabled={disabled}
             title="Add Color"
           >
@@ -95,7 +95,7 @@ const FabricColorRows = ({ item, onUpdate, disabled, onAddItemToPurchaseList, on
           <button
             type="button"
             onClick={() => removeColorRow(0)}
-            className="text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 dark:hover:bg-opacity-30 rounded text-sm px-1.5 py-1 h-9 flex items-center justify-center mb-0"
+            className="text-red-500 hover:bg-red-50 rounded text-sm px-1.5 py-1 h-9 flex items-center justify-center mb-0"
             disabled={item.colors.length === 1 || disabled}
             title="Remove Color"
           >
@@ -109,12 +109,12 @@ const FabricColorRows = ({ item, onUpdate, disabled, onAddItemToPurchaseList, on
                 onClick={() => onAddItemToPurchaseList(item.id)}
                 className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors font-medium h-9 flex items-center"
               >
-                Add to Purchase
+                Add to Estimation
               </button>
             )}
 
             {item.isCompleted && (
-              <div className="px-3 py-2 bg-green-100 dark:bg-green-900 dark:bg-opacity-30 text-green-700 dark:text-green-400 text-sm rounded-lg font-medium h-9 flex items-center">
+              <div className="px-3 py-2 bg-green-100 text-green-700 text-sm rounded-lg font-medium h-9 flex items-center">
                 Added ✓
               </div>
             )}
@@ -122,7 +122,7 @@ const FabricColorRows = ({ item, onUpdate, disabled, onAddItemToPurchaseList, on
             <button
               type="button"
               onClick={() => onRemoveItemForm(item.id)}
-              className="text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 dark:hover:bg-opacity-30 rounded-full p-1.5 transition-colors h-9"
+              className="text-red-500 hover:bg-red-50 rounded-full p-1.5 transition-colors h-9"
               title="Remove Item"
             >
               <Trash2 className="w-4 h-4" />
@@ -141,7 +141,7 @@ const FabricColorRows = ({ item, onUpdate, disabled, onAddItemToPurchaseList, on
                 value={color.color}
                 onChange={(e) => updateColorRow(index, 'color', e.target.value)}
                 placeholder="Color"
-                className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 h-9"
                 disabled={disabled}
               />
             </div>
@@ -152,7 +152,7 @@ const FabricColorRows = ({ item, onUpdate, disabled, onAddItemToPurchaseList, on
                 onFocus={handleNumberFocus}
                 onChange={(e) => updateColorRow(index, 'kg', e.target.value)}
                 placeholder={unitLabel}
-                className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 h-9"
                 disabled={disabled}
               />
             </div>
@@ -163,18 +163,18 @@ const FabricColorRows = ({ item, onUpdate, disabled, onAddItemToPurchaseList, on
                 onFocus={handleNumberFocus}
                 onChange={(e) => updateColorRow(index, 'costPerKg', e.target.value)}
                 placeholder={costLabel}
-                className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 h-9"
                 disabled={disabled}
               />
             </div>
-            <div className="w-24 px-2 py-1.5 text-xs bg-green-50 dark:bg-green-900 dark:bg-opacity-30 border border-green-200 dark:border-green-800 rounded text-green-700 dark:text-green-400 font-medium text-center h-9 flex items-center justify-center">
+            <div className="w-24 px-2 py-1.5 text-xs bg-green-50 border border-green-200 rounded text-green-700 font-medium text-center h-9 flex items-center justify-center">
               ₹{color.total || 0}
             </div>
             <div className="w-10"></div>
             <button
               type="button"
               onClick={() => removeColorRow(index)}
-              className="text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 dark:hover:bg-opacity-30 rounded text-sm px-1.5 py-1 h-9 flex items-center justify-center"
+              className="text-red-500 hover:bg-red-50 rounded text-sm px-1.5 py-1 h-9 flex items-center justify-center"
               disabled={disabled}
               title="Remove Color"
             >
@@ -187,7 +187,7 @@ const FabricColorRows = ({ item, onUpdate, disabled, onAddItemToPurchaseList, on
   );
 };
 
-// ItemForm component (unchanged)
+// ItemForm component (reused with minor modifications)
 const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPurchaseList, onRemoveItemForm }) => {
   const [supplierSuggestions, setSupplierSuggestions] = useState([]);
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
@@ -214,7 +214,7 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
     }
 
     try {
-      const { data } = await axiosInstance.get(`/purchases/search/suppliers?q=${searchTerm}`);
+      const { data } = await axiosInstance.get(`/purchase-estimations/search/suppliers?q=${searchTerm}`);
 
       const uniqueSuppliers = data.filter(
         (supplier, index, self) =>
@@ -243,14 +243,14 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
   };
 
   return (
-    <div className={`border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow ${item.isCompleted ? 'opacity-60' : ''} w-full`}>
+    <div className={`border border-gray-200 rounded-lg p-3 bg-white shadow-sm hover:shadow-md transition-shadow ${item.isCompleted ? 'opacity-60' : ''} w-full`}>
       <div className="flex flex-wrap items-end gap-2 mb-1">
         <div className="w-20">
-          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Type</label>
+          <label className="text-xs text-gray-500 block mb-1">Type</label>
           <select
             value={item.type}
             onChange={(e) => onUpdateItemForm(item.id, 'type', e.target.value)}
-            className="w-full text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
+            className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
             disabled={item.isCompleted}
           >
             <option value="fabric">Fabric</option>
@@ -260,33 +260,33 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
         </div>
 
         <div className="w-35">
-          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Item Name</label>
+          <label className="text-xs text-gray-500 block mb-1">Item Name</label>
           <input
             type="text"
             value={item.itemName}
             onChange={(e) => onUpdateItemForm(item.id, 'itemName', e.target.value)}
             placeholder="Item Name"
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 h-9"
             disabled={item.isCompleted}
           />
         </div>
 
         {item.type === 'fabric' && (
           <div className="w-20">
-            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">GSM</label>
+            <label className="text-xs text-gray-500 block mb-1">GSM</label>
             <input
               type="text"
               value={item.gsm}
               onChange={(e) => onUpdateItemForm(item.id, 'gsm', e.target.value)}
               placeholder="GSM"
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 h-9"
               disabled={item.isCompleted}
             />
           </div>
         )}
 
         <div className="w-30 relative">
-          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Vendor</label>
+          <label className="text-xs text-gray-500 block mb-1">Vendor</label>
           <input
             type="text"
             value={item.vendor}
@@ -296,19 +296,19 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
             }}
             onBlur={() => setTimeout(() => setShowSupplierDropdown(false), 200)}
             placeholder="Search vendor"
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 h-9"
             disabled={item.isCompleted}
           />
           {showSupplierDropdown && supplierSuggestions.length > 0 && (
-            <div className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-40 overflow-y-auto mt-1">
+            <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto mt-1">
               {supplierSuggestions.map((supplier, index) => (
                 <div
                   key={supplier._id || index}
-                  className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-xs text-gray-700 dark:text-gray-200"
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-xs text-gray-700"
                   onClick={() => selectSupplier(supplier)}
                 >
-                  <div className="font-medium text-gray-700 dark:text-gray-200">{supplier.name}</div>
-                  <div className="text-gray-500 dark:text-gray-400">{supplier.mobile || supplier.code}</div>
+                  <div className="font-medium text-gray-700">{supplier.name}</div>
+                  <div className="text-gray-500">{supplier.mobile || supplier.code}</div>
                 </div>
               ))}
             </div>
@@ -316,23 +316,23 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
         </div>
 
         <div className="w-20">
-          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Code</label>
+          <label className="text-xs text-gray-500 block mb-1">Code</label>
           <input
             type="text"
             value={item.vendorCode || ''}
             onChange={(e) => onUpdateItemForm(item.id, 'vendorCode', e.target.value)}
             placeholder="Code"
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 h-9"
             disabled={item.isCompleted}
           />
         </div>
 
         <div className="w-20">
-          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Unit</label>
+          <label className="text-xs text-gray-500 block mb-1">Unit</label>
           <select
             value={item.purchaseUnit}
             onChange={(e) => onUpdateItemForm(item.id, 'purchaseUnit', e.target.value)}
-            className="w-full text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
+            className="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
             disabled={item.isCompleted}
           >
             {item.type === 'fabric' ? (
@@ -344,7 +344,7 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
             ) : item.type === 'buttons' ? (
               <>
                 <option value="qty">per Qty</option>
-                <option value="piece">per Piece</option>
+                <option value="pieces">per Piece</option>
               </>
             ) : (
               <>
@@ -358,23 +358,23 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
         {item.type === 'fabric' && (
           <>
             <div className="w-16">
-              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Total {item.purchaseUnit === 'kg' ? 'KG' : item.purchaseUnit === 'meter' ? 'Mtr' : 'Pcs'}</label>
-              <div className="px-2 py-1.5 text-xs bg-blue-50 dark:bg-blue-900 dark:bg-opacity-30 border border-blue-200 dark:border-blue-800 rounded text-blue-700 dark:text-blue-400 font-medium text-center h-9 flex items-center justify-center">
+              <label className="text-xs text-gray-500 block mb-1">Total {item.purchaseUnit === 'kg' ? 'KG' : item.purchaseUnit === 'meter' ? 'Mtr' : 'Pcs'}</label>
+              <div className="px-2 py-1.5 text-xs bg-blue-50 border border-blue-200 rounded text-blue-700 font-medium text-center h-9 flex items-center justify-center">
                 {totalKg || 0}
               </div>
             </div>
             <div className="w-20">
-              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Amount</label>
-              <div className="px-2 py-1.5 text-xs bg-green-50 dark:bg-green-900 dark:bg-opacity-30 border border-green-200 dark:border-green-800 rounded text-green-700 dark:text-green-400 font-medium text-center h-9 flex items-center justify-center">
+              <label className="text-xs text-gray-500 block mb-1">Amount</label>
+              <div className="px-2 py-1.5 text-xs bg-green-50 border border-green-200 rounded text-green-700 font-medium text-center h-9 flex items-center justify-center">
                 ₹{totalCost || 0}
               </div>
             </div>
             <div className="w-16">
-              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">GST</label>
+              <label className="text-xs text-gray-500 block mb-1">GST</label>
               <select
                 value={item.gstPercentage || ''}
                 onChange={(e) => onUpdateItemForm(item.id, 'gstPercentage', parseFloat(e.target.value) || 0)}
-                className="w-full text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-1 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
+                className="w-full text-xs border border-gray-300 rounded px-1 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
                 disabled={item.isCompleted}
               >
                 <option value="">Select</option>
@@ -384,8 +384,8 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
               </select>
             </div>
             <div className="w-20">
-              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Total + GST</label>
-              <div className="px-2 py-1.5 text-xs bg-purple-50 dark:bg-purple-900 dark:bg-opacity-30 border border-purple-200 dark:border-purple-800 rounded text-purple-700 dark:text-purple-400 font-medium text-center h-9 flex items-center justify-center">
+              <label className="text-xs text-gray-500 block mb-1">Total + GST</label>
+              <div className="px-2 py-1.5 text-xs bg-purple-50 border border-purple-200 rounded text-purple-700 font-medium text-center h-9 flex items-center justify-center">
                 ₹{totalWithGst.toFixed(2) || 0}
               </div>
             </div>
@@ -394,7 +394,7 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
 
         {(item.type === 'buttons' || item.type === 'packets') && (
           <div className="w-16">
-            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+            <label className="text-xs text-gray-500 block mb-1">
               {item.type === 'buttons' ? 'Qty' : 'Pcs'}
             </label>
             <input
@@ -407,7 +407,7 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
                 e.target.value
               )}
               placeholder={item.type === 'buttons' ? 'Qty' : 'Pcs'}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 h-9"
               disabled={item.isCompleted}
             />
           </div>
@@ -415,7 +415,7 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
 
         {(item.type === 'buttons' || item.type === 'packets') && (
           <div className="w-18">
-            <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+            <label className="text-xs text-gray-500 block mb-1">
               {item.purchaseUnit === 'qty' ? 'Cost/Qty' :
                 item.purchaseUnit === 'packet' ? 'Cost/Packet' : 'Cost/Piece'}
             </label>
@@ -429,7 +429,7 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
                 e.target.value
               )}
               placeholder="Cost"
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 h-9"
               disabled={item.isCompleted}
             />
           </div>
@@ -438,17 +438,17 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
         {(item.type === 'buttons' || item.type === 'packets') && (
           <>
             <div className="w-20">
-              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Amount</label>
-              <div className="px-2 py-1.5 text-xs bg-green-50 dark:bg-green-900 dark:bg-opacity-30 border border-green-200 dark:border-green-800 rounded text-green-700 dark:text-green-400 font-medium text-center h-9 flex items-center justify-center">
+              <label className="text-xs text-gray-500 block mb-1">Amount</label>
+              <div className="px-2 py-1.5 text-xs bg-green-50 border border-green-200 rounded text-green-700 font-medium text-center h-9 flex items-center justify-center">
                 ₹{totalCost || 0}
               </div>
             </div>
             <div className="w-16">
-              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">GST</label>
+              <label className="text-xs text-gray-500 block mb-1">GST</label>
               <select
                 value={item.gstPercentage || ''}
                 onChange={(e) => onUpdateItemForm(item.id, 'gstPercentage', parseFloat(e.target.value) || 0)}
-                className="w-full text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-1 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
+                className="w-full text-xs border border-gray-300 rounded px-1 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
                 disabled={item.isCompleted}
               >
                 <option value="">Select</option>
@@ -458,8 +458,8 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
               </select>
             </div>
             <div className="w-22">
-              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Total + GST</label>
-              <div className="px-2 py-1.5 text-xs bg-purple-50 dark:bg-purple-900 dark:bg-opacity-30 border border-purple-200 dark:border-purple-800 rounded text-purple-700 dark:text-purple-400 font-medium text-center h-9 flex items-center justify-center">
+              <label className="text-xs text-gray-500 block mb-1">Total + GST</label>
+              <div className="px-2 py-1.5 text-xs bg-purple-50 border border-purple-200 rounded text-purple-700 font-medium text-center h-9 flex items-center justify-center">
                 ₹{totalWithGst.toFixed(2) || 0}
               </div>
             </div>
@@ -473,12 +473,12 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
               onClick={() => onAddItemToPurchaseList(item.id)}
               className="px-3 py-2 mt-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors font-medium h-9 flex items-center"
             >
-              Add to Purchase
+              Add to Estimation
             </button>
           )}
 
           {item.type !== 'fabric' && item.isCompleted && (
-            <div className="px-3 py-2 mt-1 bg-green-100 dark:bg-green-900 dark:bg-opacity-30 text-green-700 dark:text-green-400 text-sm rounded-lg font-medium h-9 flex items-center">
+            <div className="px-3 py-2 mt-1 bg-green-100 text-green-700 text-sm rounded-lg font-medium h-9 flex items-center">
               Added ✓
             </div>
           )}
@@ -487,7 +487,7 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
             <button
               type="button"
               onClick={() => onRemoveItemForm(item.id)}
-              className="text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 dark:hover:bg-opacity-30 rounded-full p-1.5 transition-colors h-9"
+              className="text-red-500 hover:bg-red-50 rounded-full p-1.5 transition-colors h-9"
               title="Remove Item"
             >
               <Trash2 className="w-4 h-4 mt-1" />
@@ -509,14 +509,28 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
   );
 };
 
-// Purchase Items Section Component
-const PurchaseItemsSection = ({ purchaseItems, setPurchaseItems, grandTotal, initialValues }) => {
+// Main Purchase Estimation Form Component
+const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMode }) => {
+  const [formData, setFormData] = useState({
+    estimationDate: new Date().toISOString().split('T')[0],
+    remarks: '',
+    ...initialValues
+  });
+
+  const [purchaseItems, setPurchaseItems] = useState([]);
   const [activeItems, setActiveItems] = useState([]);
+  const [grandTotal, setGrandTotal] = useState(0);
 
   useEffect(() => {
-    if (initialValues && (initialValues.fabricPurchases || initialValues.buttonsPurchases || initialValues.packetsPurchases)) {
-      const items = [];
+    if (initialValues && Object.keys(initialValues).length > 0) {
+      setFormData({
+        estimationDate: initialValues.estimationDate ? new Date(initialValues.estimationDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        remarks: initialValues.remarks || '',
+      });
 
+      // Load existing items if editing
+      const items = [];
+      
       if (initialValues.fabricPurchases && initialValues.fabricPurchases.length > 0) {
         initialValues.fabricPurchases.forEach(fabric => {
           const colors = fabric.colors.map(color => ({
@@ -586,6 +600,15 @@ const PurchaseItemsSection = ({ purchaseItems, setPurchaseItems, grandTotal, ini
       setPurchaseItems(items);
     }
   }, [initialValues]);
+
+  useEffect(() => {
+    const total = purchaseItems.reduce((sum, item) => {
+      const itemTotal = item.totalCost || 0;
+      const gstAmount = itemTotal * (item.gstPercentage / 100 || 0);
+      return sum + itemTotal + gstAmount;
+    }, 0);
+    setGrandTotal(total);
+  }, [purchaseItems]);
 
   const createNewItemForm = () => ({
     id: Date.now(),
@@ -681,152 +704,12 @@ const PurchaseItemsSection = ({ purchaseItems, setPurchaseItems, grandTotal, ini
     setPurchaseItems(prev => prev.filter(item => item.id !== itemId));
   };
 
-  return (
-    <div className="space-y-3 w-full">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Purchase Items</h3>
-        <button
-          type="button"
-          onClick={addNewItemForm}
-          className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors font-medium shadow-sm"
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          Add Item
-        </button>
-      </div>
-
-      {activeItems.length > 0 && (
-        <div className="space-y-4">
-          {activeItems.map((item) => (
-            <ItemForm
-              key={item.id}
-              item={item}
-              onUpdateItemForm={updateItemForm}
-              onUpdateFabricColors={updateFabricColors}
-              onAddItemToPurchaseList={addItemToPurchaseList}
-              onRemoveItemForm={removeItemForm}
-            />
-          ))}
-        </div>
-      )}
-
-      {purchaseItems.length > 0 && (
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 shadow-sm">
-          <h4 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-4">Added Items</h4>
-
-          <div className="flex flex-wrap gap-3 mb-4">
-            {purchaseItems.map((item) => (
-              <div key={item.id} className="inline-flex items-center bg-white dark:bg-gray-800 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
-                <div className="mr-3">
-                  {item.type === 'fabric' && (
-                    <div>
-                      <div className="font-medium text-sm text-gray-800 dark:text-gray-200">{item.itemName}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 font-bold">
-                        {item.totalKg} KG • <span className="text-green-500 dark:text-green-400">₹{item.totalCost.toLocaleString()}</span>
-                      </div>
-                      <div className="text-xs text-gray-400 dark:text-gray-500">
-                        GSM: {item.gsm} | {item.colors?.length} colors
-                      </div>
-                    </div>
-                  )}
-                  {item.type === 'buttons' && (
-                    <div>
-                      <div className="font-medium text-sm text-gray-800 dark:text-gray-200">{item.itemName}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 font-bold">
-                        {item.qty} qty • <span className="text-green-500 dark:text-green-400">₹{item.totalCost.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  )}
-                  {item.type === 'packets' && (
-                    <div>
-                      <div className="font-medium text-sm text-gray-800 dark:text-gray-200">{item.itemName}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {item.pieces} pcs • ₹{item.totalCost.toLocaleString()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeFromPurchaseList(item.id)}
-                  className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 dark:hover:bg-opacity-30 rounded-lg transition-colors"
-                  title="Remove Item"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMode }) => {
-  const [formData, setFormData] = useState({
-    orderId: '',
-    orderDate: '',
-    PoNo: '',
-    orderType: '',
-    buyerCode: '',
-    orderStatus: '',
-    products: [],
-    totalQty: 0,
-    fabricPurchases: [],
-    buttonsPurchases: [],
-    packetsPurchases: [],
-    remarks: '',
-    ...initialValues
-  });
-
-  const [purchaseItems, setPurchaseItems] = useState([]);
-  const [grandTotal, setGrandTotal] = useState(0);
-
-  useEffect(() => {
-    if (initialValues && Object.keys(initialValues).length > 0) {
-      setFormData({
-        orderId: initialValues.order?._id || initialValues.orderId || '',
-        orderDate: initialValues.orderDate || '',
-        PoNo: initialValues.PoNo || '',
-        orderType: initialValues.orderType || '',
-        buyerCode: initialValues.buyerCode || '',
-        orderStatus: initialValues.status || initialValues.orderStatus || '',
-        products: initialValues.products || [],
-        totalQty: initialValues.totalQty || 0,
-        remarks: initialValues.remarks || '',
-      });
-    }
-  }, [initialValues]);
-
-  useEffect(() => {
-    const total = purchaseItems.reduce((sum, item) => {
-      const itemTotal = item.totalCost || 0;
-      const gstAmount = itemTotal * (item.gstPercentage / 100 || 0);
-      return sum + itemTotal + gstAmount;
-    }, 0);
-    setGrandTotal(total);
-  }, [purchaseItems]);
-
-  // Extract colors from products
-  const getProductColors = () => {
-    if (!formData.products || formData.products.length === 0) return '';
-
-    const allColors = new Set();
-    formData.products.forEach(product => {
-      if (product.colors && Array.isArray(product.colors)) {
-        product.colors.forEach(colorEntry => {
-          allColors.add(colorEntry.color);
-        });
-      }
-    });
-
-    return Array.from(allColors).join(', ');
-  };
-
-  // In PurchaseForm.jsx, fix the handleSubmit function's purchaseMode mapping
-
   const handleSubmit = () => {
+    if (purchaseItems.length === 0) {
+      alert('Please add at least one purchase item');
+      return;
+    }
+
     const fabricPurchases = purchaseItems
       .filter(item => item.type === 'fabric')
       .map(item => {
@@ -838,7 +721,7 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
           vendor: item.vendor,
           vendorCode: item.vendorCode,
           vendorId: item.supplierId,
-          purchaseMode: item.purchaseUnit || 'kg', // This is correct for fabric
+          purchaseMode: item.purchaseUnit || 'kg',
           quantity: item.totalKg,
           costPerUnit: item.totalCost / (item.totalKg || 1),
           totalCost: item.totalCost,
@@ -856,8 +739,7 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
         const itemTotal = item.totalCost || 0;
         const gstAmount = itemTotal * (item.gstPercentage / 100 || 0);
 
-        // FIX: Map purchaseUnit to valid enum values for buttons
-        let purchaseMode = 'pieces'; // default
+        let purchaseMode = 'pieces';
         if (item.purchaseUnit === 'qty') {
           purchaseMode = 'qty';
         } else if (item.purchaseUnit === 'piece' || item.purchaseUnit === 'pieces') {
@@ -870,7 +752,7 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
           vendor: item.vendor,
           vendorCode: item.vendorCode,
           vendorId: item.supplierId,
-          purchaseMode: purchaseMode, // Fixed mapping
+          purchaseMode: purchaseMode,
           quantity: parseFloat(item.qty) || 0,
           costPerUnit: parseFloat(item.costPerQty) || 0,
           totalCost: item.totalCost,
@@ -888,8 +770,7 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
         const itemTotal = item.totalCost || 0;
         const gstAmount = itemTotal * (item.gstPercentage / 100 || 0);
 
-        // FIX: Map purchaseUnit to valid enum values for packets
-        let purchaseMode = 'piece'; // default
+        let purchaseMode = 'piece';
         if (item.purchaseUnit === 'packet') {
           purchaseMode = 'packet';
         } else if (item.purchaseUnit === 'piece' || item.purchaseUnit === 'pieces') {
@@ -902,7 +783,7 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
           vendor: item.vendor,
           vendorCode: item.vendorCode,
           vendorId: item.supplierId,
-          purchaseMode: purchaseMode, // Fixed mapping
+          purchaseMode: purchaseMode,
           quantity: parseFloat(item.pieces) || 0,
           costPerUnit: parseFloat(item.costPerPiece) || 0,
           totalCost: item.totalCost,
@@ -914,10 +795,11 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
       });
 
     const submitData = {
-      ...formData,
+      estimationDate: formData.estimationDate,
       fabricPurchases,
       buttonsPurchases,
       packetsPurchases,
+      remarks: formData.remarks,
       grandTotalCost: grandTotal
     };
 
@@ -925,104 +807,138 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
   };
 
   return (
-    <div className="w-full mx-auto bg-white dark:bg-gray-800">
-      <div className="space-y-2">
+    <div className="w-full mx-auto bg-white">
+      <div className="space-y-4">
         <div className="flex items-center justify-between pb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-              {isEditMode ? 'Edit Purchase' : 'Create Purchase Entry'}
+            <h2 className="text-2xl font-bold text-gray-800">
+              {isEditMode ? 'Edit Purchase Estimation' : 'Create Purchase Estimation'}
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {isEditMode ? 'Update purchase details' : 'Add purchase details for materials and accessories'}
+            <p className="text-sm text-gray-600 mt-1">
+              {isEditMode ? 'Update estimation details' : 'Create a new purchase cost estimation'}
             </p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium"
-            >
-              <X className="w-4 h-4 mr-1.5" />
-              Cancel
-            </button>
           </div>
         </div>
 
-        {/* Order Details (Read-only) - Horizontal Layout with Colors */}
-        <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-lg p-4 shadow-sm">
-          <div className="grid grid-cols-7 gap-4">
+        {/* Estimation Date and Remarks */}
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 shadow-sm">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Order Date</label>
-              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                {formData.orderDate ? new Date(formData.orderDate).toLocaleDateString('en-IN') : '-'}
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Estimation Date</label>
+              <input
+                type="date"
+                value={formData.estimationDate}
+                onChange={(e) => setFormData({ ...formData, estimationDate: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">PO Number</label>
-              <div className="text-sm font-bold text-gray-900 dark:text-gray-100">{formData.PoNo || '-'}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Order Type</label>
-              <div className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${formData.orderType === 'JOB-Works'
-                  ? 'bg-purple-100 dark:bg-purple-900 dark:bg-opacity-50 text-purple-800 dark:text-purple-300'
-                  : 'bg-blue-100 dark:bg-blue-900 dark:bg-opacity-50 text-blue-800 dark:text-blue-300'
-                }`}>
-                {formData.orderType || '-'}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Buyer Code</label>
-              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{formData.buyerCode || '-'}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Status</label>
-              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{formData.orderStatus || '-'}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Total Qty</label>
-              <div className="text-sm font-bold text-blue-600 dark:text-blue-400">{formData.totalQty || 0}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Colors</label>
-              <div className="text-sm font-medium text-gray-900 dark:text-gray-100" title={getProductColors()}>
-                {getProductColors() || '-'}
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Remarks</label>
+              <input
+                type="text"
+                value={formData.remarks || ''}
+                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="Optional notes..."
+              />
             </div>
           </div>
         </div>
 
         {/* Purchase Items Section */}
-        <PurchaseItemsSection
-          purchaseItems={purchaseItems}
-          setPurchaseItems={setPurchaseItems}
-          grandTotal={grandTotal}
-          initialValues={initialValues}
-        />
-
-        {/* General Remarks and Grand Total */}
-        <div className="flex justify-between pt-4">
-          <div className="w-2/3">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Remarks</label>
-            <input
-              type="text"
-              value={formData.remarks || ''}
-              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              placeholder="Additional notes..."
-            />
+        <div className="space-y-3 w-full">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-800">Purchase Items</h3>
+            <button
+              type="button"
+              onClick={addNewItemForm}
+              className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors font-medium shadow-sm"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              Add Item
+            </button>
           </div>
-          <div className="bg-white dark:bg-gray-700 rounded-lg px-6 py-3 border border-gray-200 dark:border-gray-600 shadow-sm min-w-[180px]">
-            <div className="text-sm text-gray-600 dark:text-gray-300">Grand Total</div>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">₹{grandTotal.toLocaleString()}</div>
+
+          {activeItems.length > 0 && (
+            <div className="space-y-4">
+              {activeItems.map((item) => (
+                <ItemForm
+                  key={item.id}
+                  item={item}
+                  onUpdateItemForm={updateItemForm}
+                  onUpdateFabricColors={updateFabricColors}
+                  onAddItemToPurchaseList={addItemToPurchaseList}
+                  onRemoveItemForm={removeItemForm}
+                />
+              ))}
+            </div>
+          )}
+
+          {purchaseItems.length > 0 && (
+            <div className="bg-gray-50 rounded-lg p-5 shadow-sm">
+              <h4 className="text-base font-semibold text-gray-800 mb-4">Added Items</h4>
+
+              <div className="flex flex-wrap gap-3 mb-4">
+                {purchaseItems.map((item) => (
+                  <div key={item.id} className="inline-flex items-center bg-white px-4 py-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="mr-3">
+                      {item.type === 'fabric' && (
+                        <div>
+                          <div className="font-medium text-sm text-gray-800">{item.itemName}</div>
+                          <div className="text-xs text-gray-500 font-bold">
+                            {item.totalKg} KG • <span className="text-green-500">₹{item.totalCost.toLocaleString()}</span>
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            GSM: {item.gsm} | {item.colors?.length} colors
+                          </div>
+                        </div>
+                      )}
+                      {item.type === 'buttons' && (
+                        <div>
+                          <div className="font-medium text-sm text-gray-800">{item.itemName}</div>
+                          <div className="text-xs text-gray-500 font-bold">
+                            {item.qty} qty • <span className="text-green-500">₹{item.totalCost.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      )}
+                      {item.type === 'packets' && (
+                        <div>
+                          <div className="font-medium text-sm text-gray-800">{item.itemName}</div>
+                          <div className="text-xs text-gray-500">
+                            {item.pieces} pcs • ₹{item.totalCost.toLocaleString()}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeFromPurchaseList(item.id)}
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Remove Item"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Grand Total */}
+        <div className="flex justify-end pt-4">
+          <div className="bg-white rounded-lg px-6 py-3 border border-gray-200 shadow-sm min-w-[180px]">
+            <div className="text-sm text-gray-600">Grand Total</div>
+            <div className="text-2xl font-bold text-green-600">₹{grandTotal.toLocaleString()}</div>
           </div>
         </div>
 
         {/* Form Actions */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-600">
+        <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-2.5 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium"
+            className="px-6 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
           >
             Cancel
           </button>
@@ -1032,7 +948,7 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
             className="flex items-center px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium shadow-sm"
           >
             <Save className="w-4 h-4 mr-1.5" />
-            {submitLabel || 'Save Purchase'}
+            {submitLabel || 'Save Estimation'}
           </button>
         </div>
       </div>
@@ -1040,4 +956,4 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
   );
 };
 
-export default PurchaseForm;
+export default PurchaseEstimationForm;
