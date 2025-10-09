@@ -84,6 +84,8 @@ const menuItems = [
       { name: "Invoice", path: "/invoice/invoice" },
       { name: "Proforma", path: "/invoice/proforma" },
       { name: "Estimate", path: "/invoice/estimate" },
+      { name: "Credit Note", path: "/invoice/credit-note" },
+      { name: "Debit Note", path: "/invoice/debit-note" },
     ],
   },
   {
