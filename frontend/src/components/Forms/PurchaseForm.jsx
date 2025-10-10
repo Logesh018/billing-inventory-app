@@ -286,7 +286,7 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
         )}
 
         <div className="w-30 relative">
-          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Vendor</label>
+          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Supplier</label>
           <input
             type="text"
             value={item.vendor}
@@ -295,7 +295,7 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
               searchSuppliers(e.target.value);
             }}
             onBlur={() => setTimeout(() => setShowSupplierDropdown(false), 200)}
-            placeholder="Search vendor"
+            placeholder="Search supplier"
             className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
             disabled={item.isCompleted}
           />
@@ -510,7 +510,7 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
 };
 
 // Purchase Items Section Component
-const PurchaseItemsSection = ({ purchaseItems, setPurchaseItems, grandTotal, initialValues }) => {
+const PurchaseItemsSection = ({ purchaseItems, setPurchaseItems, initialValues }) => {
   const [activeItems, setActiveItems] = useState([]);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, X, FileText } from 'lucide-react';
+import { Plus, Trash2, Save, X, FileText, Package } from 'lucide-react';
 import { axiosInstance } from '../../lib/axios';
 
 // FabricColorRows component (reused from PurchaseForm)
@@ -187,7 +187,7 @@ const FabricColorRows = ({ item, onUpdate, disabled, onAddItemToPurchaseList, on
   );
 };
 
-// ItemForm component (reused with minor modifications)
+// ItemForm component for Fabric/Buttons/Packets
 const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPurchaseList, onRemoveItemForm }) => {
   const [supplierSuggestions, setSupplierSuggestions] = useState([]);
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
@@ -509,10 +509,206 @@ const ItemForm = ({ item, onUpdateItemForm, onUpdateFabricColors, onAddItemToPur
   );
 };
 
+// Machine Item Form Component
+const MachineItemForm = ({ item, onUpdateItemForm, onAddItemToPurchaseList, onRemoveItemForm }) => {
+  const [supplierSuggestions, setSupplierSuggestions] = useState([]);
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+
+  const handleNumberFocus = (e) => {
+    if (e.target.value === '0') {
+      e.target.value = '';
+    }
+  };
+
+  const cost = parseFloat(item.cost) || 0;
+  const gstAmount = cost * (item.gstPercentage / 100 || 0);
+  const totalWithGst = cost + gstAmount;
+
+  const searchSuppliers = async (searchTerm) => {
+    if (searchTerm.length < 2) {
+      setSupplierSuggestions([]);
+      setShowSupplierDropdown(false);
+      return;
+    }
+
+    try {
+      const { data } = await axiosInstance.get(`/purchase-estimations/search/suppliers?q=${searchTerm}`);
+      const uniqueSuppliers = data.filter(
+        (supplier, index, self) =>
+          index === self.findIndex(
+            (s) =>
+              (s._id && s._id === supplier._id) ||
+              (s.name === supplier.name && s.mobile === supplier.mobile)
+          )
+      );
+      setSupplierSuggestions(uniqueSuppliers);
+      setShowSupplierDropdown(true);
+    } catch (error) {
+      console.error("Error searching suppliers:", error);
+      setSupplierSuggestions([]);
+      setShowSupplierDropdown(false);
+    }
+  };
+
+  const selectSupplier = (supplier) => {
+    onUpdateItemForm(item.id, 'vendor', supplier.name);
+    onUpdateItemForm(item.id, 'supplierId', supplier._id);
+    onUpdateItemForm(item.id, 'vendorCode', supplier.code || '');
+    setShowSupplierDropdown(false);
+    setSupplierSuggestions([]);
+  };
+
+  return (
+    <div className={`border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow ${item.isCompleted ? 'opacity-60' : ''}`}>
+      <div className="flex flex-wrap items-end gap-3 mb-2">
+        <div className="w-48">
+          <label className="text-xs text-gray-500 block mb-1">Machine Name</label>
+          <input
+            type="text"
+            value={item.machineName}
+            onChange={(e) => onUpdateItemForm(item.id, 'machineName', e.target.value)}
+            placeholder="Enter machine name"
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-400"
+            disabled={item.isCompleted}
+          />
+        </div>
+
+        <div className="w-40 relative">
+          <label className="text-xs text-gray-500 block mb-1">Vendor</label>
+          <input
+            type="text"
+            value={item.vendor}
+            onChange={(e) => {
+              onUpdateItemForm(item.id, 'vendor', e.target.value);
+              searchSuppliers(e.target.value);
+            }}
+            onBlur={() => setTimeout(() => setShowSupplierDropdown(false), 200)}
+            placeholder="Search vendor"
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-400"
+            disabled={item.isCompleted}
+          />
+          {showSupplierDropdown && supplierSuggestions.length > 0 && (
+            <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto mt-1">
+              {supplierSuggestions.map((supplier, index) => (
+                <div
+                  key={supplier._id || index}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-xs text-gray-700"
+                  onClick={() => selectSupplier(supplier)}
+                >
+                  <div className="font-medium text-gray-700">{supplier.name}</div>
+                  <div className="text-gray-500">{supplier.mobile || supplier.code}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="w-28">
+          <label className="text-xs text-gray-500 block mb-1">Vendor Code</label>
+          <input
+            type="text"
+            value={item.vendorCode || ''}
+            onChange={(e) => onUpdateItemForm(item.id, 'vendorCode', e.target.value)}
+            placeholder="Code"
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-400"
+            disabled={item.isCompleted}
+          />
+        </div>
+
+        <div className="w-32">
+          <label className="text-xs text-gray-500 block mb-1">Cost (₹)</label>
+          <input
+            type="number"
+            value={item.cost}
+            onFocus={handleNumberFocus}
+            onChange={(e) => onUpdateItemForm(item.id, 'cost', e.target.value)}
+            onWheel={(e) => e.target.blur()}
+            placeholder="Enter cost"
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-400"
+            disabled={item.isCompleted}
+          />
+        </div>
+
+        <div className="w-24">
+          <label className="text-xs text-gray-500 block mb-1">GST %</label>
+          <select
+            value={item.gstPercentage || ''}
+            onChange={(e) => onUpdateItemForm(item.id, 'gstPercentage', parseFloat(e.target.value) || 0)}
+            className="w-full text-sm border border-gray-300 rounded px-2 py-2 focus:ring-1 focus:ring-blue-400"
+            disabled={item.isCompleted}
+          >
+            <option value="">No GST</option>
+            <option value="5">5%</option>
+            <option value="12">12%</option>
+            <option value="14">14%</option>
+            <option value="18">18%</option>
+            <option value="28">28%</option>
+          </select>
+        </div>
+
+        <div className="w-32">
+          <label className="text-xs text-gray-500 block mb-1">Total Cost</label>
+          <div className="px-3 py-2 text-sm bg-green-50 border border-green-200 rounded text-green-700 font-medium text-center">
+            ₹{cost.toFixed(2)}
+          </div>
+        </div>
+
+        <div className="w-32">
+          <label className="text-xs text-gray-500 block mb-1">Total + GST</label>
+          <div className="px-3 py-2 text-sm bg-purple-50 border border-purple-200 rounded text-purple-700 font-medium text-center">
+            ₹{totalWithGst.toFixed(2)}
+          </div>
+        </div>
+
+        <div className="ml-auto flex gap-2">
+          {!item.isCompleted && (
+            <button
+              type="button"
+              onClick={() => onAddItemToPurchaseList(item.id)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors font-medium"
+            >
+              Add to Estimation
+            </button>
+          )}
+
+          {item.isCompleted && (
+            <div className="px-4 py-2 bg-green-100 text-green-700 text-sm rounded-lg font-medium">
+              Added ✓
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => onRemoveItemForm(item.id)}
+            className="text-red-500 hover:bg-red-50 rounded-full p-2 transition-colors"
+            title="Remove Machine"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <label className="text-xs text-gray-500 block mb-1">Remarks</label>
+        <textarea
+          value={item.remarks || ''}
+          onChange={(e) => onUpdateItemForm(item.id, 'remarks', e.target.value)}
+          placeholder="Additional notes..."
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-400"
+          rows="2"
+          disabled={item.isCompleted}
+        />
+      </div>
+    </div>
+  );
+};
+
 // Main Purchase Estimation Form Component
 const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMode }) => {
+  const [estimationType, setEstimationType] = useState('order'); // 'order' or 'machine'
   const [formData, setFormData] = useState({
     estimationDate: new Date().toISOString().split('T')[0],
+    PoNo: '',
     remarks: '',
     ...initialValues
   });
@@ -521,16 +717,58 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
   const [activeItems, setActiveItems] = useState([]);
   const [grandTotal, setGrandTotal] = useState(0);
 
+  // Order search states
+  const [orderSuggestions, setOrderSuggestions] = useState([]);
+  const [showOrderDropdown, setShowOrderDropdown] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderLoading, setOrderLoading] = useState(false);
+
   useEffect(() => {
     if (initialValues && Object.keys(initialValues).length > 0) {
       setFormData({
         estimationDate: initialValues.estimationDate ? new Date(initialValues.estimationDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        PoNo: initialValues.PoNo || '',
         remarks: initialValues.remarks || '',
       });
 
+      // Set estimation type
+      if (initialValues.estimationType) {
+        setEstimationType(initialValues.estimationType);
+      }
+
+      // Load order details if available
+      if (initialValues.order) {
+        setSelectedOrder({
+          _id: initialValues.order,
+          PoNo: initialValues.PoNo,
+          buyerDetails: initialValues.buyerDetails,
+          orderProducts: initialValues.orderProducts,
+          totalOrderQty: initialValues.totalOrderQty,
+          orderDate: initialValues.orderDate,
+          orderType: initialValues.orderType
+        });
+      }
+
       // Load existing items if editing
       const items = [];
-      
+
+      if (initialValues.machinesPurchases && initialValues.machinesPurchases.length > 0) {
+        initialValues.machinesPurchases.forEach(machine => {
+          items.push({
+            id: Date.now() + Math.random(),
+            type: 'machine',
+            machineName: machine.machineName,
+            vendor: machine.vendor,
+            vendorCode: machine.vendorCode || '',
+            supplierId: machine.vendorId,
+            cost: machine.cost,
+            gstPercentage: machine.gstPercentage || 0,
+            remarks: machine.remarks || '',
+            isCompleted: true
+          });
+        });
+      }
+
       if (initialValues.fabricPurchases && initialValues.fabricPurchases.length > 0) {
         initialValues.fabricPurchases.forEach(fabric => {
           const colors = fabric.colors.map(color => ({
@@ -549,10 +787,10 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
             vendor: fabric.vendor,
             vendorCode: fabric.vendorCode || '',
             supplierId: fabric.vendorId,
-            purchaseUnit: fabric.purchaseMode || 'kg',
+            purchaseUnit: fabric.unit || 'kg',
             totalKg: fabric.quantity,
             totalCost: fabric.totalCost,
-            gstPercentage: fabric.gstPercentage || 0,
+            gstPercentage: fabric.gstRate || 0,
             colors: colors,
             isCompleted: true
           });
@@ -568,11 +806,11 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
             vendor: button.vendor,
             vendorCode: button.vendorCode || '',
             supplierId: button.vendorId,
-            purchaseUnit: button.purchaseMode || 'pieces',
+            purchaseUnit: button.unit || 'pieces',
             qty: button.quantity,
             costPerQty: button.costPerUnit,
             totalCost: button.totalCost,
-            gstPercentage: button.gstPercentage || 0,
+            gstPercentage: button.gstRate || 0,
             isCompleted: true
           });
         });
@@ -587,11 +825,11 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
             vendor: packet.vendor,
             vendorCode: packet.vendorCode || '',
             supplierId: packet.vendorId,
-            purchaseUnit: packet.purchaseMode || 'piece',
+            purchaseUnit: packet.unit || 'piece',
             pieces: packet.quantity,
             costPerPiece: packet.costPerUnit,
             totalCost: packet.totalCost,
-            gstPercentage: packet.gstPercentage || 0,
+            gstPercentage: packet.gstRate || 0,
             isCompleted: true
           });
         });
@@ -603,32 +841,147 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
 
   useEffect(() => {
     const total = purchaseItems.reduce((sum, item) => {
-      const itemTotal = item.totalCost || 0;
-      const gstAmount = itemTotal * (item.gstPercentage / 100 || 0);
-      return sum + itemTotal + gstAmount;
+      if (item.type === 'machine') {
+        const cost = parseFloat(item.cost) || 0;
+        const gstAmount = cost * (item.gstPercentage / 100 || 0);
+        return sum + cost + gstAmount;
+      } else {
+        const itemTotal = item.totalCost || 0;
+        const gstAmount = itemTotal * (item.gstPercentage / 100 || 0);
+        return sum + itemTotal + gstAmount;
+      }
     }, 0);
     setGrandTotal(total);
   }, [purchaseItems]);
 
-  const createNewItemForm = () => ({
-    id: Date.now(),
-    type: 'fabric',
-    itemName: '',
-    gsm: '',
-    vendor: '',
-    vendorCode: '',
-    supplierId: '',
-    purchaseUnit: 'kg',
-    totalKg: 0,
-    totalCost: 0,
-    gstPercentage: 0,
-    qty: '',
-    costPerQty: '',
-    pieces: '',
-    costPerPiece: '',
-    colors: [{ id: Date.now(), color: '', kg: '', costPerKg: '', total: 0 }],
-    isCompleted: false
-  });
+  // Search orders by PoNo
+  // Search orders by PoNo
+  const searchOrders = async (searchTerm) => {
+    if (searchTerm.length < 2) {
+      setOrderSuggestions([]);
+      setShowOrderDropdown(false);
+      return;
+    }
+
+    try {
+      const response = await axiosInstance.get(`/purchase-estimations/search/orders?q=${encodeURIComponent(searchTerm)}`);
+      console.log("Search orders response:", response); // Debug log
+
+      // Check if the response is HTML (which indicates an error)
+      if (typeof response.data === 'string' && response.data.includes('<!doctype html>')) {
+        throw new Error("Invalid API response. The endpoint might not be correctly configured.");
+      }
+
+      // Ensure data is an array
+      setOrderSuggestions(Array.isArray(response.data) ? response.data : []);
+      setShowOrderDropdown(true);
+    } catch (error) {
+      console.error("Error searching orders:", error);
+      setOrderSuggestions([]);
+      setShowOrderDropdown(false);
+
+      // More detailed error message
+      let errorMessage = 'Failed to search orders';
+      if (error.response) {
+        errorMessage += `: ${error.response.status} ${error.response.statusText}`;
+        if (error.response.data && error.response.data.message) {
+          errorMessage += ` - ${error.response.data.message}`;
+        }
+      } else if (error.request) {
+        errorMessage += ': No response received from server';
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+
+      console.error(errorMessage);
+    }
+  };
+
+  // Fetch order details
+  const fetchOrderDetails = async (PoNo) => {
+    setOrderLoading(true);
+    try {
+      console.log("Fetching order details for PoNo:", PoNo); // Debug log
+
+      // Check if PoNo is valid
+      if (!PoNo || PoNo.trim() === '') {
+        throw new Error("Invalid PoNo");
+      }
+
+      const response = await axiosInstance.get(`/purchase-estimations/order/${encodeURIComponent(PoNo)}`);
+      console.log("Order details response:", response); // Debug log
+
+      // Check if the response is HTML (which indicates an error)
+      if (typeof response.data === 'string' && response.data.includes('<!doctype html>')) {
+        throw new Error("Invalid API response. The endpoint might not be correctly configured.");
+      }
+
+      if (!response.data) {
+        throw new Error("No order data received");
+      }
+
+      setSelectedOrder(response.data);
+      setFormData(prev => ({ ...prev, PoNo: response.data.PoNo }));
+      setShowOrderDropdown(false);
+      setOrderSuggestions([]);
+    } catch (error) {
+      console.error("Error fetching order details:", error);
+
+      // More detailed error message
+      let errorMessage = 'Failed to fetch order details';
+      if (error.response) {
+        errorMessage += `: ${error.response.status} ${error.response.statusText}`;
+        if (error.response.data && error.response.data.message) {
+          errorMessage += ` - ${error.response.data.message}`;
+        }
+      } else if (error.request) {
+        errorMessage += ': No response received from server';
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+
+      alert(errorMessage);
+    } finally {
+      setOrderLoading(false);
+    }
+  };
+
+  const createNewItemForm = () => {
+    if (estimationType === 'machine') {
+      return {
+        id: Date.now(),
+        type: 'machine',
+        machineName: '',
+        vendor: '',
+        vendorCode: '',
+        supplierId: '',
+        cost: '',
+        gstPercentage: 18,
+        remarks: '',
+        isCompleted: false
+      };
+    } else {
+      return {
+        id: Date.now(),
+        type: 'fabric',
+        itemName: '',
+        gsm: '',
+        vendor: '',
+        vendorCode: '',
+        supplierId: '',
+        purchaseUnit: 'kg',
+        totalKg: 0,
+        totalCost: 0,
+        gstPercentage: 0,
+        qty: '',
+        costPerQty: '',
+        pieces: '',
+        costPerPiece: '',
+        colors: [{ id: Date.now(), color: '', kg: '', costPerKg: '', total: 0 }],
+        isCompleted: false
+      };
+    }
+  };
 
   const addNewItemForm = () => {
     if (activeItems.length >= 2) {
@@ -653,7 +1006,9 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
       if (item.id === id) {
         const updated = { ...item, [field]: value };
 
-        if (item.type === 'buttons' && (field === 'qty' || field === 'costPerQty')) {
+        if (item.type === 'machine' && field === 'cost') {
+          // No additional calculation needed for machine
+        } else if (item.type === 'buttons' && (field === 'qty' || field === 'costPerQty')) {
           updated.totalCost = (parseFloat(updated.qty) || 0) * (parseFloat(updated.costPerQty) || 0);
         } else if (item.type === 'packets' && (field === 'pieces' || field === 'costPerPiece')) {
           updated.totalCost = (parseFloat(updated.pieces) || 0) * (parseFloat(updated.costPerPiece) || 0);
@@ -678,14 +1033,25 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
 
   const addItemToPurchaseList = (itemId) => {
     const item = activeItems.find(i => i.id === itemId);
-    if (!item || !item.itemName || !item.vendor) {
-      alert('Please fill in Item Name and Vendor');
-      return;
-    }
 
-    if (item.type === 'fabric' && item.colors.some(color => !color.color)) {
-      alert('Please fill in all color names');
-      return;
+    if (!item) return;
+
+    // Validation based on item type
+    if (item.type === 'machine') {
+      if (!item.machineName || !item.vendor || !item.cost) {
+        alert('Please fill in Machine Name, Vendor, and Cost');
+        return;
+      }
+    } else {
+      if (!item.itemName || !item.vendor) {
+        alert('Please fill in Item Name and Vendor');
+        return;
+      }
+
+      if (item.type === 'fabric' && item.colors.some(color => !color.color)) {
+        alert('Please fill in all color names');
+        return;
+      }
     }
 
     const purchaseItem = { ...item, id: Date.now() };
@@ -704,105 +1070,160 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
     setPurchaseItems(prev => prev.filter(item => item.id !== itemId));
   };
 
+  const handleEstimationTypeChange = (type) => {
+    if (activeItems.length > 0 || purchaseItems.length > 0) {
+      const confirm = window.confirm('Changing estimation type will clear all items. Continue?');
+      if (!confirm) return;
+    }
+
+    setEstimationType(type);
+    setActiveItems([]);
+    setPurchaseItems([]);
+
+    if (type === 'machine') {
+      setSelectedOrder(null);
+      setFormData(prev => ({ ...prev, PoNo: '' }));
+    }
+  };
+
   const handleSubmit = () => {
     if (purchaseItems.length === 0) {
-      alert('Please add at least one purchase item');
+      alert('Please add at least one item');
       return;
     }
 
-    const fabricPurchases = purchaseItems
-      .filter(item => item.type === 'fabric')
-      .map(item => {
-        const itemTotal = item.totalCost || 0;
-        const gstAmount = itemTotal * (item.gstPercentage / 100 || 0);
-        return {
-          productName: item.itemName,
-          fabricType: item.itemName,
-          vendor: item.vendor,
-          vendorCode: item.vendorCode,
-          vendorId: item.supplierId,
-          purchaseMode: item.purchaseUnit || 'kg',
-          quantity: item.totalKg,
-          costPerUnit: item.totalCost / (item.totalKg || 1),
-          totalCost: item.totalCost,
-          gstPercentage: item.gstPercentage || 0,
-          totalWithGst: itemTotal + gstAmount,
-          colors: item.colors?.map(c => c.color) || [],
-          gsm: item.gsm,
-          remarks: item.remarks || ''
-        };
-      });
-
-    const buttonsPurchases = purchaseItems
-      .filter(item => item.type === 'buttons')
-      .map(item => {
-        const itemTotal = item.totalCost || 0;
-        const gstAmount = itemTotal * (item.gstPercentage / 100 || 0);
-
-        let purchaseMode = 'pieces';
-        if (item.purchaseUnit === 'qty') {
-          purchaseMode = 'qty';
-        } else if (item.purchaseUnit === 'piece' || item.purchaseUnit === 'pieces') {
-          purchaseMode = 'pieces';
-        }
-
-        return {
-          productName: item.itemName,
-          size: 'Standard',
-          vendor: item.vendor,
-          vendorCode: item.vendorCode,
-          vendorId: item.supplierId,
-          purchaseMode: purchaseMode,
-          quantity: parseFloat(item.qty) || 0,
-          costPerUnit: parseFloat(item.costPerQty) || 0,
-          totalCost: item.totalCost,
-          gstPercentage: item.gstPercentage || 0,
-          totalWithGst: itemTotal + gstAmount,
-          buttonType: 'Standard',
-          color: '',
-          remarks: item.remarks || ''
-        };
-      });
-
-    const packetsPurchases = purchaseItems
-      .filter(item => item.type === 'packets')
-      .map(item => {
-        const itemTotal = item.totalCost || 0;
-        const gstAmount = itemTotal * (item.gstPercentage / 100 || 0);
-
-        let purchaseMode = 'piece';
-        if (item.purchaseUnit === 'packet') {
-          purchaseMode = 'packet';
-        } else if (item.purchaseUnit === 'piece' || item.purchaseUnit === 'pieces') {
-          purchaseMode = 'piece';
-        }
-
-        return {
-          productName: item.itemName,
-          size: 'Standard',
-          vendor: item.vendor,
-          vendorCode: item.vendorCode,
-          vendorId: item.supplierId,
-          purchaseMode: purchaseMode,
-          quantity: parseFloat(item.pieces) || 0,
-          costPerUnit: parseFloat(item.costPerPiece) || 0,
-          totalCost: item.totalCost,
-          gstPercentage: item.gstPercentage || 0,
-          totalWithGst: itemTotal + gstAmount,
-          packetType: 'Standard',
-          remarks: item.remarks || ''
-        };
-      });
-
-    const submitData = {
+    let submitData = {
+      estimationType: estimationType, // Add this line
       estimationDate: formData.estimationDate,
-      fabricPurchases,
-      buttonsPurchases,
-      packetsPurchases,
       remarks: formData.remarks,
-      grandTotalCost: grandTotal
     };
 
+    if (estimationType === 'machine') {
+      // Machine estimation submission
+      const machinesPurchases = purchaseItems
+        .filter(item => item.type === 'machine')
+        .map(item => {
+          const cost = parseFloat(item.cost) || 0;
+          const gstAmount = cost * (item.gstPercentage / 100 || 0);
+          return {
+            machineName: item.machineName,
+            vendor: item.vendor,
+            vendorCode: item.vendorCode || null,
+            vendorId: item.supplierId || null,
+            cost: cost,
+            gstRate: item.gstPercentage || 0,
+            totalCost: cost,
+            gstAmount: gstAmount,
+            totalWithGst: cost + gstAmount,
+            remarks: item.remarks || ''
+          };
+        });
+
+      submitData.machinesPurchases = machinesPurchases;
+      submitData.grandTotalCost = grandTotal;
+    } else {
+      // Order estimation submission
+      const fabricPurchases = purchaseItems
+        .filter(item => item.type === 'fabric')
+        .map(item => {
+          const itemTotal = item.totalCost || 0;
+          const gstAmount = itemTotal * (item.gstPercentage / 100 || 0);
+          return {
+            productName: item.itemName,
+            fabricType: item.itemName,
+            vendor: item.vendor,
+            vendorCode: item.vendorCode,
+            vendorId: item.supplierId,
+            quantity: item.totalKg,
+            unit: item.purchaseUnit || 'kg',
+            costPerUnit: item.totalCost / (item.totalKg || 1),
+            totalCost: item.totalCost,
+            gstRate: item.gstPercentage || 0,
+            gstAmount: gstAmount,
+            totalWithGst: itemTotal + gstAmount,
+            colors: item.colors?.map(c => c.color) || [],
+            gsm: item.gsm,
+            remarks: item.remarks || ''
+          };
+        });
+
+      const buttonsPurchases = purchaseItems
+        .filter(item => item.type === 'buttons')
+        .map(item => {
+          const itemTotal = item.totalCost || 0;
+          const gstAmount = itemTotal * (item.gstPercentage / 100 || 0);
+
+          let unit = 'pieces';
+          if (item.purchaseUnit === 'qty') {
+            unit = 'qty';
+          } else if (item.purchaseUnit === 'piece' || item.purchaseUnit === 'pieces') {
+            unit = 'pieces';
+          }
+
+          return {
+            productName: item.itemName,
+            size: 'Standard',
+            vendor: item.vendor,
+            vendorCode: item.vendorCode,
+            vendorId: item.supplierId,
+            quantity: parseFloat(item.qty) || 0,
+            unit: unit,
+            costPerUnit: parseFloat(item.costPerQty) || 0,
+            totalCost: item.totalCost,
+            gstRate: item.gstPercentage || 0,
+            gstAmount: gstAmount,
+            totalWithGst: itemTotal + gstAmount,
+            buttonType: 'Standard',
+            color: '',
+            remarks: item.remarks || ''
+          };
+        });
+
+      const packetsPurchases = purchaseItems
+        .filter(item => item.type === 'packets')
+        .map(item => {
+          const itemTotal = item.totalCost || 0;
+          const gstAmount = itemTotal * (item.gstPercentage / 100 || 0);
+
+          let unit = 'piece';
+          if (item.purchaseUnit === 'packet') {
+            unit = 'packet';
+          } else if (item.purchaseUnit === 'piece' || item.purchaseUnit === 'pieces') {
+            unit = 'piece';
+          }
+
+          return {
+            productName: item.itemName,
+            size: 'Standard',
+            vendor: item.vendor,
+            vendorCode: item.vendorCode,
+            vendorId: item.supplierId,
+            quantity: parseFloat(item.pieces) || 0,
+            unit: unit,
+            costPerUnit: parseFloat(item.costPerPiece) || 0,
+            totalCost: item.totalCost,
+            gstRate: item.gstPercentage || 0,
+            gstAmount: gstAmount,
+            totalWithGst: itemTotal + gstAmount,
+            packetType: 'Standard',
+            remarks: item.remarks || ''
+          };
+        });
+
+      submitData.PoNo = formData.PoNo || null;
+      submitData.order = selectedOrder?._id || null;
+      submitData.orderDate = selectedOrder?.orderDate || null;
+      submitData.orderType = selectedOrder?.orderType || null;
+      submitData.buyerDetails = selectedOrder?.buyerDetails || null;
+      submitData.orderProducts = selectedOrder?.products || [];
+      submitData.totalOrderQty = selectedOrder?.totalOrderQty || 0;
+      submitData.fabricPurchases = fabricPurchases;
+      submitData.buttonsPurchases = buttonsPurchases;
+      submitData.packetsPurchases = packetsPurchases;
+      submitData.grandTotalCost = grandTotal;
+    }
+
+    console.log("Submit data:", submitData); // Add this line for debugging
     onSubmit(submitData);
   };
 
@@ -820,7 +1241,38 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
           </div>
         </div>
 
-        {/* Estimation Date and Remarks */}
+        {/* Estimation Type Selection */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 shadow-sm">
+          <label className="block text-sm font-medium text-gray-700 mb-3">Estimation Type</label>
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => handleEstimationTypeChange('order')}
+              className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${estimationType === 'order'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              disabled={isEditMode}
+            >
+              <FileText className="w-5 h-5 mr-2" />
+              Order Estimation
+            </button>
+            <button
+              type="button"
+              onClick={() => handleEstimationTypeChange('machine')}
+              className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${estimationType === 'machine'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              disabled={isEditMode}
+            >
+              <Package className="w-5 h-5 mr-2" />
+              Machine Estimation
+            </button>
+          </div>
+        </div>
+
+        {/* Estimation Date and Order/Machine Details */}
         <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 shadow-sm">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -832,23 +1284,135 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Remarks</label>
-              <input
-                type="text"
-                value={formData.remarks || ''}
-                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="Optional notes..."
-              />
-            </div>
+
+            {estimationType === 'order' && (
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  PoNo (Order Number)
+                </label>
+                <input
+                  type="text"
+                  value={formData.PoNo}
+                  onChange={(e) => {
+                    setFormData({ ...formData, PoNo: e.target.value });
+                    searchOrders(e.target.value);
+                  }}
+                  onBlur={() => setTimeout(() => setShowOrderDropdown(false), 200)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  placeholder="Search by PoNo..."
+                />
+                {showOrderDropdown && Array.isArray(orderSuggestions) && orderSuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto mt-1">
+                    {orderSuggestions.map((order) => (
+                      <div
+                        key={order._id}
+                        className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100"
+                        onClick={() => fetchOrderDetails(order.PoNo)}
+                      >
+                        <div className="font-medium text-gray-800">{order.PoNo}</div>
+                        <div className="text-sm text-gray-600">
+                          {order.buyerName} • {new Date(order.orderDate).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {estimationType === 'machine' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Remarks</label>
+                <input
+                  type="text"
+                  value={formData.remarks || ''}
+                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  placeholder="Optional notes..."
+                />
+              </div>
+            )}
           </div>
         </div>
 
+        {orderLoading && (
+          <div className="flex justify-center items-center py-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-gray-600">Loading order details...</span>
+          </div>
+        )}
+
+        {/*  Order Details Display (Read-only) */}
+        {estimationType === 'order' && selectedOrder && (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-5 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Order Details</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div>
+                <div className="text-xs text-gray-600">Buyer Name</div>
+                <div className="font-medium text-gray-800">
+                  {selectedOrder.buyerDetails?.name || selectedOrder.buyer?.name || 'N/A'}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Buyer Code</div>
+                <div className="font-medium text-gray-800">
+                  {selectedOrder.buyerDetails?.code || selectedOrder.buyer?.code || 'N/A'}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Order Date</div>
+                <div className="font-medium text-gray-800">
+                  {selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleDateString() : 'N/A'}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Total Qty</div>
+                <div className="font-medium text-gray-800">
+                  {selectedOrder.totalOrderQty || selectedOrder.totalQty || 'N/A'}
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-green-200 pt-4">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Products</h4>
+              <div className="space-y-2">
+                {selectedOrder.products && selectedOrder.products.length > 0 ? (
+                  selectedOrder.products.map((product, idx) => (
+                    <div key={idx} className="bg-white rounded-lg p-3 border border-green-100">
+                      <div className="font-medium text-gray-800 mb-2">
+                        {product.productName} - {product.fabricType}
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                        {product.colors && product.colors.length > 0 ? (
+                          product.colors.map((colorObj, colorIdx) => (
+                            <div key={colorIdx} className="bg-gray-50 rounded p-2">
+                              <div className="font-medium text-gray-700">{colorObj.color}</div>
+                              <div className="text-gray-600 mt-1">
+                                {colorObj.sizes && colorObj.sizes.length > 0
+                                  ? colorObj.sizes.map(s => `${s.size}: ${s.quantity}`).join(', ')
+                                  : 'N/A'}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="col-span-4 text-gray-500">No color information available</div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-gray-500">No products found for this order</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {/* Purchase Items Section */}
         <div className="space-y-3 w-full">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-800">Purchase Items</h3>
+            <h3 className="text-lg font-semibold text-gray-800">
+              {estimationType === 'machine' ? 'Machine Items' : 'Purchase Items'}
+            </h3>
             <button
               type="button"
               onClick={addNewItemForm}
@@ -862,94 +1426,146 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
           {activeItems.length > 0 && (
             <div className="space-y-4">
               {activeItems.map((item) => (
-                <ItemForm
-                  key={item.id}
-                  item={item}
-                  onUpdateItemForm={updateItemForm}
-                  onUpdateFabricColors={updateFabricColors}
-                  onAddItemToPurchaseList={addItemToPurchaseList}
-                  onRemoveItemForm={removeItemForm}
-                />
+                <React.Fragment key={item.id}>
+                  {item.type === 'machine' ? (
+                    <MachineItemForm
+                      item={item}
+                      onUpdateItemForm={updateItemForm}
+                      onAddItemToPurchaseList={addItemToPurchaseList}
+                      onRemoveItemForm={removeItemForm}
+                    />
+                  ) : (
+                    <ItemForm
+                      item={item}
+                      onUpdateItemForm={updateItemForm}
+                      onUpdateFabricColors={updateFabricColors}
+                      onAddItemToPurchaseList={addItemToPurchaseList}
+                      onRemoveItemForm={removeItemForm}
+                    />
+                  )}
+                </React.Fragment>
               ))}
             </div>
           )}
 
+          {/* Purchase Items List */}
           {purchaseItems.length > 0 && (
-            <div className="bg-gray-50 rounded-lg p-5 shadow-sm">
-              <h4 className="text-base font-semibold text-gray-800 mb-4">Added Items</h4>
-
-              <div className="flex flex-wrap gap-3 mb-4">
-                {purchaseItems.map((item) => (
-                  <div key={item.id} className="inline-flex items-center bg-white px-4 py-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="mr-3">
-                      {item.type === 'fabric' && (
-                        <div>
-                          <div className="font-medium text-sm text-gray-800">{item.itemName}</div>
-                          <div className="text-xs text-gray-500 font-bold">
-                            {item.totalKg} KG • <span className="text-green-500">₹{item.totalCost.toLocaleString()}</span>
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            GSM: {item.gsm} | {item.colors?.length} colors
-                          </div>
-                        </div>
-                      )}
-                      {item.type === 'buttons' && (
-                        <div>
-                          <div className="font-medium text-sm text-gray-800">{item.itemName}</div>
-                          <div className="text-xs text-gray-500 font-bold">
-                            {item.qty} qty • <span className="text-green-500">₹{item.totalCost.toLocaleString()}</span>
-                          </div>
-                        </div>
-                      )}
-                      {item.type === 'packets' && (
-                        <div>
-                          <div className="font-medium text-sm text-gray-800">{item.itemName}</div>
-                          <div className="text-xs text-gray-500">
-                            {item.pieces} pcs • ₹{item.totalCost.toLocaleString()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFromPurchaseList(item.id)}
-                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Remove Item"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Estimation Items</h3>
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Item
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Vendor
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Quantity
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Cost
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        GST
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Total
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {purchaseItems.map((item) => (
+                      <tr key={item.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.type === 'machine' ? item.machineName : item.itemName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.vendor}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.type === 'machine' ? '1' :
+                            item.type === 'fabric' ? `${item.totalKg} ${item.purchaseUnit}` :
+                              item.type === 'buttons' ? `${item.qty} ${item.purchaseUnit}` :
+                                `${item.pieces} ${item.purchaseUnit}`}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          ₹{item.type === 'machine' ? item.cost : item.totalCost}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.gstPercentage}%
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          ₹{item.type === 'machine' ?
+                            (parseFloat(item.cost) * (1 + (item.gstPercentage / 100 || 0))).toFixed(2) :
+                            (item.totalCost * (1 + (item.gstPercentage / 100 || 0))).toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button
+                            type="button"
+                            onClick={() => removeFromPurchaseList(item.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-50">
+                    <tr>
+                      <td colSpan="5" className="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                        Grand Total:
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                        ₹{grandTotal.toFixed(2)}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             </div>
           )}
-        </div>
 
-        {/* Grand Total */}
-        <div className="flex justify-end pt-4">
-          <div className="bg-white rounded-lg px-6 py-3 border border-gray-200 shadow-sm min-w-[180px]">
-            <div className="text-sm text-gray-600">Grand Total</div>
-            <div className="text-2xl font-bold text-green-600">₹{grandTotal.toLocaleString()}</div>
+          {/* Remarks Section */}
+          {estimationType === 'order' && (
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Remarks</label>
+              <textarea
+                value={formData.remarks || ''}
+                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="Additional notes..."
+                rows="3"
+              />
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex items-center px-6 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            >
+              <X className="w-4 h-4 mr-1.5" />
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="flex items-center px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+            >
+              <Save className="w-4 h-4 mr-1.5" />
+              {submitLabel || 'Save Estimation'}
+            </button>
           </div>
-        </div>
-
-        {/* Form Actions */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-6 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="flex items-center px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium shadow-sm"
-          >
-            <Save className="w-4 h-4 mr-1.5" />
-            {submitLabel || 'Save Estimation'}
-          </button>
         </div>
       </div>
     </div>

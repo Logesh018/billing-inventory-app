@@ -5,7 +5,7 @@ import {
   createPurchaseEstimation,
   updatePurchaseEstimation,
   deletePurchaseEstimation,
-  getEstimationPDF,  // ← NEW - Fast check
+  getEstimationPDF,
   generateEstimationPDF
 } from "../api/purchaseEstimationApi";
 import PurchaseEstimationForm from "../components/Forms/PurchaseEstimationForm";
@@ -57,7 +57,7 @@ export default function PurchaseEstimation() {
     }
   };
 
-  // NEW: Fast PDF viewing - checks if PDF exists first
+  // Fast PDF viewing - checks if PDF exists first
   const handleViewPDF = async (estimation) => {
     try {
       // If PDF URL exists in the estimation object, open it immediately
@@ -133,20 +133,35 @@ export default function PurchaseEstimation() {
       const hasPurchaseItems =
         (data.fabricPurchases && data.fabricPurchases.length > 0) ||
         (data.buttonsPurchases && data.buttonsPurchases.length > 0) ||
-        (data.packetsPurchases && data.packetsPurchases.length > 0);
+        (data.packetsPurchases && data.packetsPurchases.length > 0) ||
+        (data.machinesPurchases && data.machinesPurchases.length > 0);
 
       if (!hasPurchaseItems) {
-        alert("Please add at least one purchase item (fabric, buttons, or packets)");
+        alert("Please add at least one purchase item (fabric, buttons, packets, or machine)");
         return;
       }
 
+      // Create the payload with all the required fields
       const payload = {
+        estimationType: data.estimationType,
         estimationDate: data.estimationDate,
         fabricPurchases: data.fabricPurchases || [],
         buttonsPurchases: data.buttonsPurchases || [],
         packetsPurchases: data.packetsPurchases || [],
+        machinesPurchases: data.machinesPurchases || [],
         remarks: data.remarks,
       };
+
+      // Add order-specific fields if it's an order estimation
+      if (data.estimationType === 'order') {
+        payload.PoNo = data.PoNo || null;
+        payload.order = data.order || null;
+        payload.orderDate = data.orderDate || null;
+        payload.orderType = data.orderType || null;
+        payload.buyerDetails = data.buyerDetails || null;
+        payload.orderProducts = data.orderProducts || [];
+        payload.totalOrderQty = data.totalOrderQty || 0;
+      }
 
       console.log("📤 Submitting estimation payload:", payload);
 
@@ -187,7 +202,7 @@ export default function PurchaseEstimation() {
     {
       key: "estimationDate",
       label: "Date",
-      width: "80px",
+      width: "65px",
       render: (e) => (
         <div className="text-xs">
           {e.estimationDate ? new Date(e.estimationDate).toLocaleDateString('en-IN', {
@@ -200,14 +215,56 @@ export default function PurchaseEstimation() {
     },
     {
       key: "PESNo",
-      label: "PES No",
-      width: "80px",
-      render: (e) => <span className="font-medium text-xs text-blue-600">{e.PESNo || "—"}</span>
+      label: "PES-No",
+      width: "60px",
+      render: (e) => <span className="font-medium text-xs">{e.PESNo || "—"}</span>
+    },
+    {
+      key: "PoNo",
+      label: "PO No",
+      width: "75px",
+      render: (e) => (
+        <div className="font-medium text-[11px]" title={e.PoNo}>
+          {truncate(e.PoNo, 12) || "—"}
+        </div>
+      )
+    },
+    {
+      key: "buyerCode",
+      label: "Buyer",
+      width: "60px",
+      render: (e) => (
+        <div className="text-[11px]" title={e.buyerDetails?.code}>
+          {truncate(e.buyerDetails?.code, 8) || "—"}
+        </div>
+      )
+    },
+    {
+      key: "orderType",
+      label: "Type",
+      width: "60px",
+      render: (e) => {
+        if (e.estimationType === "machine") {
+          return (
+            <span className="px-1 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+              Machine
+            </span>
+          );
+        }
+        return (
+          <span className={`px-1 py-0.5 rounded text-xs font-medium ${e.orderType === "JOB-Works"
+            ? "bg-purple-100 text-purple-700"
+            : "bg-blue-100 text-blue-700"
+            }`}>
+            {e.orderType === "JOB-Works" ? "JOB-Works" : "FOB"}
+          </span>
+        );
+      }
     },
     {
       key: "status",
       label: "Status",
-      width: "80px",
+      width: "65px",
       render: (e) => {
         const status = e.status || "Draft";
         const styles = {
@@ -215,113 +272,191 @@ export default function PurchaseEstimation() {
           Finalized: "bg-green-500 text-white",
         };
         return (
-          <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${styles[status] || "bg-gray-100 text-gray-700"}`}>
+          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${styles[status] || "bg-gray-100 text-gray-700"}`}>
             {status}
           </span>
         );
       }
     },
     {
-      key: "items",
-      label: "Items",
-      width: "100px",
+      key: "products",
+      label: "Products",
+      width: "85px",
       render: (e) => {
-        const fabricCount = e.fabricPurchases?.length || 0;
-        const buttonsCount = e.buttonsPurchases?.length || 0;
-        const packetsCount = e.packetsPurchases?.length || 0;
-        const totalItems = fabricCount + buttonsCount + packetsCount;
+        if (e.estimationType === "machine") {
+          return (
+            <div className="text-xs">
+              <div className="truncate">Machine</div>
+            </div>
+          );
+        }
+
+        if (!e.orderProducts || e.orderProducts.length === 0) {
+          return <span className="text-gray-400 text-xs">—</span>;
+        }
+
+        const productNames = e.orderProducts.map(prod => prod.productName);
+
+        return (
+          <div className="text-xs" title={productNames.join(", ")}>
+            {productNames.map((name, idx) => (
+              <div key={idx} className="truncate">{truncate(name, 11)}</div>
+            ))}
+          </div>
+        );
+      }
+    },
+    {
+      key: "fabricType",
+      label: "Fabric",
+      width: "70px",
+      render: (e) => {
+        if (e.estimationType === "machine") {
+          return <span className="text-gray-400 text-xs">—</span>;
+        }
+
+        if (!e.orderProducts || e.orderProducts.length === 0) return <span className="text-gray-400 text-xs">—</span>;
+
+        const types = [...new Set(e.orderProducts.map(prod => prod.fabricType))];
+
+        return (
+          <div className="text-xs" title={types.join(", ")}>
+            {types.map((type, idx) => (
+              <div key={idx} className="truncate">{truncate(type, 10)}</div>
+            ))}
+          </div>
+        );
+      }
+    },
+    {
+      key: "color",
+      label: "Color",
+      width: "70px",
+      render: (e) => {
+        if (e.estimationType === "machine") {
+          return <span className="text-gray-400 text-xs">—</span>;
+        }
+
+        if (!e.orderProducts || e.orderProducts.length === 0) {
+          return <span className="text-gray-400 text-xs">—</span>;
+        }
+
+        const colorData = {};
+
+        e.orderProducts.forEach(product => {
+          if (product.colors && Array.isArray(product.colors)) {
+            product.colors.forEach(colorEntry => {
+              if (!colorData[colorEntry.color]) {
+                colorData[colorEntry.color] = {};
+              }
+
+              colorEntry.sizes?.forEach(s => {
+                if (!colorData[colorEntry.color][s.size]) {
+                  colorData[colorEntry.color][s.size] = 0;
+                }
+                colorData[colorEntry.color][s.size] += s.quantity || 0;
+              });
+            });
+          }
+        });
+
+        const colors = Object.keys(colorData);
+
+        if (colors.length === 0) {
+          return <span className="text-gray-400 text-xs">—</span>;
+        }
 
         return (
           <div className="text-xs">
-            <div className="font-semibold text-gray-800">{totalItems} items</div>
-            <div className="text-gray-500 text-[10px]">
-              {fabricCount > 0 && `${fabricCount} Fabric`}
-              {buttonsCount > 0 && ` ${buttonsCount} Btns`}
-              {packetsCount > 0 && ` ${packetsCount} Pkts`}
-            </div>
+            {colors.map((color, idx) => (
+              <div key={idx} className="font-medium border-b border-l border-r border-gray-200 text-gray-800 py-1">
+                {color}
+              </div>
+            ))}
           </div>
         );
       }
     },
     {
-      key: "vendors",
-      label: "Vendors",
-      width: "120px",
+      key: "sizeQtyByColor",
+      label: "Size & Qty",
+      width: "150px",
       render: (e) => {
-        const vendors = new Set();
+        if (e.estimationType === "machine") {
+          return <span className="text-gray-400 text-xs">—</span>;
+        }
 
-        e.fabricPurchases?.forEach(f => vendors.add(f.vendor));
-        e.buttonsPurchases?.forEach(b => vendors.add(b.vendor));
-        e.packetsPurchases?.forEach(p => vendors.add(p.vendor));
+        if (!e.orderProducts || e.orderProducts.length === 0) {
+          return <span className="text-gray-400 text-xs">—</span>;
+        }
 
-        const vendorList = Array.from(vendors);
+        const colorData = {};
+
+        e.orderProducts.forEach(product => {
+          if (product.colors && Array.isArray(product.colors)) {
+            product.colors.forEach(colorEntry => {
+              if (!colorData[colorEntry.color]) {
+                colorData[colorEntry.color] = {};
+              }
+
+              colorEntry.sizes?.forEach(s => {
+                if (!colorData[colorEntry.color][s.size]) {
+                  colorData[colorEntry.color][s.size] = 0;
+                }
+                colorData[colorEntry.color][s.size] += s.quantity || 0;
+              });
+            });
+          }
+        });
+
+        const colors = Object.keys(colorData);
+
+        if (colors.length === 0) {
+          return <span className="text-gray-400 text-xs">—</span>;
+        }
 
         return (
-          <div className="text-xs" title={vendorList.join(", ")}>
-            {vendorList.length > 0 ? (
-              vendorList.slice(0, 2).map((vendor, idx) => (
-                <div key={idx} className="truncate text-gray-700">
-                  {truncate(vendor, 15)}
+          <div className="text-xs">
+            {colors.map((color, idx) => {
+              const colorSizeEntries = Object.entries(colorData[color]).sort((a, b) => {
+                const sizeOrder = { XS: 0, S: 1, M: 2, L: 3, XL: 4, XXL: 5 };
+                return (sizeOrder[a[0]] || 999) - (sizeOrder[b[0]] || 999);
+              });
+
+              const sizeQtyStr = colorSizeEntries
+                .map(([size, qty]) => `${size}: ${qty}`)
+                .join(", ");
+
+              return (
+                <div key={idx} className="text-gray-600 font-mono border-b border-l border-r border-gray-200 py-1">
+                  {sizeQtyStr}
                 </div>
-              ))
-            ) : (
-              <span className="text-gray-400">—</span>
-            )}
-            {vendorList.length > 2 && (
-              <div className="text-[10px] text-blue-600">+{vendorList.length - 2} more</div>
-            )}
+              );
+            })}
           </div>
         );
       }
     },
     {
-      key: "totalCost",
-      label: "Subtotal",
-      width: "90px",
-      render: (e) => (
-        <div className="text-right">
-          <span className="font-semibold text-gray-800 text-xs">
-            ₹{(e.grandTotalCost || 0).toLocaleString()}
-          </span>
-        </div>
-      )
-    },
-    {
-      key: "gst",
-      label: "GST",
-      width: "80px",
+      key: "totalQty",
+      label: "Total",
+      width: "60px",
       render: (e) => {
-        const totalGst = (e.totalFabricGst || 0) + (e.totalButtonsGst || 0) + (e.totalPacketsGst || 0);
-        return (
-          <div className="text-right">
-            <span className="text-green-600 text-xs font-medium">
-              ₹{totalGst.toLocaleString()}
+        if (e.estimationType === "machine") {
+          const machineCount = e.machinesPurchases?.length || 0;
+          return (
+            <span className="font-semibold text-blue-600 text-sm">
+              {machineCount || 0}
             </span>
-          </div>
+          );
+        }
+
+        return (
+          <span className="font-semibold text-blue-600 text-sm">
+            {e.totalOrderQty || 0}
+          </span>
         );
       }
-    },
-    {
-      key: "grandTotal",
-      label: "Grand Total",
-      width: "100px",
-      render: (e) => (
-        <div className="text-right">
-          <span className="font-bold text-blue-600 text-sm">
-            ₹{(e.grandTotalWithGst || 0).toLocaleString()}
-          </span>
-        </div>
-      )
-    },
-    {
-      key: "remarks",
-      label: "Remarks",
-      width: "120px",
-      render: (e) => (
-        <div className="text-xs text-gray-600" title={e.remarks}>
-          {truncate(e.remarks, 20) || "—"}
-        </div>
-      )
     },
     {
       key: "pdfStatus",
@@ -386,10 +521,12 @@ export default function PurchaseEstimation() {
       {showForm ? (
         <PurchaseEstimationForm
           initialValues={editEstimation || {
+            estimationType: 'order',
             estimationDate: new Date().toISOString().split('T')[0],
             fabricPurchases: [],
             buttonsPurchases: [],
             packetsPurchases: [],
+            machinesPurchases: [],
             remarks: "",
           }}
           onSubmit={handleFormSubmit}
