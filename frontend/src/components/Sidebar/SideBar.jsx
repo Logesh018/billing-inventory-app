@@ -20,7 +20,7 @@ import SubMenu from "./SubMenu";
 
 // Import Pages
 import HomePage from "./Sidebarpages/HomePage";
-import Products from "../../pages/products/Products";
+// import Products from "../../pages/products/Products";
 import Purchase from "../../pages/purchases/Purchase";
 import Productions from "../../pages/productions/Productions";
 import Buyers from "./Sidebarpages/Buyers";
@@ -44,7 +44,7 @@ import PurchaseOrders from "../../pages/purchases/PurchaseOrder";
 
 const menuItems = [
   { name: "Home", icon: Home, path: "/" },
-  { name: "Products", icon: Package, path: "/products" },
+  // { name: "Products", icon: Package, path: "/products" },
   {
     name: "Vendor Management",
     icon: Building2,
@@ -239,7 +239,7 @@ export default function Sidebar() {
           <Route path="/vendor/suppliers" element={<Suppliers />} />
           <Route path="/vendor/buyers" element={<Buyers />} />
           <Route path="/vendor/sales" element={<EventsPage />} />
-          <Route path="/products" element={<Products />} />
+          {/* <Route path="/products" element={<Products />} /> */}
           <Route path="/purchases" element={<Purchase />} />
           <Route path="/purchase/return" element={<RecurringExpenses />} />
           <Route path="/purchase-estimations" element={<PurchaseEstimation />} />
