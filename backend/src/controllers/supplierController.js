@@ -2,29 +2,41 @@ import Supplier from "../models/supplier.js";
 
 export const createSupplier = async (req, res) => {
   try {
-    const { name, code, mobile, gst, email, address } = req.body;
+    const { name, code, mobile, gst, email, address, vendorGoods } = req.body;
 
-    // Validate required fields
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({ message: "Supplier name is required" });
     }
-    if (!mobile || !mobile.trim()) {
+    if (!mobile?.trim()) {
       return res.status(400).json({ message: "Supplier mobile is required" });
+    }
+
+    // ✅ Validate vendor goods
+    if (!vendorGoods || !vendorGoods.category) {
+      return res.status(400).json({ message: "Please specify supplier category (Fabrics or Accessories)" });
+    }
+
+    if (vendorGoods.category === "Accessories" && !vendorGoods.details?.trim()) {
+      return res.status(400).json({ message: "Please specify accessory details (e.g. buttons, packets)" });
     }
 
     const supplier = new Supplier({
       name: name.trim(),
-      code: code || undefined, // Let pre-save middleware generate code if not provided
+      code: code || undefined,
       mobile: mobile.trim(),
-      gst: gst ? gst.trim() : "",
-      email: email ? email.trim().toLowerCase() : "",
-      address: address ? address.trim() : "",
+      gst: gst?.trim() || "",
+      email: email?.trim().toLowerCase() || "",
+      address: address?.trim() || "",
+      vendorGoods: {
+        category: vendorGoods.category,
+        details: vendorGoods.details || null
+      }
     });
 
     const savedSupplier = await supplier.save();
     res.status(201).json(savedSupplier);
   } catch (error) {
-    if (error.code === 11000) { // Duplicate key error (e.g., unique code)
+    if (error.code === 11000) {
       return res.status(400).json({ message: "Supplier with this code already exists" });
     }
     console.error("Error creating supplier:", error);

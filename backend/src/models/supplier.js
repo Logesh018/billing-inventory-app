@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const SupplierSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
-  code: { type: String, unique: true, uppercase: true }, 
+  code: { type: String, unique: true, uppercase: true },
   mobile: { 
     type: String, 
     required: true, 
@@ -27,21 +27,24 @@ const SupplierSchema = new mongoose.Schema({
     }
   },
   address: { type: String, trim: true },
-
-  // Additional supplier information
   company: { type: String, trim: true },
-  contactPerson: { type: String, trim: true },
-  alternatePhone: { type: String, trim: true },
+  
+  vendorGoods: {
+    type: {
+      category: {
+        type: String,
+        enum: ["Fabrics", "Accessories"],
+        required: true
+      },
+      details: { 
+        type: String,
+        trim: true
+      }
+    },
+    required: true
+  },
 
-  // Business details
-  businessType: { type: String, trim: true },
-  paymentTerms: { type: String, trim: true },
-  creditLimit: { type: Number, default: 0 },
-
-  // Status
   isActive: { type: Boolean, default: true },
-
-  // Relationship tracking
   totalPurchases: { type: Number, default: 0 },
   totalPurchaseValue: { type: Number, default: 0 },
   lastPurchaseDate: { type: Date },
@@ -57,7 +60,6 @@ SupplierSchema.index({ isActive: 1 });
 
 // Pre-save middleware to format name
 SupplierSchema.pre("save", function (next) {
-  // Capitalize first letter of name
   if (this.name) {
     this.name = this.name.charAt(0).toUpperCase() + this.name.slice(1);
   }
@@ -66,9 +68,8 @@ SupplierSchema.pre("save", function (next) {
 
 // Pre-save middleware to generate unique supplier code
 SupplierSchema.pre("save", async function (next) {
-  if (!this.code) { // Only generate code if not provided
+  if (!this.code) {
     try {
-      // Find the latest supplier with a code starting with "SUP"
       const latestSupplier = await this.constructor
         .findOne({ code: { $regex: "^SUP", $options: "i" } })
         .sort({ code: -1 })
@@ -76,14 +77,12 @@ SupplierSchema.pre("save", async function (next) {
 
       let newCodeNumber = 1;
       if (latestSupplier && latestSupplier.code) {
-        // Extract the numeric part and increment
         const numericPart = parseInt(latestSupplier.code.replace("SUP", ""), 10);
         if (!isNaN(numericPart)) {
           newCodeNumber = numericPart + 1;
         }
       }
 
-      // Format the code as SUP followed by a padded number (e.g., SUP001)
       this.code = `SUP${newCodeNumber.toString().padStart(3, "0")}`;
     } catch (error) {
       return next(error);
@@ -94,7 +93,7 @@ SupplierSchema.pre("save", async function (next) {
 
 // Static method to search suppliers by name/company
 SupplierSchema.statics.searchByName = function (searchTerm) {
-  const regex = new RegExp(searchTerm, 'i'); // Case-insensitive search
+  const regex = new RegExp(searchTerm, 'i');
   return this.find({
     $and: [
       { isActive: true },
@@ -105,7 +104,7 @@ SupplierSchema.statics.searchByName = function (searchTerm) {
         ]
       }
     ]
-  }).select('name code').limit(10); // Only return name and code for search
+  }).select('name code').limit(10);
 };
 
 export default mongoose.model("Supplier", SupplierSchema);

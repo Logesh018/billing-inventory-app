@@ -14,16 +14,22 @@ const getBusinessConfig = () => ({
   state: process.env.BUSINESS_STATE || "State",
   pincode: process.env.BUSINESS_PINCODE || "123456",
   gst: process.env.BUSINESS_GST || "",
+  pan: process.env.BUSINESS_PAN || "",
   email: process.env.BUSINESS_EMAIL || "info@business.com",
   phone: process.env.BUSINESS_PHONE || "+91 1234567890",
   website: process.env.BUSINESS_WEBSITE || "www.business.com",
   logo: process.env.BUSINESS_LOGO || "",
+  // ADD THESE:
+  bankName: process.env.BUSINESS_BANK_NAME || "",
+  accountNumber: process.env.BUSINESS_ACCOUNT_NUMBER || "",
+  ifsc: process.env.BUSINESS_IFSC || "",
+  branch: process.env.BUSINESS_BRANCH || "",
 });
 
 // Generic create document function
 const createDocument = async (req, res) => {
   try {
-    console.log("Full request body:", JSON.stringify(req.body, null, 2)); // Debug log
+    console.log("Full request body:", JSON.stringify(req.body, null, 2));
 
     const { documentType, customer: customerData, items, ...documentData } = req.body;
 
@@ -142,12 +148,59 @@ const createDocument = async (req, res) => {
         return res.status(400).json({ message: `Item ${i + 1}: Product name is required` });
       }
 
-      if (!item.quantity || item.quantity <= 0) {
-        return res.status(400).json({ message: `Item ${i + 1}: Valid quantity is required` });
+      // Check if item has colors/sizes (new format) or legacy quantity/unitPrice
+      let hasValidQuantity = false;
+      let totalQuantity = 0;
+      let averageUnitPrice = 0;
+
+      if (item.colors && item.colors.length > 0) {
+        // New format with colors and sizes
+        let totalAmount = 0;
+
+        for (const color of item.colors) {
+          if (!color.sizes || color.sizes.length === 0) {
+            return res.status(400).json({
+              message: `Item ${i + 1}: At least one size is required for color ${color.colorName}`
+            });
+          }
+
+          for (const size of color.sizes) {
+            if (!size.quantity || size.quantity <= 0) {
+              return res.status(400).json({
+                message: `Item ${i + 1}: Valid quantity is required for size ${size.sizeName}`
+              });
+            }
+            if (size.unitPrice === undefined || size.unitPrice < 0) {
+              return res.status(400).json({
+                message: `Item ${i + 1}: Valid unit price is required for size ${size.sizeName}`
+              });
+            }
+            totalQuantity += parseInt(size.quantity);
+            totalAmount += parseInt(size.quantity) * parseFloat(size.unitPrice);
+          }
+        }
+
+        hasValidQuantity = true;
+        averageUnitPrice = totalQuantity > 0 ? totalAmount / totalQuantity : 0;
+      } else {
+        // Legacy format with quantity and unitPrice
+        if (!item.quantity || item.quantity <= 0) {
+          return res.status(400).json({ message: `Item ${i + 1}: Valid quantity is required` });
+        }
+
+        if (item.unitPrice === undefined || item.unitPrice < 0) {
+          return res.status(400).json({ message: `Item ${i + 1}: Valid unit price is required` });
+        }
+
+        hasValidQuantity = true;
+        totalQuantity = parseInt(item.quantity);
+        averageUnitPrice = parseFloat(item.unitPrice);
       }
 
-      if (!item.unitPrice || item.unitPrice < 0) {
-        return res.status(400).json({ message: `Item ${i + 1}: Valid unit price is required` });
+      if (!hasValidQuantity) {
+        return res.status(400).json({
+          message: `Item ${i + 1}: Either colors/sizes or quantity/unitPrice is required`
+        });
       }
 
       let product = null;
@@ -167,6 +220,7 @@ const createDocument = async (req, res) => {
             name: item.productDetails.name.trim(),
             hsn: item.productDetails.hsn?.trim() || "",
             description: item.productDetails.description?.trim() || "",
+            fabricType: item.productDetails.fabricType?.trim() || "",
           });
 
           const savedProduct = await newProduct.save();
@@ -187,19 +241,22 @@ const createDocument = async (req, res) => {
           name: item.productDetails.name.trim(),
           description: item.productDetails.description?.trim() || "",
           hsn: item.productDetails.hsn?.trim() || product.hsn || "",
-          specifications: item.productDetails.specifications?.trim() || "",
         },
-        quantity: parseInt(item.quantity),
-        unitPrice: parseFloat(item.unitPrice),
+        colors: item.colors && item.colors.length > 0 ? item.colors.map(color => ({
+          colorName: color.colorName,
+          sizes: color.sizes.map(size => ({
+            sizeName: size.sizeName,
+            quantity: parseInt(size.quantity),
+            unitPrice: parseFloat(size.unitPrice),
+          }))
+        })) : [],
+        quantity: totalQuantity,
+        unitPrice: averageUnitPrice,
         discount: parseFloat(item.discount || 0),
         discountType: item.discountType || "percentage",
         taxRate: parseFloat(item.taxRate || 18),
-        // Include additional fields for estimations
-        laborCost: parseFloat(item.laborCost || 0),
-        materialCost: parseFloat(item.materialCost || 0),
       });
     }
-
     // Generate document number if not provided
     let documentNo = documentData.documentNo;
     if (!documentNo || !documentNo.trim()) {
@@ -237,6 +294,11 @@ const createDocument = async (req, res) => {
       documentNo,
       documentDate: documentData.documentDate ? new Date(documentData.documentDate) : new Date(),
       ...typeDefaults[documentType],
+      orderNo: documentData.orderNo?.trim() || "",
+      placeOfSupply: documentData.placeOfSupply?.trim() || "",
+      transportationCharges: parseFloat(documentData.transportationCharges || 0),
+      transportationHsn: documentData.transportationHsn || "9966",
+      transportationTaxRate: parseFloat(documentData.transportationTaxRate || 18), // ADD THIS
       customer: customer._id,
       customerDetails,
       items: processedItems,

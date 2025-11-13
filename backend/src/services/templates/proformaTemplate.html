@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Proforma Invoice {{documentNo}}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      color: #000;
+      padding: 20px;
+      font-size: 11px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: bold;
+      margin: 0;
+      text-transform: none;
+    }
+
+    .info-section {
+      margin-bottom: 15px;
+    }
+
+    .customer-details {
+      margin-bottom: 10px;
+    }
+
+    .customer-details strong {
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .customer-details p {
+      margin: 2px 0;
+      line-height: 1.4;
+    }
+
+    .proforma-meta {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 15px;
+      font-size: 11px;
+    }
+
+    .proforma-meta table {
+      border-collapse: collapse;
+    }
+
+    .proforma-meta td {
+      padding: 2px 8px;
+      text-align: left;
+    }
+
+    .proforma-meta td:first-child {
+      font-weight: normal;
+    }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+
+    .items-table th {
+      border: 1px solid #000;
+      padding: 5px;
+      text-align: center;
+      font-size: 10px;
+      font-weight: bold;
+      background-color: #f0f0f0;
+    }
+
+    .items-table td {
+      border: 1px solid #000;
+      padding: 4px 6px;
+      font-size: 10px;
+      vertical-align: top;
+    }
+
+    .items-table .left {
+      text-align: left;
+    }
+
+    .items-table .center {
+      text-align: center;
+    }
+
+    .items-table .right {
+      text-align: right;
+    }
+
+    .items-table .no-bottom-border {
+      border-bottom: none;
+    }
+
+    .items-table th,
+    .items-table td {
+      border: 1px solid #000;
+    }
+
+    .items-table td,
+    .items-table th {
+      font-size: 10px;
+      padding: 5px;
+    }
+
+   /* .items-table .bottom-border {
+       Has border by default 
+    } */
+
+    .totals-section {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    .totals-table {
+      width: 300px;
+      border-collapse: collapse;
+    }
+
+    .totals-table td {
+      border: 1px solid #000;
+      padding: 5px 10px;
+      font-size: 11px;
+    }
+
+    .totals-table td:first-child {
+      text-align: left;
+      width: 60%;
+    }
+
+    .totals-table td:last-child {
+      text-align: right;
+      width: 40%;
+    }
+
+    .totals-table tr:last-child td {
+      font-weight: bold;
+    }
+
+    .amount-words {
+      margin-top: 15px;
+      margin-bottom: 20px;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .amount-words strong {
+      font-weight: bold;
+    }
+
+    .bank-details {
+      margin-top: 20px;
+      margin-bottom: 30px;
+    }
+
+    .bank-details strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 11px;
+    }
+
+    .bank-details p {
+      margin: 2px 0;
+      font-size: 10px;
+    }
+
+    .signature {
+      text-align: right;
+      margin-top: 40px;
+      font-size: 11px;
+    }
+
+    .signature-line {
+      border-top: 1px solid #000;
+      width: 200px;
+      margin-left: auto;
+      padding-top: 5px;
+      text-align: center;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Header -->
+  <div class="header">
+    <h1>Proforma for Rate Quotation</h1>
+  </div>
+
+  <!-- Top Info (Customer + Proforma Details) -->
+  <table style="width:100%; border-collapse:collapse; margin-bottom:15px;">
+    <tr>
+      <td style="width:70%; vertical-align:top; border:1px solid #000; padding:6px;">
+        <strong>TO:</strong><br>
+        {{customer.name}}<br>
+        {{customer.addressLine1}}<br>
+        {{customer.addressLine2}}<br>
+        GSTIN: {{customer.gst}}
+      </td>
+      <td style="width:30%; vertical-align:top; border:1px solid #000; padding:6px;">
+        <table style="width:100%; font-size:10px; border-collapse:collapse;">
+          <tr>
+            <td>Order No</td>
+            <td>{{orderNo}}</td>
+          </tr>
+          <tr>
+            <td>Order Date</td>
+            <td>{{orderDate}}</td>
+          </tr>
+          <tr>
+            <td>Date</td>
+            <td>{{documentDate}}</td>
+          </tr>
+          <tr>
+            <td>Proforma No</td>
+            <td>{{documentNo}}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Items Table -->
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width: 35%;">Description</th>
+        <th style="width: 10%;">HSN / SAC</th>
+        <th style="width: 12%;">Size</th>
+        <th style="width: 12%;">Colour</th>
+        <th style="width: 8%;">Qty</th>
+        <th style="width: 10%;">Rate</th>
+        <th style="width: 8%;">TAX %</th>
+        <th style="width: 13%;">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{items}}
+    </tbody>
+  </table>
+
+  <!-- Totals Section -->
+  <div class="totals-section">
+    <table class="totals-table">
+      <tr>
+        <td>Sub Total</td>
+        <td>{{subtotal}}</td>
+      </tr>
+      <tr>
+        <td>CGST 2.50%</td>
+        <td>{{taxDetails.cgst2_5}}</td>
+      </tr>
+      <tr>
+        <td>SGST 2.50%</td>
+        <td>{{taxDetails.sgst2_5}}</td>
+      </tr>
+      <tr>
+        <td>Total Value</td>
+        <td>{{grandTotal}}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Amount in Words -->
+  <div class="amount-words">
+    <strong>In Words:</strong> {{amountInWords}}
+  </div>
+
+  <!-- Bottom Info (Bank + Signature) -->
+  <table style="width:100%; border-collapse:collapse; margin-top:20px;">
+    <tr>
+      <td style="width:70%; vertical-align:top; border:1px solid #000; padding:8px;">
+        <strong>Company Bank Details</strong><br>
+        Bank Name: {{business.bankName}}<br>
+        A/c No: {{business.accountNumber}}<br>
+        IFSC Code: {{business.ifsc}}
+      </td>
+      <td style="width:30%; text-align:center; vertical-align:bottom; border:1px solid #000; padding:8px;">
+        <div style="margin-top:60px; border-top:1px solid #000; padding-top:5px; font-weight:bold;">
+          Authorized Signature
+        </div>
+      </td>
+    </tr>
+  </table>
+
+
+</html>

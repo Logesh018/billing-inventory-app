@@ -1,4 +1,4 @@
-import { axiosInstance } from "../lib/axios";
+﻿import { axiosInstance } from "../lib/axios";
 
 // GET all machine purchases (optionally paginated)
 export const getMachinePurchases = (params = {}) => axiosInstance.get("/machines", { params });

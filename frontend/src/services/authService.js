@@ -1,5 +1,5 @@
-// src/services/authService.js 
-import { axiosInstance } from "../lib/axios";  
+﻿// src/services/authService.js 
+import { axiosInstance } from "../../lib/axios";  
 
 // Login user
 export const loginUser = async (email, password) => {
@@ -25,3 +25,5 @@ export const getCurrentUser = async () => {
     throw new Error(error.response?.data?.message || "Failed to fetch user");
   }
 };
+
+

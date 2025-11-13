@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Plus, Edit, Trash2, Package } from "lucide-react";
 import { axiosInstance } from "../../../lib/axios";
 
@@ -31,11 +31,8 @@ function SupplierForm({ onSubmit, onClose, initialValues = {} }) {
     email: "",
     address: "",
     company: "",
-    contactPerson: "",
-    alternatePhone: "",
-    businessType: "",
-    paymentTerms: "",
-    creditLimit: 0,
+    vendorCategory: "Fabrics",
+    accessoryName: "",
     isActive: true
   });
 
@@ -82,7 +79,7 @@ function SupplierForm({ onSubmit, onClose, initialValues = {} }) {
       newErrors.mobile = "Mobile number must be 10 digits";
     }
 
-    if (formData.email && !/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(formData.email)) {
+    if (formData.email && !/^[\w.-]+@[\w.-]+\.[A-Za-z]{2,}$/.test(formData.email)) {
       newErrors.email = "Invalid email format";
     }
 
@@ -91,13 +88,19 @@ function SupplierForm({ onSubmit, onClose, initialValues = {} }) {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
     try {
-      await onSubmit(formData);
+      const payload = {
+        ...formData,
+        vendorGoods: {
+          category: formData.vendorCategory,
+          accessoryName: formData.vendorCategory === "Accessories" ? formData.accessoryName : ""
+        }
+      };
+
+      await onSubmit(payload);
     } catch (error) {
       console.error("Error submitting supplier:", error);
       alert(`Failed to save supplier: ${error.message}`);
@@ -105,6 +108,7 @@ function SupplierForm({ onSubmit, onClose, initialValues = {} }) {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-3">
@@ -122,18 +126,17 @@ function SupplierForm({ onSubmit, onClose, initialValues = {} }) {
               <div className="w-1 h-4 bg-blue-500 rounded mr-2"></div>
               Basic Information
             </h3>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Supplier Name*
                 </label>
                 <input
                   placeholder="Enter supplier name"
-                  className={`w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 ${
-                    errors.name 
-                      ? 'border-red-500 focus:ring-red-400' 
-                      : 'border-gray-300 focus:ring-blue-400'
-                  }`}
+                  className={`w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 ${errors.name
+                    ? 'border-red-500 focus:ring-red-400'
+                    : 'border-gray-300 focus:ring-blue-400'
+                    }`}
                   value={formData.name}
                   onChange={(e) => handleChange('name', e.target.value)}
                 />
@@ -159,28 +162,16 @@ function SupplierForm({ onSubmit, onClose, initialValues = {} }) {
                 </label>
                 <input
                   placeholder="10-digit number"
-                  className={`w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 ${
-                    errors.mobile 
-                      ? 'border-red-500 focus:ring-red-400' 
-                      : 'border-gray-300 focus:ring-blue-400'
-                  }`}
+                  className={`w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 ${errors.mobile
+                    ? 'border-red-500 focus:ring-red-400'
+                    : 'border-gray-300 focus:ring-blue-400'
+                    }`}
                   value={formData.mobile}
                   onChange={(e) => handleChange('mobile', e.target.value.replace(/\D/g, '').slice(0, 10))}
                 />
                 {errors.mobile && (
                   <p className="text-xs text-red-500 mt-0.5">{errors.mobile}</p>
                 )}
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Alternate Phone
-                </label>
-                <input
-                  placeholder="Alternate number"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                  value={formData.alternatePhone}
-                  onChange={(e) => handleChange('alternatePhone', e.target.value)}
-                />
               </div>
             </div>
           </div>
@@ -199,11 +190,10 @@ function SupplierForm({ onSubmit, onClose, initialValues = {} }) {
                 <input
                   type="email"
                   placeholder="email@example.com"
-                  className={`w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 ${
-                    errors.email 
-                      ? 'border-red-500 focus:ring-red-400' 
-                      : 'border-gray-300 focus:ring-green-400'
-                  }`}
+                  className={`w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 ${errors.email
+                    ? 'border-red-500 focus:ring-red-400'
+                    : 'border-gray-300 focus:ring-green-400'
+                    }`}
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value.toLowerCase())}
                 />
@@ -248,61 +238,31 @@ function SupplierForm({ onSubmit, onClose, initialValues = {} }) {
             </div>
           </div>
 
-          {/* Business Information */}
-          {/* <div className="mb-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <div className="w-1 h-4 bg-purple-500 rounded mr-2"></div>
-              Business Information
-            </h3>
-            <div className="grid grid-cols-4 gap-2">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Company Name
-                </label>
+          <div className="mt-3">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Vendor Goods
+            </label>
+            <div className="flex gap-2">
+              <select
+                className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                value={formData.vendorCategory}
+                onChange={(e) => handleChange('vendorCategory', e.target.value)}
+              >
+                <option value="Fabrics">Fabrics</option>
+                <option value="Accessories">Accessories</option>
+              </select>
+
+              {formData.vendorCategory === "Accessories" && (
                 <input
-                  placeholder="Company name"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
-                  value={formData.company}
-                  onChange={(e) => handleChange('company', e.target.value)}
+                  placeholder="Enter accessory name (e.g. buttons, packets)"
+                  className="w-1/2 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                  value={formData.accessoryName}
+                  onChange={(e) => handleChange('accessoryName', e.target.value)}
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Business Type
-                </label>
-                <input
-                  placeholder="e.g., Manufacturer, Distributor"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
-                  value={formData.businessType}
-                  onChange={(e) => handleChange('businessType', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Payment Terms
-                </label>
-                <input
-                  placeholder="e.g., 30 days, COD"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
-                  value={formData.paymentTerms}
-                  onChange={(e) => handleChange('paymentTerms', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Credit Limit (₹)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
-                  value={formData.creditLimit}
-                  onChange={(e) => handleChange('creditLimit', parseFloat(e.target.value) || 0)}
-                />
-              </div>
+              )}
             </div>
-          </div> */}
+          </div>
+
 
           {/* Status */}
           <div className="mb-4">
@@ -459,11 +419,11 @@ export default function Suppliers() {
     return str.length > max ? str.substring(0, max) + "…" : str;
   };
 
-  const filteredSuppliers = filter === "all" 
-    ? suppliers 
-    : filter === "active" 
-    ? suppliers.filter(s => s.isActive) 
-    : suppliers.filter(s => !s.isActive);
+  const filteredSuppliers = filter === "all"
+    ? suppliers
+    : filter === "active"
+      ? suppliers.filter(s => s.isActive)
+      : suppliers.filter(s => !s.isActive);
 
   const columns = [
     {
@@ -518,23 +478,18 @@ export default function Suppliers() {
         </div>
       )
     },
-    // {
-    //   key: "business",
-    //   label: "Business",
-    //   width: "120px",
-    //   render: (s) => (
-    //     <div className="text-xs">
-    //       {s.businessType ? (
-    //         <div className="text-gray-700">{truncate(s.businessType, 15)}</div>
-    //       ) : (
-    //         <span className="text-gray-400">—</span>
-    //       )}
-    //       {s.paymentTerms && (
-    //         <div className="text-gray-500 text-xs">{truncate(s.paymentTerms, 15)}</div>
-    //       )}
-    //     </div>
-    //   )
-    // },
+    {
+      key: "vendorGoods",
+      label: "Vendor Goods",
+      width: "140px",
+      render: (s) => (
+        <div className="text-xs text-gray-800">
+          {s.vendorGoods?.category === "Accessories"
+            ? `${s.vendorGoods.category} - ${s.vendorGoods.accessoryName || ""}`
+            : s.vendorGoods?.category || "—"}
+        </div>
+      )
+    },
     {
       key: "purchases",
       label: "Purchases",
@@ -554,25 +509,14 @@ export default function Suppliers() {
       )
     },
     {
-      key: "creditLimit",
-      label: "Credit",
-      width: "90px",
-      render: (s) => (
-        <div className="text-xs text-gray-700">
-          {s.creditLimit > 0 ? `₹${s.creditLimit.toLocaleString('en-IN')}` : "—"}
-        </div>
-      )
-    },
-    {
       key: "status",
       label: "Status",
       width: "80px",
       render: (s) => (
-        <span className={`px-2 py-1 rounded text-xs font-medium ${
-          s.isActive 
-            ? "bg-green-100 text-green-700" 
-            : "bg-gray-100 text-gray-700"
-        }`}>
+        <span className={`px-2 py-1 rounded text-xs font-medium ${s.isActive
+          ? "bg-green-100 text-green-700"
+          : "bg-gray-100 text-gray-700"
+          }`}>
           {s.isActive ? "Active" : "Inactive"}
         </span>
       )
@@ -650,11 +594,10 @@ export default function Suppliers() {
                 <button
                   key={tab.key}
                   onClick={() => setFilter(tab.key)}
-                  className={`py-2 px-3 text-sm font-medium rounded-t-lg transition-colors ${
-                    filter === tab.key
-                      ? "bg-white text-green-600 border-t-2 border-green-500"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
+                  className={`py-2 px-3 text-sm font-medium rounded-t-lg transition-colors ${filter === tab.key
+                    ? "bg-white text-green-600 border-t-2 border-green-500"
+                    : "text-gray-500 hover:text-gray-700"
+                    }`}
                 >
                   {tab.label}
                   <span className="ml-1 bg-gray-100 text-gray-800 py-0.5 px-1.5 rounded-full text-xs">

@@ -3,27 +3,14 @@ import express from "express";
 import {
   createDocument,
   getDocuments,
-  createInvoice,
-  createProforma,
-  createEstimation,
-  getInvoices,
-  getProformas,
-  getEstimations,
   getDocumentById,
-  getInvoiceById,
   updateDocument,
-  updateInvoice,
   deleteDocument,
-  deleteInvoice,
   downloadDocumentPDF,
-  downloadInvoicePDF,
   generateDocumentPDF,
-  generateInvoicePDF,
   updateDocumentStatus,
-  updateInvoiceStatus,
   addPayment,
   getDocumentStats,
-  getInvoiceStats,
   convertDocument, // ✅ Add this import
   getConversionHistory, // ✅ Add this import too
 } from "../controllers/documentController.js";

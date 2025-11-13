@@ -1,4 +1,4 @@
-import { axiosInstance } from "../lib/axios";
+﻿import { axiosInstance } from "../lib/axios";
 
 export const getPurchases = () => axiosInstance.get("/purchases");
 export const getPurchaseById = (id) => axiosInstance.get(`/purchases/${id}`);

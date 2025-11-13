@@ -7,3 +7,4 @@ const RecurringExpenses = () => {
 }
 
 export default RecurringExpenses
+

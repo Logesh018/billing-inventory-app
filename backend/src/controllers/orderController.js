@@ -23,16 +23,10 @@ export const createOrder = async (req, res) => {
       products: productsData
     } = req.body;
 
-    const financialYear = getCurrentFinancialYear();
-    const lastOrder = await Order.findOne().sort({ createdAt: -1 });
-    let nextNumber = 1;
-    if (lastOrder?.PoNo) {
-      const match = lastOrder.PoNo.match(/PO\/(\d{4})\/(\d+)$/);
-      if (match && match[1] === financialYear) {
-        nextNumber = parseInt(match[2], 10) + 1;
-      }
+    const { PoNo } = req.body;
+    if (!PoNo || !PoNo.trim()) {
+      return res.status(400).json({ message: "PO Number is required" });
     }
-    const PoNo = `PO/${financialYear}/${String(nextNumber).padStart(4, '0')}`; // e.g., "PO/2526/0001"
 
     let buyer;
     let buyerDetails;
@@ -76,49 +70,50 @@ export const createOrder = async (req, res) => {
 
     for (const productData of productsData) {
       let product;
-      let productDetails;
 
-      if (productData.product?._id) {
-        product = await Product.findById(productData.product._id);
-        if (!product) {
-          return res.status(400).json({
-            message: `Product not found: ${productData.product.name}`
-          });
-        }
-        productDetails = {
-          name: product.name,
-          hsn: product.hsn,
-        };
+      // Check if product exists with same name+style+color+fabricType combination
+      const existingProduct = await Product.findOne({
+        name: productData.productDetails.name,
+        style: productData.productDetails.style,
+        color: productData.productDetails.color,
+        fabricType: productData.productDetails.fabricType,
+      });
+
+      if (existingProduct) {
+        product = existingProduct;
+        console.log("✅ Using existing product:", product._id);
       } else {
+        // Create new product - different combination
         product = new Product({
           name: productData.productDetails.name,
-          hsn: productData.productDetails.hsn,
+          style: productData.productDetails.style,
+          color: productData.productDetails.color,
+          fabricType: productData.productDetails.fabricType,
+          hsn: "",
+          category: "Garment", // Add default category
         });
 
         const savedProduct = await product.save();
-        console.log("✅ New product created:", savedProduct._id);
-
-        productDetails = {
-          name: savedProduct.name,
-          hsn: savedProduct.hsn,
-        };
+        product = savedProduct;
+        console.log("✅ New product variant created:", savedProduct._id);
       }
 
-      const fabricTypes = productData.fabricTypes.map(fabricData => ({
-        fabricType: fabricData.fabricType,
-        sizes: fabricData.sizes.map(sizeData => ({
-          size: sizeData.size.trim(),
-          colors: sizeData.colors.map(colorData => ({
-            color: colorData.color,
-            qty: parseInt(colorData.qty) || 0,
-          })),
-        })),
+      const productDetails = {
+        name: product.name || productData.productDetails.name,
+        style: product.style || productData.productDetails.style,
+        color: product.color || productData.productDetails.color,
+        fabricType: product.fabricType || productData.productDetails.fabricType,
+      };
+
+      const sizes = productData.sizes.map(sizeData => ({
+        size: sizeData.size.trim(),
+        qty: parseInt(sizeData.qty) || 0,
       }));
 
       processedProducts.push({
         product: product._id,
         productDetails,
-        fabricTypes,
+        sizes,
       });
     }
 
@@ -139,15 +134,9 @@ export const createOrder = async (req, res) => {
       lastOrderDate: new Date()
     });
 
+    // ✅ FIXED: Update product statistics
     for (const productData of processedProducts) {
-      let totalQty = 0;
-      productData.fabricTypes.forEach(fabric => {
-        fabric.sizes.forEach(size => {
-          size.colors.forEach(color => {
-            totalQty += color.qty;
-          });
-        });
-      });
+      const totalQty = productData.sizes.reduce((sum, size) => sum + size.qty, 0);
 
       await Product.findByIdAndUpdate(productData.product, {
         $inc: {
@@ -158,61 +147,23 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // In orderController.js - Replace the auto-purchase creation section
-
-    // Auto-create EMPTY Purchase entry for BOTH FOB and JOB-Works orders
-    // This creates a placeholder that will be filled when user completes the purchase form
-    const purchaseProductsMap = new Map();
-
-    for (const product of processedProducts) {
-      const productName = product.productDetails.name;
-
-      if (!purchaseProductsMap.has(productName)) {
-        purchaseProductsMap.set(productName, {
-          productName: productName,
-          fabricType: orderType === "JOB-Works" ? "N/A" : null,
-          colors: new Map(),
-          productTotalQty: 0
-        });
-      }
-
-      const productEntry = purchaseProductsMap.get(productName);
-
-      product.fabricTypes.forEach(fabricType => {
-        if (orderType !== "JOB-Works" && !productEntry.fabricType) {
-          productEntry.fabricType = fabricType.fabricType;
-        }
-
-        fabricType.sizes.forEach(size => {
-          size.colors.forEach(color => {
-            if (!productEntry.colors.has(color.color)) {
-              productEntry.colors.set(color.color, []);
-            }
-
-            productEntry.colors.get(color.color).push({
-              size: size.size,
-              quantity: color.qty
-            });
-
-            productEntry.productTotalQty += color.qty;
-          });
-        });
-      });
-    }
-
-    // Convert map to array with proper nested structure
-    const purchaseProducts = Array.from(purchaseProductsMap.values()).map(entry => ({
-      productName: entry.productName,
-      fabricType: entry.fabricType || "N/A",
-      colors: Array.from(entry.colors.entries()).map(([color, sizes]) => ({
-        color: color,
-        sizes: sizes
+    // ✅ FIXED: Create purchase products structure
+    const purchaseProducts = processedProducts.map(p => ({
+      product: p.product,  // Include the ObjectId reference
+      productDetails: {
+        name: p.productDetails.name,
+        style: p.productDetails.style,
+        color: p.productDetails.color,
+        fabricType: p.productDetails.fabricType,
+      },
+      sizes: p.sizes.map(s => ({
+        size: s.size,
+        qty: s.qty  // Use 'qty' not 'quantity' to match PurchaseSchema
       })),
-      productTotalQty: entry.productTotalQty,
+      productTotalQty: p.sizes.reduce((sum, s) => sum + s.qty, 0),
     }));
 
     // Create EMPTY purchase (status = "Pending")
-    // This will be updated when user fills the purchase form
     const newPurchase = new Purchase({
       order: savedOrder._id,
       orderDate: savedOrder.orderDate,
@@ -220,25 +171,21 @@ export const createOrder = async (req, res) => {
       orderType: savedOrder.orderType,
       buyerCode: savedOrder.buyerDetails.code,
       orderStatus: "Pending Purchase",
-      products: purchaseProducts,
+      products: purchaseProducts,  // Now matches PurchaseSchema structure
       totalQty: savedOrder.totalQty,
       remarks: `Pending purchase details for ${orderType} order`,
-      status: "Pending", // ALWAYS start as Pending
-      // Leave these arrays empty - user will fill them
+      status: "Pending",
       fabricPurchases: [],
       buttonsPurchases: [],
       packetsPurchases: [],
     });
-
     const savedPurchase = await newPurchase.save();
-    console.log(`✅ ${orderType} Purchase placeholder created:`, savedPurchase._id, "- Status: Pending");
+    console.log(`✅ ${orderType} Purchase placeholder created:`, savedPurchase._id);
 
     // Link purchase to order
     await Order.findByIdAndUpdate(savedOrder._id, {
       purchase: savedPurchase._id
     });
-
-    // DON'T create production here - it will be created when purchase is completed
 
     // Populate and return
     const populatedOrder = await Order.findById(savedOrder._id)
@@ -271,7 +218,7 @@ export const getOrders = async (req, res) => {
 
     const filter = {};
 
-    if (orderType && ["FOB", "JOB-Works"].includes(orderType)) {
+    if (orderType && ["FOB", "JOB-Works", "Own-Orders"].includes(orderType)) {
       filter.orderType = orderType;
     }
 

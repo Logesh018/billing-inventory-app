@@ -1,39 +1,36 @@
-// models/document.js (renamed from invoice.js)
+// models/document.js
 import mongoose from "mongoose";
+import { numberToWords } from "../services/numberToWords.js";
 
 const DocumentSchema = new mongoose.Schema({
-  // Document Identification
-  documentType: { 
-    type: String, 
-    enum: ["invoice", "proforma", "estimation"], 
+  documentType: {
+    type: String,
+    enum: ["invoice", "proforma", "estimation"],
     required: true,
     default: "invoice"
   },
-  documentNo: { type: String, required: true }, // Generic field for all document numbers
-  
-  // Legacy fields for backward compatibility (will be deprecated)
-  invoiceNo: { type: String }, // Keep for existing invoices
-  
+  documentNo: { type: String, required: true },
+  invoiceNo: { type: String },
+
   // Document dates
   documentDate: { type: Date, required: true },
-  dueDate: { type: Date }, // Not required for estimations
-  validUntil: { type: Date }, // For proformas and estimations
-  
-  // Conversion tracking
-  originalDocument: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: "Document" 
-  }, // Reference to original document when converted
-  convertedFrom: { 
-    type: String, 
-    enum: ["estimation", "proforma", "invoice"] 
+  dueDate: { type: Date },
+  validUntil: { type: Date },
+
+  originalDocument: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Document"
+  },
+  convertedFrom: {
+    type: String,
+    enum: ["estimation", "proforma", "invoice"]
   },
   convertedTo: [{
     documentType: { type: String, enum: ["estimation", "proforma", "invoice"] },
     documentId: { type: mongoose.Schema.Types.ObjectId, ref: "Document" },
     convertedAt: { type: Date, default: Date.now }
   }],
-  
+
   // Customer Information
   customer: { type: mongoose.Schema.Types.ObjectId, ref: "Buyer" },
   customerDetails: {
@@ -45,7 +42,7 @@ const DocumentSchema = new mongoose.Schema({
     company: { type: String },
   },
 
-  // Document Items
+  // Document Items with Colors and Sizes support
   items: [
     {
       product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
@@ -54,8 +51,22 @@ const DocumentSchema = new mongoose.Schema({
         description: { type: String },
         hsn: { type: String },
       },
-      quantity: { type: Number, required: true, min: 1 },
-      unitPrice: { type: Number, required: true, min: 0 },
+      // NEW: Support for colors and sizes
+      colors: [
+        {
+          colorName: { type: String, required: true }, // e.g., "White", "Black"
+          sizes: [
+            {
+              sizeName: { type: String, required: true }, // e.g., "S", "M", "L", "XL"
+              quantity: { type: Number, required: true, min: 0 },
+              unitPrice: { type: Number, required: true, min: 0 },
+            }
+          ]
+        }
+      ],
+      // Keep legacy fields for backward compatibility
+      quantity: { type: Number, min: 0 },
+      unitPrice: { type: Number, min: 0 },
       discount: { type: Number, default: 0, min: 0 },
       discountType: { type: String, enum: ["percentage", "amount"], default: "percentage" },
       taxRate: { type: Number, default: 18 },
@@ -69,11 +80,21 @@ const DocumentSchema = new mongoose.Schema({
   totalTax: { type: Number, default: 0 },
   grandTotal: { type: Number, default: 0 },
 
+  // Additional Charges and Metadata
+  transportationCharges: { type: Number, default: 0 },
+  transportationHsn: { type: String, default: "9966" },
+  transportationTaxRate: { type: Number, default: 18 },
+  amountInWords: { type: String },
+  orderNo: { type: String },
+  placeOfSupply: { type: String },
+
   // Tax Details (for Indian GST compliance)
   taxDetails: {
     cgst: { type: Number, default: 0 },
     sgst: { type: Number, default: 0 },
     igst: { type: Number, default: 0 },
+    transportationCgst: { type: Number, default: 0 },
+    transportationSgst: { type: Number, default: 0 },
   },
 
   // Business Information
@@ -84,27 +105,29 @@ const DocumentSchema = new mongoose.Schema({
     state: { type: String, required: true },
     pincode: { type: String, required: true },
     gst: { type: String },
+    pan: { type: String },
     email: { type: String },
     phone: { type: String },
     website: { type: String },
     logo: { type: String },
+    bankName: { type: String },
+    accountNumber: { type: String },
+    ifsc: { type: String },
+    branch: { type: String },
   },
 
   // Document Status
   status: {
     type: String,
     enum: [
-      // Common statuses
       "Draft", "Sent", "Viewed", "Accepted", "Rejected", "Cancelled",
-      // Invoice specific
       "Partially Paid", "Paid", "Overdue",
-      // Estimation/Proforma specific
       "Under Review", "Approved", "Expired", "Converted"
     ],
     default: "Draft"
   },
-  
-  // Payment fields (mainly for invoices)
+
+  // Payment fields
   paymentTerms: { type: String, default: "Net 30" },
   paymentMethod: { type: String },
   payments: [
@@ -123,10 +146,6 @@ const DocumentSchema = new mongoose.Schema({
   pdfUrl: { type: String },
   pdfPublicId: { type: String },
 
-  // Additional Fields
-  notes: { type: String },
-  internalNotes: { type: String },
-  
   // Template and Design
   template: { type: String, default: "modern" },
   customization: {
@@ -142,7 +161,7 @@ const DocumentSchema = new mongoose.Schema({
   sentAt: { type: Date },
   viewedAt: { type: Date },
   acceptedAt: { type: Date },
-  
+
 }, { timestamps: true });
 
 // Pre-save middleware to calculate totals
@@ -152,58 +171,94 @@ DocumentSchema.pre("save", function (next) {
     this.invoiceNo = this.documentNo;
   }
 
-  // Calculate line totals for each item
+  // Calculate totals
+  this.subtotal = 0;
+  this.totalDiscount = 0;
+  this.totalTax = 0;
+
   this.items.forEach(item => {
-    let itemSubtotal = item.quantity * item.unitPrice;
-    
+    let itemSubtotal = 0;
+
+    // Check if item has colors/sizes (new format)
+    if (item.colors && item.colors.length > 0) {
+      // Calculate from colors and sizes
+      item.colors.forEach(color => {
+        if (color.sizes && color.sizes.length > 0) {
+          color.sizes.forEach(size => {
+            itemSubtotal += (size.quantity || 0) * (size.unitPrice || 0);
+          });
+        }
+      });
+
+      // Set legacy quantity and unitPrice for backward compatibility
+      let totalQty = 0;
+      item.colors.forEach(color => {
+        color.sizes.forEach(size => {
+          totalQty += size.quantity || 0;
+        });
+      });
+      item.quantity = totalQty;
+      item.unitPrice = totalQty > 0 ? itemSubtotal / totalQty : 0;
+    } else {
+      // Legacy calculation (no colors/sizes)
+      itemSubtotal = (item.quantity || 0) * (item.unitPrice || 0);
+    }
+
+    this.subtotal += itemSubtotal;
+
     // Apply discount
     let discountAmount = 0;
     if (item.discountType === "percentage") {
-      discountAmount = (itemSubtotal * item.discount) / 100;
+      discountAmount = (itemSubtotal * (item.discount || 0)) / 100;
     } else {
-      discountAmount = item.discount;
+      discountAmount = item.discount || 0;
     }
-    itemSubtotal -= discountAmount;
-    
-    // Calculate tax
-    const taxAmount = (itemSubtotal * item.taxRate) / 100;
-    
+    this.totalDiscount += discountAmount;
+
+    // Calculate tax on discounted amount
+    const taxableAmount = itemSubtotal - discountAmount;
+    const taxAmount = (taxableAmount * (item.taxRate || 0)) / 100;
+    this.totalTax += taxAmount;
+
     // Set line total
-    item.lineTotal = itemSubtotal + taxAmount;
+    item.lineTotal = taxableAmount + taxAmount;
   });
-
-  // Calculate document totals
-  this.subtotal = this.items.reduce((sum, item) => {
-    return sum + (item.quantity * item.unitPrice);
-  }, 0);
-
-  this.totalDiscount = this.items.reduce((sum, item) => {
-    let discountAmount = 0;
-    if (item.discountType === "percentage") {
-      discountAmount = ((item.quantity * item.unitPrice) * item.discount) / 100;
-    } else {
-      discountAmount = item.discount;
-    }
-    return sum + discountAmount;
-  }, 0);
 
   const subtotalAfterDiscount = this.subtotal - this.totalDiscount;
 
-  this.totalTax = this.items.reduce((sum, item) => {
-    const itemSubtotal = (item.quantity * item.unitPrice) - 
-      (item.discountType === "percentage" 
-        ? ((item.quantity * item.unitPrice) * item.discount) / 100
-        : item.discount);
-    return sum + ((itemSubtotal * item.taxRate) / 100);
-  }, 0);
-
-  // GST calculation (customize based on business rules)
+  // GST calculation for items (CGST + SGST = Total Tax)
   this.taxDetails.cgst = this.totalTax / 2;
   this.taxDetails.sgst = this.totalTax / 2;
-  this.taxDetails.igst = 0;
+  this.taxDetails.igst = 0; // Assuming intra-state (same state transactions)
 
-  this.grandTotal = subtotalAfterDiscount + this.totalTax;
-  this.balanceAmount = this.grandTotal - this.amountPaid;
+  // Transportation charges tax calculation (dynamic rate)
+  const transportCharges = this.transportationCharges || 0;
+  const transportTaxRate = this.transportationTaxRate || 18;
+  if (transportCharges > 0) {
+    const transportTax = (transportCharges * transportTaxRate) / 100;
+    this.taxDetails.transportationCgst = transportTax / 2;
+    this.taxDetails.transportationSgst = transportTax / 2;
+  } else {
+    this.taxDetails.transportationCgst = 0;
+    this.taxDetails.transportationSgst = 0;
+  }
+
+  // Grand total includes items + item tax + transportation + transportation tax
+  const transportationTax = this.taxDetails.transportationCgst + this.taxDetails.transportationSgst;
+  this.grandTotal = subtotalAfterDiscount + this.totalTax + transportCharges + transportationTax;
+
+  // Round to nearest integer (as per "Roundup" in sample invoice)
+  this.grandTotal = Math.round(this.grandTotal);
+
+  // Convert amount to words
+  try {
+    this.amountInWords = numberToWords(this.grandTotal);
+  } catch (error) {
+    console.error("Error converting amount to words:", error);
+    this.amountInWords = "";
+  }
+
+  this.balanceAmount = this.grandTotal - (this.amountPaid || 0);
 
   next();
 });
@@ -219,18 +274,17 @@ DocumentSchema.index({ createdAt: -1 });
 DocumentSchema.index({ originalDocument: 1 });
 
 // Static methods for number generation
-DocumentSchema.statics.generateDocumentNumber = async function(documentType) {
+DocumentSchema.statics.generateDocumentNumber = async function (documentType) {
   const currentYear = new Date().getFullYear();
   const prefixes = {
     invoice: `INV-${currentYear}-`,
     proforma: `PRO-${currentYear}-`,
     estimation: `EST-${currentYear}-`
   };
-  
+
   const prefix = prefixes[documentType];
   if (!prefix) throw new Error(`Invalid document type: ${documentType}`);
-  
-  // Find the latest document of this type for current year
+
   const latestDocument = await this.findOne({
     documentType,
     documentNo: { $regex: `^${prefix}` }
@@ -246,12 +300,12 @@ DocumentSchema.statics.generateDocumentNumber = async function(documentType) {
 };
 
 // Backward compatibility method
-DocumentSchema.statics.generateInvoiceNumber = async function() {
+DocumentSchema.statics.generateInvoiceNumber = async function () {
   return this.generateDocumentNumber('invoice');
 };
 
 // Instance methods
-DocumentSchema.methods.markAsPaid = function() {
+DocumentSchema.methods.markAsPaid = function () {
   if (this.documentType !== 'invoice') {
     throw new Error('Only invoices can be marked as paid');
   }
@@ -261,14 +315,14 @@ DocumentSchema.methods.markAsPaid = function() {
   return this.save();
 };
 
-DocumentSchema.methods.addPayment = function(paymentData) {
+DocumentSchema.methods.addPayment = function (paymentData) {
   if (this.documentType !== 'invoice') {
     throw new Error('Only invoices can have payments');
   }
-  
+
   this.payments.push(paymentData);
   this.amountPaid += paymentData.amount;
-  
+
   if (this.amountPaid >= this.grandTotal) {
     this.status = "Paid";
     this.balanceAmount = 0;
@@ -276,44 +330,42 @@ DocumentSchema.methods.addPayment = function(paymentData) {
     this.status = "Partially Paid";
     this.balanceAmount = this.grandTotal - this.amountPaid;
   }
-  
+
   return this.save();
 };
 
 // Conversion methods
-DocumentSchema.methods.convertTo = async function(newDocumentType, additionalData = {}) {
+DocumentSchema.methods.convertTo = async function (newDocumentType, additionalData = {}) {
   const validConversions = {
     estimation: ['proforma', 'invoice'],
     proforma: ['invoice'],
-    invoice: [] // Invoices typically don't convert to other types
+    invoice: []
   };
 
   if (!validConversions[this.documentType].includes(newDocumentType)) {
     throw new Error(`Cannot convert ${this.documentType} to ${newDocumentType}`);
   }
 
-  // Generate new document number
   const newDocumentNo = await this.constructor.generateDocumentNumber(newDocumentType);
 
-  // Create new document data
   const newDocumentData = {
     documentType: newDocumentType,
     documentNo: newDocumentNo,
     documentDate: new Date(),
     originalDocument: this._id,
     convertedFrom: this.documentType,
-    
-    // Copy all relevant fields
     customer: this.customer,
     customerDetails: this.customerDetails,
-    items: this.items.map(item => ({...item.toObject(), _id: undefined})),
+    items: this.items.map(item => ({ ...item.toObject(), _id: undefined })),
     businessDetails: this.businessDetails,
     notes: this.notes,
     template: this.template,
     customization: this.customization,
     createdBy: this.createdBy,
-    
-    // Document type specific fields
+    orderNo: this.orderNo,
+    placeOfSupply: this.placeOfSupply,
+    transportationCharges: this.transportationCharges,
+
     ...(newDocumentType === 'invoice' && {
       dueDate: additionalData.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       paymentTerms: additionalData.paymentTerms || this.paymentTerms || "Net 30"
@@ -321,34 +373,29 @@ DocumentSchema.methods.convertTo = async function(newDocumentType, additionalDat
     ...(newDocumentType === 'proforma' && {
       validUntil: additionalData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     }),
-    
+
     ...additionalData
   };
 
-  // Create new document
   const newDocument = new this.constructor(newDocumentData);
   const savedDocument = await newDocument.save();
 
-  // Update original document's conversion tracking
   this.convertedTo.push({
     documentType: newDocumentType,
     documentId: savedDocument._id,
     convertedAt: new Date()
   });
-  
-  // Update status if needed
+
   if (this.status === 'Draft' || this.status === 'Sent') {
     this.status = 'Converted';
   }
-  
+
   await this.save();
 
   return savedDocument;
 };
 
-// Export with backward compatibility
 const Document = mongoose.model("Document", DocumentSchema);
 
-// For backward compatibility, also export as Invoice
 export { Document as Invoice };
 export default Document;

@@ -12,7 +12,7 @@ import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Search route (for autocomplete dropdown) - ADD THIS
+
 router.get("/search/suppliers", protect, searchSuppliers);
 
 // Main CRUD routes

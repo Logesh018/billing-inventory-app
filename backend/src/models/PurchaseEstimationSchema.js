@@ -6,7 +6,6 @@ const purchaseEstimationSchema = new mongoose.Schema(
     PESNo: {
       type: String,
       unique: true,
-      // Don't set required: true here since we'll generate it
     },
     estimationDate: {
       type: Date,
@@ -72,17 +71,38 @@ const purchaseEstimationSchema = new mongoose.Schema(
     ],
     totalOrderQty: { type: Number, default: 0 },
 
-    // Fabric/Buttons/Packets Purchases (for order-based estimations)
+    // NEW: Fabric Cost Estimation (Grouped by Name & Color)
+    fabricCostEstimation: [
+      {
+        fabricName: { type: String, required: true },
+        color: { type: String, required: true },
+        styles: { type: String }, // Comma-separated styles
+        totalMeters: { type: Number, required: true },
+        totalQty: { type: Number, required: true },
+        grandTotal: { type: Number, required: true },
+        details: [
+          {
+            style: { type: String },
+            meter: { type: Number },
+            qty: { type: Number },
+            total: { type: Number }
+          }
+        ]
+      }
+    ],
+
+    // Fabric Purchases (for order-based estimations)
     fabricPurchases: [
       {
         productName: { type: String },
         vendor: { type: String, required: true },
+        vendorCode: { type: String },
         vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Supplier" },
         fabricType: { type: String, required: true },
         quantity: { type: Number, required: true },
         unit: { type: String, default: "meters" },
         costPerUnit: { type: Number, required: true },
-        gstRate: { type: Number, default: 5 },
+        gstPercentage: { type: Number, default: 5 },
         totalCost: { type: Number },
         gstAmount: { type: Number },
         totalWithGst: { type: Number },
@@ -91,41 +111,32 @@ const purchaseEstimationSchema = new mongoose.Schema(
         remarks: String,
       },
     ],
-    buttonsPurchases: [
+
+    // Accessories Purchases (replaces buttonsPurchases and packetsPurchases)
+    accessoriesPurchases: [
       {
         productName: { type: String },
+        accessoryType: {
+          type: String,
+          enum: ["buttons", "packets", "other"],
+          required: true
+        },
         vendor: { type: String, required: true },
         vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Supplier" },
-        size: { type: String },
+        size: { type: String, default: "Standard" },
         quantity: { type: Number, required: true },
         unit: { type: String, default: "pieces" },
         costPerUnit: { type: Number, required: true },
-        gstRate: { type: Number, default: 12 },
+        gstPercentage: { type: Number, default: 12 },
         totalCost: { type: Number },
         gstAmount: { type: Number },
         totalWithGst: { type: Number },
-        buttonType: String,
         color: String,
         remarks: String,
       },
     ],
-    packetsPurchases: [
-      {
-        productName: { type: String },
-        vendor: { type: String, required: true },
-        vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Supplier" },
-        size: { type: String },
-        quantity: { type: Number, required: true },
-        unit: { type: String, default: "pieces" },
-        costPerUnit: { type: Number, required: true },
-        gstRate: { type: Number, default: 18 },
-        totalCost: { type: Number },
-        gstAmount: { type: Number },
-        totalWithGst: { type: Number },
-        packetType: String,
-        remarks: String,
-      },
-    ],
+    totalAccessoriesCost: { type: Number, default: 0 },
+    totalAccessoriesGst: { type: Number, default: 0 },
 
     // Machine Purchases (for machine-based estimations)
     machinesPurchases: [
@@ -135,7 +146,7 @@ const purchaseEstimationSchema = new mongoose.Schema(
         vendorCode: { type: String, default: null },
         vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Supplier", default: null },
         cost: { type: Number, required: true },
-        gstRate: { type: Number, default: 18 },
+        gstPercentage: { type: Number, default: 18 },
         totalCost: { type: Number, default: 0 },
         gstAmount: { type: Number, default: 0 },
         totalWithGst: { type: Number, default: 0 },
@@ -145,11 +156,7 @@ const purchaseEstimationSchema = new mongoose.Schema(
 
     // Totals for Order-based estimations
     totalFabricCost: { type: Number, default: 0 },
-    totalButtonsCost: { type: Number, default: 0 },
-    totalPacketsCost: { type: Number, default: 0 },
     totalFabricGst: { type: Number, default: 0 },
-    totalButtonsGst: { type: Number, default: 0 },
-    totalPacketsGst: { type: Number, default: 0 },
 
     // Totals for Machine estimations
     totalMachinesCost: { type: Number, default: 0 },
@@ -206,21 +213,14 @@ purchaseEstimationSchema.pre("save", async function (next) {
     // Calculate fabric totals
     this.fabricPurchases.forEach((item) => {
       item.totalCost = item.quantity * item.costPerUnit;
-      item.gstAmount = (item.totalCost * item.gstRate) / 100;
+      item.gstAmount = (item.totalCost * item.gstPercentage) / 100;
       item.totalWithGst = item.totalCost + item.gstAmount;
     });
 
-    // Calculate buttons totals
-    this.buttonsPurchases.forEach((item) => {
+    // Calculate accessories totals (replaces buttons and packets)
+    this.accessoriesPurchases.forEach((item) => {
       item.totalCost = item.quantity * item.costPerUnit;
-      item.gstAmount = (item.totalCost * item.gstRate) / 100;
-      item.totalWithGst = item.totalCost + item.gstAmount;
-    });
-
-    // Calculate packets totals
-    this.packetsPurchases.forEach((item) => {
-      item.totalCost = item.quantity * item.costPerUnit;
-      item.gstAmount = (item.totalCost * item.gstRate) / 100;
+      item.gstAmount = (item.totalCost * item.gstPercentage) / 100;
       item.totalWithGst = item.totalCost + item.gstAmount;
     });
 
@@ -229,11 +229,8 @@ purchaseEstimationSchema.pre("save", async function (next) {
       (sum, item) => sum + (item.totalCost || 0),
       0
     );
-    this.totalButtonsCost = this.buttonsPurchases.reduce(
-      (sum, item) => sum + (item.totalCost || 0),
-      0
-    );
-    this.totalPacketsCost = this.packetsPurchases.reduce(
+
+    this.totalAccessoriesCost = this.accessoriesPurchases.reduce(
       (sum, item) => sum + (item.totalCost || 0),
       0
     );
@@ -242,23 +239,15 @@ purchaseEstimationSchema.pre("save", async function (next) {
       (sum, item) => sum + (item.gstAmount || 0),
       0
     );
-    this.totalButtonsGst = this.buttonsPurchases.reduce(
-      (sum, item) => sum + (item.gstAmount || 0),
-      0
-    );
-    this.totalPacketsGst = this.packetsPurchases.reduce(
+
+    this.totalAccessoriesGst = this.accessoriesPurchases.reduce(
       (sum, item) => sum + (item.gstAmount || 0),
       0
     );
 
     // Calculate grand totals
-    this.grandTotalCost =
-      this.totalFabricCost + this.totalButtonsCost + this.totalPacketsCost;
-    this.grandTotalWithGst =
-      this.grandTotalCost +
-      this.totalFabricGst +
-      this.totalButtonsGst +
-      this.totalPacketsGst;
+    this.grandTotalCost = this.totalFabricCost + this.totalAccessoriesCost;
+    this.grandTotalWithGst = this.grandTotalCost + this.totalFabricGst + this.totalAccessoriesGst;
 
     // Reset machine totals
     this.totalMachinesCost = 0;
@@ -267,7 +256,7 @@ purchaseEstimationSchema.pre("save", async function (next) {
     // Calculate machine totals
     this.machinesPurchases.forEach((item) => {
       item.totalCost = item.cost || 0;
-      item.gstAmount = (item.totalCost * item.gstRate) / 100;
+      item.gstAmount = (item.totalCost * item.gstPercentage) / 100;
       item.totalWithGst = item.totalCost + item.gstAmount;
     });
 
@@ -287,11 +276,9 @@ purchaseEstimationSchema.pre("save", async function (next) {
 
     // Reset order-based totals
     this.totalFabricCost = 0;
-    this.totalButtonsCost = 0;
-    this.totalPacketsCost = 0;
     this.totalFabricGst = 0;
-    this.totalButtonsGst = 0;
-    this.totalPacketsGst = 0;
+    this.totalAccessoriesCost = 0;
+    this.totalAccessoriesGst = 0;
   }
 
   next();
@@ -304,6 +291,7 @@ purchaseEstimationSchema.index({ PoNo: 1 });
 purchaseEstimationSchema.index({ estimationType: 1 });
 purchaseEstimationSchema.index({ status: 1 });
 purchaseEstimationSchema.index({ estimationDate: -1 });
+purchaseEstimationSchema.index({ "accessoriesPurchases.vendorId": 1 });
 
 const PurchaseEstimation = mongoose.model(
   "PurchaseEstimation",

@@ -3,9 +3,8 @@ import mongoose from "mongoose";
 const OrderSchema = new mongoose.Schema({
   orderDate: { type: Date, required: true },
   PoNo: { type: String },
-  orderType: { type: String, enum: ["FOB", "JOB-Works"], required: true },
+  orderType: { type: String, enum: ["FOB", "JOB-Works", "Own-Orders"], required: true },
 
-  // Buyer Reference + Snapshot
   buyer: { type: mongoose.Schema.Types.ObjectId, ref: "Buyer", required: true },
   buyerDetails: {
     name: { type: String, required: true },
@@ -16,52 +15,28 @@ const OrderSchema = new mongoose.Schema({
     address: String,
   },
 
-  // Products with the complex tree structure
   products: [
     {
-      // Reference to Product collection
       product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
 
-      // Product snapshot
       productDetails: {
         name: { type: String, required: true },
-        hsn: { type: String, required: true },
+        style: { type: String, required: true },
+        color: { type: String, required: true },
+        fabricType: { type: String, required: true },
       },
-
-      // Fabric Types array (first level of tree)
-      fabricTypes: [
+      sizes: [
         {
-          fabricType: { type: String, required: true }, // "Airtex", "Single Jersey", etc.
-
-          // Sizes array (second level of tree)
-          sizes: [
-            {
-              size: { type: String, required: true }, // "S", "M", "L", etc.
-
-              // Colors array (third level of tree)
-              colors: [
-                {
-                  color: { type: String, required: true },
-                  qty: { type: Number, required: true, min: 1 },
-                }
-              ],
-
-              sizeTotalQty: { type: Number, default: 0 }, // Total for this size
-            }
-          ],
-
-          fabricTotalQty: { type: Number, default: 0 }, // Total for this fabric type
+          size: { type: String, required: true },
+          qty: { type: Number, required: true, min: 1 },
         }
       ],
-
-      productTotalQty: { type: Number, default: 0 }, // Total for this product
+      productTotalQty: { type: Number, default: 0 },
     },
   ],
 
-  // Calculated totals
   totalQty: { type: Number, default: 0 },
 
-  // Order Status for workflow tracking
   status: {
     type: String,
     enum: [
@@ -76,11 +51,10 @@ const OrderSchema = new mongoose.Schema({
       "Completed"
     ],
     default: function () {
-      return this.orderType === "FOB" ? "Pending Purchase" : "Pending Production";
+      return "Pending Purchase";
     }
   },
 
-  // Workflow References
   purchase: { type: mongoose.Schema.Types.ObjectId, ref: "Purchase" },
   production: { type: mongoose.Schema.Types.ObjectId, ref: "Production" },
   invoice: { type: mongoose.Schema.Types.ObjectId, ref: "Invoice" },
@@ -110,32 +84,13 @@ OrderSchema.pre("save", function (next) {
     this.products.forEach((product) => {
       let productTotal = 0;
 
-      if (product.fabricTypes && product.fabricTypes.length > 0) {
-        product.fabricTypes.forEach((fabricType) => {
-          let fabricTotal = 0;
-
-          if (fabricType.sizes && fabricType.sizes.length > 0) {
-            fabricType.sizes.forEach((size) => {
-              let sizeTotal = 0;
-
-              if (size.colors && size.colors.length > 0) {
-                sizeTotal = size.colors.reduce((acc, color) => acc + (color.qty || 0), 0);
-              }
-
-              size.sizeTotalQty = sizeTotal;
-              fabricTotal += sizeTotal;
-            });
-          }
-
-          fabricType.fabricTotalQty = fabricTotal;
-          productTotal += fabricTotal;
-        });
+      if (product.sizes && product.sizes.length > 0) {
+        productTotal = product.sizes.reduce((acc, size) => acc + (size.qty || 0), 0);
       }
 
       product.productTotalQty = productTotal;
     });
 
-    // Calculate total quantity for entire order
     this.totalQty = this.products.reduce(
       (acc, product) => acc + (product.productTotalQty || 0), 0
     );

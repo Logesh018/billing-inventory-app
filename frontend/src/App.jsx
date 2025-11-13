@@ -1,11 +1,11 @@
-// src/App.jsx - FIXED ROUTING
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./context/ProtectedRoute";
-import Login from "./pages/Login";
+import Login from "./pages/auth/Login";
 import Home from "./pages/Home";
 import "./App.css";
+import { Toaster } from 'react-hot-toast';
 
 // Create a component to handle root redirect
 function RootRedirect() {
@@ -19,7 +19,6 @@ function RootRedirect() {
     );
   }
 
-  // If user is logged in, go to dashboard, otherwise go to login
   return <Navigate to={user ? "/dashboard" : "/login"} replace />;
 }
 
@@ -27,24 +26,26 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        {/* === Animated background layer === */}
+        <div className="fixed inset-0 -z-10 bg-gradient-to-br from-blue-200 via-purple-200 to-pink-200 bg-[length:200%_200%] animate-subtle-gradient">
+          <div className="absolute top-[-100px] left-[-100px] w-[400px] h-[400px] rounded-full opacity-50 blur-[100px] bg-blue-400 animate-orb-float" />
+          <div className="absolute bottom-[-100px] right-[-100px] w-[400px] h-[400px] rounded-full opacity-50 blur-[100px] bg-pink-400 animate-orb-float"
+            style={{ animationDelay: '10s' }}
+          />
+        </div>
+        <Toaster />
         <Routes>
           {/* Login page - accessible to everyone */}
           <Route path="/login" element={<Login />} />
-
-          {/* Root redirect based on auth status */}
           <Route path="/" element={<RootRedirect />} />
-
-          {/* Protected routes - only accessible when logged in */}
           <Route
-            path="/dashboard"
+            path="/dashboard/*"
             element={
               <ProtectedRoute>
                 <Home />
               </ProtectedRoute>
             }
           />
-
-          {/* Catch all other routes */}
           <Route
             path="/*"
             element={

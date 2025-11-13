@@ -1,4 +1,4 @@
-import { axiosInstance } from "../lib/axios";
+﻿import { axiosInstance } from "../lib/axios";
 
 // Get order by ID
 export const getOrderById = async (id) => {
@@ -30,4 +30,8 @@ export const updateOrder = async (id, data) => {
 // For FOB orders, just call:
 export const getAllFOBOrders = async () => {
   return getAllOrders("FOB");
+};
+
+export const getAllOwnOrders = async () => {
+  return getAllOrders("Own-Orders");
 };

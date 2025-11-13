@@ -7,3 +7,4 @@ const PaymentsReceived = () => {
 }
 
 export default PaymentsReceived
+

@@ -31,7 +31,7 @@ const DataTable = ({ columns, data, actions = [], className = "" }) => {
             <tr>
               <td
                 colSpan={columns.length + (actions.length > 0 ? 1 : 0)}
-                className="px-4 py-4 text-center text-gray-500"
+                className="px-4 py-4 text-center text-gray-500 "
               >
                 No data available
               </td>

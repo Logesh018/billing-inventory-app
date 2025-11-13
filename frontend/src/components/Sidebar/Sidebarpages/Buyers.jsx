@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Plus, Edit, Trash2, User } from "lucide-react";
 import { axiosInstance } from "../../../lib/axios";
 
@@ -82,7 +82,7 @@ function BuyerForm({ onSubmit, onClose, initialValues = {} }) {
       newErrors.mobile = "Mobile number must be 10 digits";
     }
 
-    if (formData.email && !/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(formData.email)) {
+    if (formData.email && !/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(formData.email)) {
       newErrors.email = "Invalid email format";
     }
 
@@ -247,62 +247,6 @@ function BuyerForm({ onSubmit, onClose, initialValues = {} }) {
               />
             </div>
           </div>
-
-          {/* Business Information */}
-          {/* <div className="mb-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <div className="w-1 h-4 bg-purple-500 rounded mr-2"></div>
-              Business Information
-            </h3>
-            <div className="grid grid-cols-4 gap-2">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Company Name
-                </label>
-                <input
-                  placeholder="Company name"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
-                  value={formData.company}
-                  onChange={(e) => handleChange('company', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Business Type
-                </label>
-                <input
-                  placeholder="e.g., Retail, Wholesale"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
-                  value={formData.businessType}
-                  onChange={(e) => handleChange('businessType', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Payment Terms
-                </label>
-                <input
-                  placeholder="e.g., 30 days, COD"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
-                  value={formData.paymentTerms}
-                  onChange={(e) => handleChange('paymentTerms', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Credit Limit (₹)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
-                  value={formData.creditLimit}
-                  onChange={(e) => handleChange('creditLimit', parseFloat(e.target.value) || 0)}
-                />
-              </div>
-            </div>
-          </div> */}
 
           {/* Status */}
           <div className="mb-4">
@@ -518,23 +462,6 @@ export default function Buyers() {
         </div>
       )
     },
-    // {
-    //   key: "business",
-    //   label: "Business",
-    //   width: "120px",
-    //   render: (b) => (
-    //     <div className="text-xs">
-    //       {b.businessType ? (
-    //         <div className="text-gray-700">{truncate(b.businessType, 15)}</div>
-    //       ) : (
-    //         <span className="text-gray-400">—</span>
-    //       )}
-    //       {b.paymentTerms && (
-    //         <div className="text-gray-500 text-xs">{truncate(b.paymentTerms, 15)}</div>
-    //       )}
-    //     </div>
-    //   )
-    // },
     {
       key: "orders",
       label: "Orders",

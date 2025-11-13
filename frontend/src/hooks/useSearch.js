@@ -1,6 +1,5 @@
-// hooks/useSearch.js
-// Generic search hook for any entity
 import { useState } from 'react';
+import { axiosInstance } from '../lib/axios';
 
 export function useSearch(searchEndpoint, minSearchLength = 2) {
   const [suggestions, setSuggestions] = useState([]);
@@ -18,31 +17,11 @@ export function useSearch(searchEndpoint, minSearchLength = 2) {
     try {
       setIsLoading(true);
       setError(null);
-      
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
 
-      const response = await fetch(
-        `${searchEndpoint}?q=${encodeURIComponent(searchTerm)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const { data } = await axiosInstance.get(`${searchEndpoint}?q=${encodeURIComponent(searchTerm)}`);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-
-      const results = await response.json();
-      
       // Deduplicate results by _id or name
-      const uniqueResults = results.filter(
+      const uniqueResults = data.filter(
         (item, index, self) =>
           index === self.findIndex(
             (i) => (i._id && i._id === item._id) || (i.name === item.name)
@@ -81,5 +60,61 @@ export function useSearch(searchEndpoint, minSearchLength = 2) {
     clearSearch,
     selectItem,
     setShowDropdown
+  };
+}
+
+// Specific buyer search hook
+export function useBuyerSearch() {
+  const searchHook = useSearch("/orders/search/buyers");
+
+  return {
+    ...searchHook,
+    searchBuyers: searchHook.search,
+    buyerSuggestions: searchHook.suggestions,
+    showBuyerDropdown: searchHook.showDropdown,
+    setShowBuyerDropdown: searchHook.setShowDropdown,
+    selectBuyer: searchHook.selectItem,
+  };
+}
+
+// Specific supplier search hook
+export function useSupplierSearch() {
+  const searchHook = useSearch("/purchases/search/suppliers");
+
+  return {
+    ...searchHook,
+    searchSuppliers: searchHook.search,
+    supplierSuggestions: searchHook.suggestions,
+    showSupplierDropdown: searchHook.showDropdown,
+    setShowSupplierDropdown: searchHook.setShowDropdown,
+    selectSupplier: searchHook.selectItem,
+  };
+}
+
+// Specific product search hook
+export function useProductSearch() {
+  const searchHook = useSearch("/products/search");
+
+  return {
+    ...searchHook,
+    searchProducts: searchHook.search,
+    productSuggestions: searchHook.suggestions,
+    showProductDropdown: searchHook.showDropdown,
+    setShowProductDropdown: searchHook.setShowDropdown,
+    selectProduct: searchHook.selectItem,
+  };
+}
+
+// ✅ Specific supplier search hook for Purchase Orders
+export function usePOSupplierSearch() {
+  const searchHook = useSearch("/purchase-orders/search/suppliers");
+
+  return {
+    ...searchHook,
+    searchPOSuppliers: searchHook.search,
+    poSupplierSuggestions: searchHook.suggestions,
+    showPOSupplierDropdown: searchHook.showDropdown,
+    setShowPOSupplierDropdown: searchHook.setShowDropdown,
+    selectPOSupplier: searchHook.selectItem,
   };
 }

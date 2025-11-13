@@ -1,4 +1,4 @@
-//src/api/supplierApi.js
+﻿//src/api/supplierApi.js
 import { axiosInstance } from "../lib/axios";
 
 // Create a new supplier

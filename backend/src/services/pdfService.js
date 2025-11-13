@@ -1,6 +1,12 @@
 // services/pdfService.js
-import puppeteer from 'puppeteer';
-import { cloudinaryService } from './cloudinaryService.js';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import puppeteer from "puppeteer";
+import { cloudinaryService } from "./cloudinaryService.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class PDFService {
   constructor() {
@@ -10,16 +16,38 @@ class PDFService {
   async initBrowser() {
     if (!this.browser) {
       this.browser = await puppeteer.launch({
-        headless: 'new',
+        headless: "new",
         args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
         ],
       });
     }
     return this.browser;
+  }
+
+  loadTemplate(templateName) {
+    const filePath = path.resolve(__dirname, './templates', `${templateName}.html`);
+    console.log('📄 Loading template from:', filePath);
+
+    if (!fs.existsSync(filePath)) {
+      console.error('❌ Template file not found:', filePath);
+      throw new Error(`Template file not found: ${filePath}`);
+    }
+
+    return fs.readFileSync(filePath, "utf-8");
+  }
+
+  renderTemplate(template, data) {
+    let html = template;
+    for (const key in data) {
+      const value = data[key] ?? "";
+      const regex = new RegExp(`{{${key}}}`, "g");
+      html = html.replace(regex, value);
+    }
+    return html;
   }
 
   async generatePDFBuffer(htmlContent, options = {}) {
@@ -28,43 +56,238 @@ class PDFService {
 
     try {
       await page.setContent(htmlContent, {
-        waitUntil: ['networkidle0', 'load'],
-        timeout: 60000
+        waitUntil: ["networkidle0", "load"],
+        timeout: 60000,
       });
 
       const pdfBuffer = await page.pdf({
-        format: 'A4',
+        format: "A4",
         printBackground: true,
         margin: {
-          top: '0.5in',
-          right: '0.5in',
-          bottom: '0.5in',
-          left: '0.5in',
+          top: "0.4in",
+          right: "0.4in",
+          bottom: "0.4in",
+          left: "0.4in",
         },
-        ...options
+        ...options,
       });
 
       return pdfBuffer;
     } catch (error) {
-      console.error('PDF generation error:', error);
-      throw new Error('Failed to generate PDF: ' + error.message);
+      console.error("❌ PDF generation error:", error);
+      throw new Error("Failed to generate PDF: " + error.message);
     } finally {
       await page.close();
     }
   }
 
-  async generateDocumentPDF(document, template = 'modern') {
+  /** Generate items HTML with proper column alignment **/
+  generateItemsHTML(document) {
+    if (!document.items || document.items.length === 0) {
+      return '<tr><td colspan="6" class="left">No items</td></tr>';
+    }
+
+    let html = '';
+
+    document.items.forEach((item) => {
+      const name = item.productDetails?.name || 'N/A';
+      const desc = item.productDetails?.description || '';
+      const hsn = item.productDetails?.hsn || '';
+
+      if (item.colors && item.colors.length > 0) {
+        item.colors.forEach((color, colorIndex) => {
+          const colorName = (color.colorName || '').toUpperCase();
+          const sizes = color.sizes || [];
+
+          // Product + color header (no colspan misalignment)
+          html += `
+          <tr class="no-bottom-border">
+            <td class="left"><strong>${name}${desc ? '<br>' + desc : ''}</strong><br>COLOUR ${colorName}</td>
+            <td class="center">${hsn}</td>
+            <td class="center"></td>
+            <td class="center"></td>
+            <td class="center"></td>
+            <td class="center"></td>
+          </tr>
+        `;
+
+          sizes.forEach((size, sizeIndex) => {
+            const sizeName = size.sizeName || '';
+            const qty = size.quantity || 0;
+            const rate = parseFloat(size.unitPrice || 0).toFixed(2);
+            const amount = (qty * size.unitPrice).toFixed(2);
+
+            html += `
+            <tr class="bottom-border">
+              <td class="left" style="padding-left: 20px;">SIZE - ${sizeName}</td>
+              <td class="center"></td>
+              <td class="center">${qty}</td>
+              <td class="center">Pcs</td>
+              <td class="right">${rate}</td>
+              <td class="right">${amount}</td>
+            </tr>
+          `;
+          });
+        });
+      } else {
+        // Normal product (no color/size)
+        const qty = item.quantity || 0;
+        const rate = parseFloat(item.unitPrice || 0).toFixed(2);
+        const amount = (qty * item.unitPrice).toFixed(2);
+
+        html += `
+        <tr class="bottom-border">
+          <td class="left">${name}${desc ? '<br>' + desc : ''}</td>
+          <td class="center">${hsn}</td>
+          <td class="center">${qty}</td>
+          <td class="center">Pcs</td>
+          <td class="right">${rate}</td>
+          <td class="right">${amount}</td>
+        </tr>
+      `;
+      }
+    });
+
+    return html;
+  }
+
+  generateItemsHTMLForProforma(document) {
+    if (!document.items || document.items.length === 0) {
+      return '<tr><td colspan="8" class="left">No items</td></tr>';
+    }
+
+    let html = '';
+
+    document.items.forEach((item) => {
+      const name = item.productDetails?.name || 'N/A';
+      const hsn = item.productDetails?.hsn || '';
+      const taxRate = item.taxRate || 5;
+
+      if (item.colors && item.colors.length > 0) {
+        item.colors.forEach((color) => {
+          const colorName = (color.colorName || '').toUpperCase();
+          const sizes = color.sizes || [];
+
+          // Collect all sizes for this color
+          const sizeNames = sizes.map(s => s.sizeName).join(', ');
+          const totalQty = sizes.reduce((sum, s) => sum + (s.quantity || 0), 0);
+          const avgRate = sizes[0]?.unitPrice || 0;
+          const totalAmount = sizes.reduce((sum, s) => sum + ((s.quantity || 0) * (s.unitPrice || 0)), 0).toFixed(2);
+
+          html += `
+          <tr>
+            <td class="left">${name}</td>
+            <td class="center">${hsn}</td>
+            <td class="center">${sizeNames}</td>
+            <td class="center">${colorName}</td>
+            <td class="center">${totalQty}</td>
+            <td class="right">${avgRate.toFixed(2)}</td>
+            <td class="center">${taxRate}%</td>
+            <td class="right">${totalAmount}</td>
+          </tr>
+        `;
+        });
+      } else {
+        const qty = item.quantity || 0;
+        const rate = parseFloat(item.unitPrice || 0).toFixed(2);
+        const amount = (qty * item.unitPrice).toFixed(2);
+
+        html += `
+        <tr>
+          <td class="left">${name}</td>
+          <td class="center">${hsn}</td>
+          <td class="center">-</td>
+          <td class="center">-</td>
+          <td class="center">${qty}</td>
+          <td class="right">${rate}</td>
+          <td class="center">${taxRate}%</td>
+          <td class="right">${amount}</td>
+        </tr>
+      `;
+      }
+    });
+
+    return html;
+  }
+
+
+
+  /** Count total size rows for rowspan (product name + all colors + all sizes) **/
+  getTotalSizeRows(item) {
+    let total = 1; // Product name row
+
+    if (item.colors && item.colors.length > 0) {
+      item.colors.forEach(color => {
+        total += 1; // Color header row
+        total += (color.sizes?.length || 0); // Size rows
+      });
+    }
+
+    return total;
+  }
+
+  /** Generate Purchase Order PDF **/
+  async generatePurchaseOrderPDF(purchaseOrder) {
     try {
-      const { documentType, documentNo } = document;
-      const htmlContent = this.generateDocumentHTML(document, template);
+      console.log(`📄 Generating Purchase Order PDF for PO: ${purchaseOrder.poNumber}`);
 
-      console.log('Generated HTML:', htmlContent.substring(0, 500) + '...');
+      const templateHTML = this.loadTemplate('purchaseOrderTemplate');
 
-      const pdfBuffer = await this.generatePDFBuffer(htmlContent);
+      // Generate items HTML for Purchase Order
+      const itemsHTML = this.generatePurchaseOrderItemsHTML(purchaseOrder);
 
-      const filename = `${documentType}-${documentNo}-${Date.now()}`;
-      const folder = `${documentType}s`;
+      // Calculate tax totals
+      const cgst = purchaseOrder.taxes?.cgst || 0;
+      const sgst = purchaseOrder.taxes?.sgst || 0;
+      const igst = purchaseOrder.taxes?.igst || 0;
+
+      // Build data for template
+      const data = {
+        poNumber: purchaseOrder.poNumber,
+        poDate: new Date(purchaseOrder.poDate).toLocaleDateString("en-IN"),
+
+        // Buyer (Your Business)
+        "business.name": purchaseOrder.buyer?.name || "NILA TEXGARMENTS",
+        "business.address": purchaseOrder.buyer?.address || "31/4, Kamaraj Nagar, Gandhi Nagar, Karamadai, Mettupalayam, Coimbatore 641104 TN",
+        "business.gstin": purchaseOrder.buyer?.gstin || "33AAVFN6955C1ZX",
+
+        // Supplier (Vendor)
+        "supplier.name": purchaseOrder.supplier?.name || "",
+        "supplier.address": purchaseOrder.supplier?.address || "",
+        "supplier.gstin": purchaseOrder.supplier?.gstin || "",
+
+        // Items
+        items: itemsHTML,
+
+        // Financials
+        totalValue: purchaseOrder.totalValue?.toFixed(2) || "0.00",
+        discount: purchaseOrder.discount?.toFixed(2) || "0.00",
+        roundOff: purchaseOrder.roundOff?.toFixed(2) || "0.00",
+        grandTotal: purchaseOrder.grandTotal?.toFixed(2) || "0.00",
+
+        // Tax Details
+        "taxDetails.cgst": cgst.toFixed(2),
+        "taxDetails.sgst": sgst.toFixed(2),
+        "taxDetails.igst": igst.toFixed(2),
+      };
+
+      console.log('📋 Purchase Order Data:', {
+        poNumber: data.poNumber,
+        supplier: data["supplier.name"],
+        grandTotal: data.grandTotal
+      });
+
+      const filledHTML = this.renderTemplate(templateHTML, data);
+      const pdfBuffer = await this.generatePDFBuffer(filledHTML);
+
+      const filename = `purchase-order-${purchaseOrder.poNumber}-${Date.now()}`;
+      const folder = 'purchase-orders';
+
+      console.log(`📤 Uploading Purchase Order PDF to Cloudinary: ${folder}/${filename}`);
+
       const uploadResult = await cloudinaryService.uploadPDF(pdfBuffer, filename, folder);
+
+      console.log('✅ Purchase Order PDF uploaded successfully:', uploadResult.url);
 
       return {
         buffer: pdfBuffer,
@@ -72,375 +295,198 @@ class PDFService {
         publicId: uploadResult.publicId,
       };
     } catch (error) {
-      console.error('Document PDF generation error:', error);
+      console.error("❌ Purchase Order PDF generation error:", error);
       throw error;
     }
   }
 
-  generateDocumentHTML(document, template = 'modern') {
-    if (document.documentType === 'purchase-estimation') {
-      return this.purchaseEstimationTemplate(document);
+  /** Generate items HTML for Purchase Order **/
+  generatePurchaseOrderItemsHTML(purchaseOrder) {
+    if (!purchaseOrder.items || purchaseOrder.items.length === 0) {
+      return '<tr><td colspan="5" style="text-align: center;">No items</td></tr>';
     }
 
-    switch (template) {
-      case 'classic':
-        return this.classicTemplate(document);
-      case 'minimal':
-        return this.minimalTemplate(document);
-      case 'modern':
-      default:
-        return this.modernTemplate(document);
-    }
-  }
+    let html = '';
 
-  modernTemplate(document) {
-    const { documentType, documentNo, documentDate, customerDetails, businessDetails, items, customization, status, paymentTerms, dueDate, validUntil, notes } = document;
-    const title = documentType.charAt(0).toUpperCase() + documentType.slice(1);
+    purchaseOrder.items.forEach((item, index) => {
+      const description = item.description || 'N/A';
+      const quantity = item.quantity || 0;
+      const rate = parseFloat(item.rate || 0).toFixed(2);
+      const amount = parseFloat(item.amount || 0).toFixed(2);
 
-    const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-    const totalDiscount = items.reduce((sum, item) => sum + (item.discountType === 'percentage' ? (item.quantity * item.unitPrice * item.discount) / 100 : item.discount), 0);
-    const totalTax = items.reduce((sum, item) => sum + ((item.quantity * item.unitPrice - (item.discountType === 'percentage' ? (item.quantity * item.unitPrice * item.discount) / 100 : item.discount)) * item.taxRate / 100), 0);
-    const grandTotal = subtotal - totalDiscount + totalTax;
+      // Calculate tax from amount and rate
+      const subtotal = quantity * item.rate;
+      const taxAmount = item.amount - subtotal;
+      const taxPercent = subtotal > 0 ? ((taxAmount / subtotal) * 100).toFixed(0) : 0;
 
-    const dateField = documentType === 'invoice' ? 'dueDate' : 'validUntil';
-    const dateLabel = documentType === 'invoice' ? 'Due' : 'Valid Until';
-    const dateValue = document[dateField] ? new Date(document[dateField]).toLocaleDateString() : 'N/A';
-
-    const primaryColor = customization?.primaryColor || '#2563eb';
-
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>${title} ${documentNo}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Arial', sans-serif; color: #1f2937; line-height: 1.6; }
-          .invoice-container { max-width: 800px; margin: 0 auto; padding: 40px; background: white; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid ${primaryColor}; }
-          .business-info h1 { font-size: 28px; font-weight: 700; color: ${primaryColor}; margin-bottom: 10px; }
-          .business-info p { color: #6b7280; margin-bottom: 4px; }
-          .invoice-title { text-align: right; }
-          .invoice-title h2 { font-size: 36px; font-weight: 300; color: #1f2937; margin-bottom: 8px; }
-          .invoice-meta { text-align: right; color: #6b7280; }
-          .invoice-details { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-          .section-title { font-size: 14px; font-weight: 600; color: ${primaryColor}; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
-          .customer-info p, .invoice-info p { margin-bottom: 6px; color: #374151; }
-          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
-          .items-table th { background: ${primaryColor}; color: white; padding: 16px 12px; text-align: left; font-weight: 600; font-size: 14px; }
-          .items-table td { padding: 16px 12px; border-bottom: 1px solid #e5e7eb; color: #374151; }
-          .items-table tr:nth-child(even) { background: #f9fafb; }
-          .text-right { text-align: right; }
-          .totals-section { display: flex; justify-content: flex-end; margin-bottom: 30px; }
-          .totals-table { min-width: 300px; }
-          .totals-table tr td { padding: 8px 12px; border: none; }
-          .totals-table tr:last-child { border-top: 2px solid ${primaryColor}; font-weight: 700; font-size: 18px; color: ${primaryColor}; }
-          .notes { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
-          .notes h3 { font-size: 16px; color: #374151; margin-bottom: 12px; }
-          .notes p { color: #6b7280; font-size: 14px; line-height: 1.7; }
-          .footer { margin-top: 50px; text-align: center; color: #9ca3af; font-size: 12px; border-top: 1px solid #e5e7eb; padding-top: 20px; }
-          @media print { .invoice-container { padding: 20px; } }
-        </style>
-      </head>
-      <body>
-        <div class="invoice-container">
-          <div class="header">
-            <div class="business-info">
-              <h1>${businessDetails.name}</h1>
-              <p>${businessDetails.address}</p>
-              <p>${businessDetails.city}, ${businessDetails.state} ${businessDetails.pincode}</p>
-              ${businessDetails.phone ? `<p>Phone: ${businessDetails.phone}</p>` : ''}
-              ${businessDetails.email ? `<p>Email: ${businessDetails.email}</p>` : ''}
-              ${businessDetails.gst ? `<p>GST: ${businessDetails.gst}</p>` : ''}
-            </div>
-            <div class="invoice-title">
-              <h2>${title.toUpperCase()}</h2>
-              <div class="invoice-meta">
-                <p><strong>${documentNo}</strong></p>
-                <p>Date: ${new Date(documentDate).toLocaleDateString()}</p>
-                <p>${dateLabel}: ${dateValue}</p>
-              </div>
-            </div>
-          </div>
-          <div class="invoice-details">
-            <div class="bill-to">
-              <h3 class="section-title">Bill To</h3>
-              <div class="customer-info">
-                <p><strong>${customerDetails.name || 'N/A'}</strong></p>
-                ${customerDetails.company ? `<p>${customerDetails.company}</p>` : ''}
-                ${customerDetails.address ? `<p>${customerDetails.address}</p>` : ''}
-                ${customerDetails.mobile ? `<p>Phone: ${customerDetails.mobile}</p>` : ''}
-                ${customerDetails.email ? `<p>Email: ${customerDetails.email}</p>` : ''}
-                ${customerDetails.gst ? `<p>GST: ${customerDetails.gst}</p>` : ''}
-              </div>
-            </div>
-            <div class="payment-info">
-              <h3 class="section-title">${title} Details</h3>
-              <div class="invoice-info">
-                ${documentType === 'invoice' ? `<p>Terms: ${paymentTerms || 'N/A'}</p>` : ''}
-                <p>Status: <strong>${status || 'Draft'}</strong></p>
-                ${documentType === 'invoice' && document.balanceAmount > 0 ? `<p style="color: #dc2626;">Balance Due: ₹${(document.balanceAmount || 0).toLocaleString()}</p>` : ''}
-              </div>
-            </div>
-          </div>
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th>HSN</th>
-                <th class="text-right">Qty</th>
-                <th class="text-right">Rate</th>
-                <th class="text-right">Discount</th>
-                <th class="text-right">Tax</th>
-                <th class="text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${items && items.length > 0 ? items.map(item => {
-                const lineTotal = item.quantity * item.unitPrice - (item.discountType === 'percentage' ? (item.quantity * item.unitPrice * item.discount) / 100 : item.discount) + ((item.quantity * item.unitPrice - (item.discountType === 'percentage' ? (item.quantity * item.unitPrice * item.discount) / 100 : item.discount)) * item.taxRate / 100);
-                return `
-                  <tr>
-                    <td>
-                      <strong>${item.productDetails.name || 'N/A'}</strong>
-                      ${item.productDetails.description ? `<br><span style="color: #6b7280; font-size: 12px;">${item.productDetails.description}</span>` : ''}
-                    </td>
-                    <td>${item.productDetails.hsn || '-'}</td>
-                    <td class="text-right">${item.quantity || 0}</td>
-                    <td class="text-right">₹${(item.unitPrice || 0).toLocaleString()}</td>
-                    <td class="text-right">
-                      ${item.discount > 0 ? (item.discountType === 'percentage' ? `${item.discount}%` : `₹${item.discount}`) : '-'}
-                    </td>
-                    <td class="text-right">${(item.taxRate || 0)}%</td>
-                    <td class="text-right">₹${lineTotal.toLocaleString()}</td>
-                  </tr>
-                `;
-              }).join('') : '<tr><td colspan="7">No items available</td></tr>'}
-            </tbody>
-          </table>
-          <div class="totals-section">
-            <table class="totals-table">
-              <tr><td>Subtotal:</td><td class="text-right">₹${subtotal.toLocaleString()}</td></tr>
-              ${totalDiscount > 0 ? `<tr><td>Discount:</td><td class="text-right">-₹${totalDiscount.toLocaleString()}</td></tr>` : ''}
-              <tr><td>Total Tax:</td><td class="text-right">₹${totalTax.toLocaleString()}</td></tr>
-              <tr><td><strong>Total:</strong></td><td class="text-right"><strong>₹${grandTotal.toLocaleString()}</strong></td></tr>
-            </table>
-          </div>
-          ${notes ? `<div class="notes"><h3>Notes</h3><p>${notes}</p></div>` : ''}
-          <div class="footer">
-            <p>Thank you for your business!</p>
-            ${businessDetails.website ? `<p>${businessDetails.website}</p>` : ''}
-          </div>
-        </div>
-      </body>
-      </html>
+      html += `
+      <tr>
+        <td style="text-align: left;">${description}</td>
+        <td style="text-align: center;">${taxPercent}%</td>
+        <td style="text-align: center;">${quantity}</td>
+        <td style="text-align: right;">₹${rate}</td>
+        <td style="text-align: right;">₹${amount}</td>
+      </tr>
     `;
+    });
+    return html;
   }
 
-  purchaseEstimationTemplate(document) {
-    const {
-      documentNo, documentDate, businessDetails,
-      fabricPurchases = [], buttonsPurchases = [], packetsPurchases = [],
-      totalFabricCost = 0, totalButtonsCost = 0, totalPacketsCost = 0,
-      totalFabricGst = 0, totalButtonsGst = 0, totalPacketsGst = 0,
-      grandTotalCost = 0, grandTotalWithGst = 0, remarks, status
-    } = document;
+  /** Main PDF generator **/
+  async generateDocumentPDF(document) {
+    try {
+      const { documentType, documentNo } = document;
 
-    const primaryColor = '#10b981';
-    const formatPurchaseMode = (mode) => {
-      const modeMap = { 'kg': 'per KG', 'meter': 'per Meter', 'piece': 'per Piece', 'pieces': 'per Piece', 'qty': 'per Qty', 'packet': 'per Packet' };
-      return modeMap[mode] || mode;
+      const typeMap = {
+        invoice: "invoiceTemplate",
+        proforma: "proformaTemplate",
+        estimation: "estimationTemplate",
+      };
+      const templateName = typeMap[documentType] || "invoiceTemplate";
+
+      console.log(`📄 Generating ${documentType} PDF using template: ${templateName}`);
+
+      const templateHTML = this.loadTemplate(templateName);
+
+      // === Split addresses into 2 lines ===
+      const customerAddress = document.customerDetails?.address || "";
+      const customerAddressParts = this.splitAddress(customerAddress);
+
+      // === Generate items HTML based on document type ===
+      const itemsHTML = documentType === 'proforma'
+        ? this.generateItemsHTMLForProforma(document)
+        : this.generateItemsHTML(document);
+
+      // === Calculate tax breakdowns ===
+      const productTax5 = document.items
+        .filter(item => item.taxRate === 5)
+        .reduce((sum, item) => {
+          let itemTotal = 0;
+          if (item.colors && item.colors.length > 0) {
+            item.colors.forEach(color => {
+              color.sizes.forEach(size => {
+                itemTotal += (size.quantity || 0) * (size.unitPrice || 0);
+              });
+            });
+          } else {
+            itemTotal = (item.quantity || 0) * (item.unitPrice || 0);
+          }
+          return sum + (itemTotal * 5) / 100;
+        }, 0);
+
+      const cgst2_5 = (productTax5 / 2).toFixed(2);
+      const sgst2_5 = (productTax5 / 2).toFixed(2);
+
+      // For transportation (only for invoice/estimation)
+      const transportCharges = document.transportationCharges || 0;
+      const transportTaxRate = document.transportationTaxRate || 18;
+      const transportTax = (transportCharges * transportTaxRate) / 100;
+      const transportCgst = (transportTax / 2).toFixed(2);
+      const transportSgst = (transportTax / 2).toFixed(2);
+
+      // === Build data for template ===
+      const data = {
+        documentNo: document.documentNo,
+        documentDate: new Date(document.documentDate).toLocaleDateString("en-IN"),
+        orderNo: document.orderNo || "",
+        orderDate: document.orderDate ? new Date(document.orderDate).toLocaleDateString("en-IN") : "",
+
+        // Customer
+        "customer.name": document.customerDetails?.name || "",
+        "customer.addressLine1": customerAddressParts.line1,
+        "customer.addressLine2": customerAddressParts.line2,
+        "customer.gst": document.customerDetails?.gst || "",
+
+        // Business
+        "business.name": document.businessDetails?.name || "NILA TEXGARMENTS",
+        "business.address": document.businessDetails?.address || "",
+        "business.city": document.businessDetails?.city || "",
+        "business.state": document.businessDetails?.state || "",
+        "business.pincode": document.businessDetails?.pincode || "",
+        "business.gst": document.businessDetails?.gst || "",
+        "business.pan": document.businessDetails?.pan || "",
+        "business.accountNumber": document.businessDetails?.accountNumber || "",
+        "business.ifsc": document.businessDetails?.ifsc || "",
+        "business.branch": document.businessDetails?.branch || "",
+        "business.bankName": document.businessDetails?.bankName || "",
+
+        // Items
+        items: itemsHTML,
+
+        // Financials
+        subtotal: document.subtotal?.toFixed(2) || "0.00",
+        grandTotal: document.grandTotal?.toFixed(2) || "0.00",
+        transportationCharges: transportCharges.toFixed(2),
+        transportationHsn: document.transportationHsn || "9966",
+        transportationTaxRate: transportTaxRate,
+        amountInWords: document.amountInWords || "Zero Rupees Only",
+
+        // Tax Details
+        "taxDetails.cgst2_5": cgst2_5,
+        "taxDetails.sgst2_5": sgst2_5,
+        "taxDetails.cgst9": transportCgst,
+        "taxDetails.sgst9": transportSgst,
+      };
+
+      console.log('💰 Tax Breakdown:', {
+        cgst2_5,
+        sgst2_5,
+        transportCgst,
+        transportSgst
+      });
+
+      const filledHTML = this.renderTemplate(templateHTML, data);
+      const pdfBuffer = await this.generatePDFBuffer(filledHTML);
+
+      const filename = `${documentType}-${documentNo}-${Date.now()}`;
+      const folder = `${documentType}s`;
+
+      console.log(`📤 Uploading to Cloudinary: ${folder}/${filename}`);
+
+      const uploadResult = await cloudinaryService.uploadPDF(pdfBuffer, filename, folder);
+
+      console.log('✅ PDF uploaded successfully:', uploadResult.url);
+
+      return {
+        buffer: pdfBuffer,
+        url: uploadResult.url,
+        publicId: uploadResult.publicId,
+      };
+    } catch (error) {
+      console.error("❌ Document PDF generation error:", error);
+      throw error;
+    }
+  }
+
+  /** Split long address into two lines **/
+  splitAddress(address) {
+    if (!address) return { line1: '', line2: '' };
+
+    const maxLineLength = 45;
+    if (address.length <= maxLineLength) {
+      return { line1: address, line2: '' };
+    }
+
+    const commaIndex = address.indexOf(',', maxLineLength / 2);
+    if (commaIndex > 0 && commaIndex < maxLineLength) {
+      return {
+        line1: address.substring(0, commaIndex).trim(),
+        line2: address.substring(commaIndex + 1).trim()
+      };
+    }
+
+    const spaceIndex = address.lastIndexOf(' ', maxLineLength);
+    if (spaceIndex > 0) {
+      return {
+        line1: address.substring(0, spaceIndex).trim(),
+        line2: address.substring(spaceIndex + 1).trim()
+      };
+    }
+
+    return {
+      line1: address.substring(0, maxLineLength).trim(),
+      line2: address.substring(maxLineLength).trim()
     };
-
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Purchase Estimation ${documentNo}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Arial', sans-serif; color: #1f2937; line-height: 1.6; }
-          .estimation-container { max-width: 800px; margin: 0 auto; padding: 40px; background: white; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid ${primaryColor}; }
-          .business-info h1 { font-size: 28px; font-weight: 700; color: ${primaryColor}; margin-bottom: 10px; }
-          .business-info p { color: #6b7280; margin-bottom: 4px; font-size: 13px; }
-          .estimation-title { text-align: right; }
-          .estimation-title h2 { font-size: 32px; font-weight: 300; color: #1f2937; margin-bottom: 8px; }
-          .estimation-meta { text-align: right; color: #6b7280; font-size: 13px; }
-          .status-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-top: 8px; background: ${status === 'Finalized' ? '#dcfce7' : '#fef3c7'}; color: ${status === 'Finalized' ? '#15803d' : '#a16207'}; }
-          .section-title { font-size: 18px; font-weight: 700; color: ${primaryColor}; margin: 30px 0 15px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb; }
-          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #e5e7eb; }
-          .items-table th { background: ${primaryColor}; color: white; padding: 12px 10px; text-align: left; font-weight: 600; font-size: 12px; }
-          .items-table td { padding: 10px; border-bottom: 1px solid #e5e7eb; color: #374151; font-size: 12px; }
-          .items-table tr:nth-child(even) { background: #f9fafb; }
-          .items-table tr:last-child td { border-bottom: none; }
-          .text-right { text-align: right; }
-          .vendor-cell { font-weight: 600; color: #1f2937; }
-          .colors-cell { font-size: 11px; color: #6b7280; }
-          .summary-section { margin-top: 30px; background: #f9fafb; padding: 20px; border-radius: 8px; }
-          .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-          .summary-item { text-align: center; padding: 15px; background: white; border-radius: 6px; border: 1px solid #e5e7eb; }
-          .summary-item .label { font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 5px; }
-          .summary-item .value { font-size: 20px; font-weight: 700; color: #1f2937; }
-          .summary-item .gst { font-size: 11px; color: #10b981; margin-top: 3px; }
-          .totals-table { width: 100%; margin-top: 10px; }
-          .totals-table tr td { padding: 8px 0; border: none; }
-          .totals-table tr { border-bottom: 1px solid #e5e7eb; }
-          .totals-table tr:last-child { border-top: 2px solid ${primaryColor}; border-bottom: none; }
-          .totals-table tr:last-child td { font-weight: 700; font-size: 20px; color: ${primaryColor}; padding-top: 12px; }
-          .notes { margin-top: 30px; padding: 15px; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 4px; }
-          .notes h3 { font-size: 14px; color: #92400e; margin-bottom: 8px; font-weight: 600; }
-          .notes p { color: #78350f; font-size: 13px; line-height: 1.6; }
-          .footer { margin-top: 40px; text-align: center; color: #9ca3af; font-size: 11px; border-top: 1px solid #e5e7eb; padding-top: 20px; }
-          .no-items { text-align: center; padding: 30px; color: #9ca3af; font-style: italic; }
-          @media print { .estimation-container { padding: 20px; } }
-        </style>
-      </head>
-      <body>
-        <div class="estimation-container">
-          <div class="header">
-            <div class="business-info">
-              <h1>${businessDetails.name}</h1>
-              <p>${businessDetails.address}</p>
-              <p>${businessDetails.city}, ${businessDetails.state} ${businessDetails.pincode}</p>
-              ${businessDetails.phone ? `<p>Phone: ${businessDetails.phone}</p>` : ''}
-              ${businessDetails.email ? `<p>Email: ${businessDetails.email}</p>` : ''}
-              ${businessDetails.gst ? `<p>GST: ${businessDetails.gst}</p>` : ''}
-            </div>
-            <div class="estimation-title">
-              <h2>PURCHASE ESTIMATION</h2>
-              <div class="estimation-meta">
-                <p><strong>${documentNo}</strong></p>
-                <p>Date: ${new Date(documentDate).toLocaleDateString('en-IN')}</p>
-                <div class="status-badge">${status}</div>
-              </div>
-            </div>
-          </div>
-
-          ${fabricPurchases.length > 0 ? `
-            <h3 class="section-title">Fabric Purchases</h3>
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th>Fabric Type</th><th>Vendor</th><th>GSM</th><th>Colors</th>
-                  <th class="text-right">Qty</th><th class="text-right">Unit</th>
-                  <th class="text-right">Rate</th><th class="text-right">GST %</th><th class="text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${fabricPurchases.map(item => {
-                  const colors = item.colors && item.colors.length > 0 ? item.colors.join(', ') : '-';
-                  return `
-                    <tr>
-                      <td><strong>${item.fabricType || item.productName}</strong></td>
-                      <td class="vendor-cell">${item.vendor}${item.vendorCode ? `<br><span style="font-size: 10px; color: #6b7280;">${item.vendorCode}</span>` : ''}</td>
-                      <td>${item.gsm || '-'}</td>
-                      <td class="colors-cell">${colors}</td>
-                      <td class="text-right">${item.quantity || 0}</td>
-                      <td class="text-right" style="font-size: 10px;">${formatPurchaseMode(item.purchaseMode)}</td>
-                      <td class="text-right">₹${(item.costPerUnit || 0).toLocaleString()}</td>
-                      <td class="text-right">${item.gstPercentage || 0}%</td>
-                      <td class="text-right"><strong>₹${(item.totalWithGst || 0).toLocaleString()}</strong></td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
-          ` : ''}
-
-          ${buttonsPurchases.length > 0 ? `
-            <h3 class="section-title">Buttons Purchases</h3>
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th>Item Name</th><th>Vendor</th><th>Size</th><th>Color</th>
-                  <th class="text-right">Qty</th><th class="text-right">Unit</th>
-                  <th class="text-right">Rate</th><th class="text-right">GST %</th><th class="text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${buttonsPurchases.map(item => `
-                  <tr>
-                    <td><strong>${item.productName}</strong></td>
-                    <td class="vendor-cell">${item.vendor}${item.vendorCode ? `<br><span style="font-size: 10px; color: #6b7280;">${item.vendorCode}</span>` : ''}</td>
-                    <td>${item.size || '-'}</td>
-                    <td>${item.color || '-'}</td>
-                    <td class="text-right">${item.quantity || 0}</td>
-                    <td class="text-right" style="font-size: 10px;">${formatPurchaseMode(item.purchaseMode)}</td>
-                    <td class="text-right">₹${(item.costPerUnit || 0).toLocaleString()}</td>
-                    <td class="text-right">${item.gstPercentage || 0}%</td>
-                    <td class="text-right"><strong>₹${(item.totalWithGst || 0).toLocaleString()}</strong></td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          ` : ''}
-
-          ${packetsPurchases.length > 0 ? `
-            <h3 class="section-title">Packets Purchases</h3>
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th>Item Name</th><th>Vendor</th><th>Size</th><th>Type</th>
-                  <th class="text-right">Qty</th><th class="text-right">Unit</th>
-                  <th class="text-right">Rate</th><th class="text-right">GST %</th><th class="text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${packetsPurchases.map(item => `
-                  <tr>
-                    <td><strong>${item.productName}</strong></td>
-                    <td class="vendor-cell">${item.vendor}${item.vendorCode ? `<br><span style="font-size: 10px; color: #6b7280;">${item.vendorCode}</span>` : ''}</td>
-                    <td>${item.size || '-'}</td>
-                    <td>${item.packetType || '-'}</td>
-                    <td class="text-right">${item.quantity || 0}</td>
-                    <td class="text-right" style="font-size: 10px;">${formatPurchaseMode(item.purchaseMode)}</td>
-                    <td class="text-right">₹${(item.costPerUnit || 0).toLocaleString()}</td>
-                    <td class="text-right">${item.gstPercentage || 0}%</td>
-                    <td class="text-right"><strong>₹${(item.totalWithGst || 0).toLocaleString()}</strong></td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          ` : ''}
-
-          ${fabricPurchases.length === 0 && buttonsPurchases.length === 0 && packetsPurchases.length === 0 ? `
-            <div class="no-items">No purchase items available</div>
-          ` : ''}
-
-          <div class="summary-section">
-            <h3 class="section-title" style="margin-top: 0; border: none;">Cost Summary</h3>
-            <div class="summary-grid">
-              ${fabricPurchases.length > 0 ? `<div class="summary-item"><div class="label">Fabric</div><div class="value">₹${totalFabricCost.toLocaleString()}</div><div class="gst">+ ₹${totalFabricGst.toLocaleString()} GST</div></div>` : ''}
-              ${buttonsPurchases.length > 0 ? `<div class="summary-item"><div class="label">Buttons</div><div class="value">₹${totalButtonsCost.toLocaleString()}</div><div class="gst">+ ₹${totalButtonsGst.toLocaleString()} GST</div></div>` : ''}
-              ${packetsPurchases.length > 0 ? `<div class="summary-item"><div class="label">Packets</div><div class="value">₹${totalPacketsCost.toLocaleString()}</div><div class="gst">+ ₹${totalPacketsGst.toLocaleString()} GST</div></div>` : ''}
-            </div>
-            <table class="totals-table">
-              <tr><td>Subtotal (Before GST):</td><td class="text-right">₹${grandTotalCost.toLocaleString()}</td></tr>
-              <tr><td>Total GST:</td><td class="text-right">₹${(totalFabricGst + totalButtonsGst + totalPacketsGst).toLocaleString()}</td></tr>
-              <tr><td><strong>Grand Total:</strong></td><td class="text-right"><strong>₹${grandTotalWithGst.toLocaleString()}</strong></td></tr>
-            </table>
-          </div>
-
-          ${remarks ? `<div class="notes"><h3>Remarks</h3><p>${remarks}</p></div>` : ''}
-
-          <div class="footer">
-            <p>This is a computer-generated purchase estimation</p>
-            <p>Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-  }
-
-  classicTemplate(document) {
-    return this.modernTemplate(document);
-  }
-
-  minimalTemplate(document) {
-    return this.modernTemplate(document);
   }
 
   async closeBrowser() {
@@ -453,12 +499,14 @@ class PDFService {
 
 export const pdfService = new PDFService();
 
-process.on('SIGINT', async () => {
+process.on("SIGINT", async () => {
+  console.log('🛑 Closing PDF service browser...');
   await pdfService.closeBrowser();
   process.exit(0);
 });
 
-process.on('SIGTERM', async () => {
+process.on("SIGTERM", async () => {
+  console.log('🛑 Closing PDF service browser...');
   await pdfService.closeBrowser();
   process.exit(0);
 });

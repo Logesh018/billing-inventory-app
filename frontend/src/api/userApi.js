@@ -1,4 +1,4 @@
-// src/api/userApi.js
+﻿// src/api/userApi.js
 import { axiosInstance } from "../lib/axios";
 
 const API_URL = "/users"; 
@@ -27,3 +27,5 @@ export const deleteUser = async (id) => {
   const response = await axiosInstance.delete(`${API_URL}/${id}`);
   return response.data;
 };
+
+

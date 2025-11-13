@@ -6,36 +6,57 @@ import Supplier from "../models/supplier.js";
 import { pdfService } from "../services/pdfService.js";
 import { cloudinaryService } from "../services/cloudinaryService.js";
 
-// Helper function to transform Order products to Purchase Estimation format
 const transformOrderProductsForEstimation = (orderProducts) => {
   return orderProducts.map(p => {
-    const colorMap = new Map();
+    const productName = p.productDetails?.name || p.productName || "Unknown Product";
+    const fabricType = p.productDetails?.fabricType || p.fabricType || "N/A";
+    const style = p.productDetails?.style || p.style || "";
 
-    // Build color-to-sizes mapping from Order structure
-    p.fabricTypes?.forEach(fabricType => {
-      fabricType.sizes?.forEach(sizeEntry => {
-        sizeEntry.colors?.forEach(colorEntry => {
-          if (!colorMap.has(colorEntry.color)) {
-            colorMap.set(colorEntry.color, []);
-          }
-          colorMap.get(colorEntry.color).push({
-            size: sizeEntry.size,
-            quantity: colorEntry.qty
+    const colorMap = new Map();
+    if (p.sizes && Array.isArray(p.sizes)) {
+      const productColor = p.productDetails?.color || p.color || "N/A";
+      p.sizes.forEach(sizeEntry => {
+        if (!colorMap.has(productColor)) {
+          colorMap.set(productColor, []);
+        }
+        colorMap.get(productColor).push({
+          size: sizeEntry.size,
+          quantity: sizeEntry.qty || sizeEntry.quantity || 0
+        });
+      });
+    }
+
+    if (colorMap.size === 0 && p.fabricTypes && Array.isArray(p.fabricTypes)) {
+      p.fabricTypes.forEach(fabricType => {
+        fabricType.sizes?.forEach(sizeEntry => {
+          sizeEntry.colors?.forEach(colorEntry => {
+            if (!colorMap.has(colorEntry.color)) {
+              colorMap.set(colorEntry.color, []);
+            }
+            colorMap.get(colorEntry.color).push({
+              size: sizeEntry.size,
+              quantity: colorEntry.qty || 0
+            });
           });
         });
       });
-    });
+    }
+
+    const colors = Array.from(colorMap.entries()).map(([color, sizes]) => ({
+      color: color,
+      sizes: sizes
+    }));
+
+    const productTotalQty = colors.reduce((total, colorGroup) =>
+      total + (colorGroup.sizes?.reduce((sum, s) => sum + (s.quantity || 0), 0) || 0), 0
+    );
 
     return {
-      productName: p.productDetails?.name || "Unknown Product",
-      fabricType: p.fabricTypes?.map(ft => ft.fabricType).join(", ") || "N/A",
-      colors: Array.from(colorMap.entries()).map(([color, sizes]) => ({
-        color: color,
-        sizes: sizes
-      })),
-      productTotalQty: p.fabricTypes?.reduce((total, ft) =>
-        total + (ft.sizes?.reduce((sTotal, sz) =>
-          sTotal + (sz.colors?.reduce((cTotal, col) => cTotal + (col.qty || 0), 0) || 0), 0) || 0), 0) || 0
+      productName: productName,
+      fabricType: fabricType,
+      style: style,
+      colors: colors,
+      productTotalQty: productTotalQty
     };
   });
 };
@@ -59,7 +80,7 @@ export const searchOrders = async (req, res) => {
       .lean();
 
     console.log(`Found ${orders.length} orders for query: "${q}"`);
-    
+
     const results = orders.map(order => ({
       _id: order._id,
       PoNo: order.PoNo,
@@ -96,8 +117,12 @@ export const getOrderByPoNo = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
+    // console.log("📦 Order Products Before Transform:", JSON.stringify(order.products, null, 2));
+
     // Transform products to estimation format
     const estimationProducts = transformOrderProductsForEstimation(order.products);
+
+    console.log("✅ Transformed Products:", JSON.stringify(estimationProducts, null, 2));
 
     const orderDetails = {
       _id: order._id,
@@ -110,7 +135,6 @@ export const getOrderByPoNo = async (req, res) => {
       status: order.status
     };
 
-    console.log("✅ Fetched order details for PoNo:", PoNo);
     res.status(200).json(orderDetails);
   } catch (error) {
     console.error("❌ Error in getOrderByPoNo:", error.message);
@@ -130,9 +154,9 @@ export const createPurchaseEstimation = async (req, res) => {
       orderId,
       PoNo,
       fabricPurchases = [],
-      buttonsPurchases = [],
-      packetsPurchases = [],
+      accessoriesPurchases = [],
       machinesPurchases = [],
+      fabricCostEstimation = [], // NEW
       remarks,
       estimationDate,
     } = req.body;
@@ -179,12 +203,11 @@ export const createPurchaseEstimation = async (req, res) => {
       // Validate that at least one purchase item exists
       const hasItems =
         (fabricPurchases && fabricPurchases.length > 0) ||
-        (buttonsPurchases && buttonsPurchases.length > 0) ||
-        (packetsPurchases && packetsPurchases.length > 0);
+        (accessoriesPurchases && accessoriesPurchases.length > 0);
 
       if (!hasItems) {
         return res.status(400).json({
-          message: "At least one purchase item (fabric, buttons, or packets) is required for order estimation"
+          message: "At least one purchase item (fabric or accessories) is required for order estimation"
         });
       }
 
@@ -200,27 +223,15 @@ export const createPurchaseEstimation = async (req, res) => {
         }
       }
 
-      // Validate buttonsPurchases
-      for (const item of buttonsPurchases) {
-        if (!item.vendor || !item.quantity || !item.costPerUnit) {
+      // Validate accessoriesPurchases
+      for (const item of accessoriesPurchases) {
+        if (!item.vendor || !item.productName || !item.accessoryType || !item.quantity || !item.costPerUnit) {
           return res.status(400).json({
-            message: "Each button purchase requires vendor, quantity, and costPerUnit"
+            message: "Each accessory purchase requires vendor, productName, accessoryType, quantity, and costPerUnit"
           });
         }
         if (item.vendorId && !mongoose.Types.ObjectId.isValid(item.vendorId)) {
-          return res.status(400).json({ message: "Invalid supplier ID format in button purchases" });
-        }
-      }
-
-      // Validate packetsPurchases
-      for (const item of packetsPurchases) {
-        if (!item.vendor || !item.quantity || !item.costPerUnit) {
-          return res.status(400).json({
-            message: "Each packet purchase requires vendor, quantity, and costPerUnit"
-          });
-        }
-        if (item.vendorId && !mongoose.Types.ObjectId.isValid(item.vendorId)) {
-          return res.status(400).json({ message: "Invalid supplier ID format in packet purchases" });
+          return res.status(400).json({ message: "Invalid supplier ID format in accessory purchases" });
         }
       }
 
@@ -238,8 +249,8 @@ export const createPurchaseEstimation = async (req, res) => {
         orderProducts: orderProducts,
         totalOrderQty: order.totalQty,
         fabricPurchases,
-        buttonsPurchases,
-        packetsPurchases,
+        accessoriesPurchases,
+        fabricCostEstimation, // NEW: Include fabric cost estimation
       };
     }
     // Handle Machine-based estimation
@@ -268,7 +279,7 @@ export const createPurchaseEstimation = async (req, res) => {
     // Create new purchase estimation - PESNo will be auto-generated by pre-save hook
     const newEstimation = new PurchaseEstimation(estimationData);
     const savedEstimation = await newEstimation.save();
-    
+
     console.log("✅ Purchase Estimation created:", savedEstimation.PESNo, "Type:", savedEstimation.estimationType);
 
     res.status(201).json({
@@ -277,15 +288,15 @@ export const createPurchaseEstimation = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Error in createPurchaseEstimation:", err);
-    
+
     if (err.name === 'ValidationError') {
       const errors = Object.values(err.errors).map(e => e.message);
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: "Validation failed",
-        errors: errors 
+        errors: errors
       });
     }
-    
+
     res.status(400).json({ message: err.message });
   }
 };
@@ -297,15 +308,15 @@ export const getPurchaseEstimations = async (req, res) => {
     const { estimationType, status, PoNo } = req.query;
 
     const filter = {};
-    
+
     if (estimationType && ["order", "machine"].includes(estimationType)) {
       filter.estimationType = estimationType;
     }
-    
+
     if (status && ["Draft", "Finalized"].includes(status)) {
       filter.status = status;
     }
-    
+
     if (PoNo) {
       filter.PoNo = new RegExp(PoNo, 'i');
     }
@@ -313,11 +324,10 @@ export const getPurchaseEstimations = async (req, res) => {
     const estimations = await PurchaseEstimation.find(filter)
       .populate("order", "PoNo orderType status")
       .populate("fabricPurchases.vendorId", "name code")
-      .populate("buttonsPurchases.vendorId", "name code")
-      .populate("packetsPurchases.vendorId", "name code")
+      .populate("accessoriesPurchases.vendorId", "name code")
       .populate("machinesPurchases.vendorId", "name code")
       .sort({ createdAt: -1 });
-    
+
     console.log(`✅ Fetched ${estimations.length} estimations`);
     res.json(estimations);
   } catch (err) {
@@ -333,14 +343,13 @@ export const getPurchaseEstimationById = async (req, res) => {
     const estimation = await PurchaseEstimation.findById(req.params.id)
       .populate("order", "PoNo orderType status buyerDetails products")
       .populate("fabricPurchases.vendorId", "name code mobile")
-      .populate("buttonsPurchases.vendorId", "name code mobile")
-      .populate("packetsPurchases.vendorId", "name code mobile")
+      .populate("accessoriesPurchases.vendorId", "name code mobile")
       .populate("machinesPurchases.vendorId", "name code mobile");
-    
+
     if (!estimation) {
       return res.status(404).json({ message: "Purchase Estimation not found" });
     }
-    
+
     res.json(estimation);
   } catch (err) {
     console.error("❌ Error in getPurchaseEstimationById:", err.message);
@@ -355,8 +364,7 @@ export const updatePurchaseEstimation = async (req, res) => {
     const { id } = req.params;
     const {
       fabricPurchases,
-      buttonsPurchases,
-      packetsPurchases,
+      accessoriesPurchases,
       machinesPurchases,
       remarks,
       estimationDate,
@@ -382,26 +390,15 @@ export const updatePurchaseEstimation = async (req, res) => {
         estimation.fabricPurchases = fabricPurchases;
       }
 
-      if (buttonsPurchases !== undefined) {
-        for (const item of buttonsPurchases) {
-          if (!item.vendor || !item.quantity || !item.costPerUnit) {
+      if (accessoriesPurchases !== undefined) {
+        for (const item of accessoriesPurchases) {
+          if (!item.vendor || !item.productName || !item.accessoryType || !item.quantity || !item.costPerUnit) {
             return res.status(400).json({
-              message: "Each button purchase requires vendor, quantity, and costPerUnit"
+              message: "Each accessory purchase requires vendor, productName, accessoryType, quantity, and costPerUnit"
             });
           }
         }
-        estimation.buttonsPurchases = buttonsPurchases;
-      }
-
-      if (packetsPurchases !== undefined) {
-        for (const item of packetsPurchases) {
-          if (!item.vendor || !item.quantity || !item.costPerUnit) {
-            return res.status(400).json({
-              message: "Each packet purchase requires vendor, quantity, and costPerUnit"
-            });
-          }
-        }
-        estimation.packetsPurchases = packetsPurchases;
+        estimation.accessoriesPurchases = accessoriesPurchases;
       }
     } else if (estimation.estimationType === "machine") {
       // Validate and update machine purchases
@@ -430,15 +427,15 @@ export const updatePurchaseEstimation = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Error in updatePurchaseEstimation:", err.message);
-    
+
     if (err.name === 'ValidationError') {
       const errors = Object.values(err.errors).map(e => e.message);
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: "Validation failed",
-        errors: errors 
+        errors: errors
       });
     }
-    
+
     res.status(400).json({ message: err.message });
   }
 };
@@ -487,9 +484,9 @@ export const getEstimationPDF = async (req, res) => {
     }
 
     // If no PDF exists, return error asking to generate it
-    return res.status(404).json({ 
+    return res.status(404).json({
       message: "PDF not generated yet. Please generate it first.",
-      needsGeneration: true 
+      needsGeneration: true
     });
   } catch (err) {
     console.error("❌ Error in getEstimationPDF:", err.message);
@@ -504,8 +501,7 @@ export const generateEstimationPDF = async (req, res) => {
     const estimation = await PurchaseEstimation.findById(req.params.id)
       .populate("order", "PoNo orderType buyerDetails")
       .populate("fabricPurchases.vendorId", "name code mobile")
-      .populate("buttonsPurchases.vendorId", "name code mobile")
-      .populate("packetsPurchases.vendorId", "name code mobile")
+      .populate("accessoriesPurchases.vendorId", "name code mobile")
       .populate("machinesPurchases.vendorId", "name code mobile");
 
     if (!estimation) {
@@ -526,8 +522,8 @@ export const generateEstimationPDF = async (req, res) => {
 
     // Prepare document data for PDF service based on estimation type
     const documentData = {
-      documentType: estimation.estimationType === "machine" 
-        ? 'machine-purchase-estimation' 
+      documentType: estimation.estimationType === "machine"
+        ? 'machine-purchase-estimation'
         : 'order-purchase-estimation',
       documentNo: estimation.PESNo,
       documentDate: estimation.estimationDate,
@@ -555,15 +551,12 @@ export const generateEstimationPDF = async (req, res) => {
       documentData.orderProducts = estimation.orderProducts;
       documentData.totalOrderQty = estimation.totalOrderQty;
       documentData.fabricPurchases = estimation.fabricPurchases || [];
-      documentData.buttonsPurchases = estimation.buttonsPurchases || [];
-      documentData.packetsPurchases = estimation.packetsPurchases || [];
+      documentData.accessoriesPurchases = estimation.accessoriesPurchases || [];
       documentData.totalFabricCost = estimation.totalFabricCost || 0;
-      documentData.totalButtonsCost = estimation.totalButtonsCost || 0;
-      documentData.totalPacketsCost = estimation.totalPacketsCost || 0;
+      documentData.totalAccessoriesCost = estimation.totalAccessoriesCost || 0;
       documentData.totalFabricGst = estimation.totalFabricGst || 0;
-      documentData.totalButtonsGst = estimation.totalButtonsGst || 0;
-      documentData.totalPacketsGst = estimation.totalPacketsGst || 0;
-    } 
+      documentData.totalAccessoriesGst = estimation.totalAccessoriesGst || 0;
+    }
     // Add machine-specific data if machine estimation
     else if (estimation.estimationType === "machine") {
       documentData.machinesPurchases = estimation.machinesPurchases || [];

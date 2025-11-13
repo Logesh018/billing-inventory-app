@@ -2,11 +2,6 @@
 import mongoose from "mongoose";
 
 const { Schema } = mongoose;
-
-/**
- * Counter Schema for atomic sequence generation (PUR numbers).
- * We keep it simple and local to this file for self-containment.
- */
 const CounterSchema = new Schema({
   _id: { type: String, required: true },
   seq: { type: Number, default: 0 },
@@ -22,28 +17,30 @@ const PurchaseSchema = new Schema({
   // PUR serial (auto-generated for all purchases: PUR-1, PUR-2, ...)
   PURNo: { type: String, unique: true, index: true },
 
-  // Order type/buyer fields — optional for machine-only purchases
-  orderType: { type: String, enum: ["FOB", "JOB-Works"], default: null },
+  orderType: { type: String, enum: ["FOB", "JOB-Works", "Own-Orders"], default: null },
   buyerCode: { type: String, default: null },
   orderStatus: { type: String, default: null },
 
-  // Products from Order (kept for order-linked purchases)
   products: [
     {
-      productName: { type: String, required: true },
-      fabricType: { type: String, default: "" },
-      colors: [
+      product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+
+      productDetails: {
+        name: { type: String, required: true },
+        style: { type: String, required: true },
+        color: { type: String, required: true },
+        fabricType: { type: String, required: true },
+      },
+
+      // Simplified sizes structure (no fabricTypes wrapper)
+      sizes: [
         {
-          color: { type: String, required: true },
-          sizes: [
-            {
-              size: { type: String, required: true },
-              quantity: { type: Number, required: true },
-            },
-          ],
-        },
+          size: { type: String, required: true },
+          qty: { type: Number, required: true, min: 1 },
+        }
       ],
-      productTotalQty: { type: Number, required: true },
+
+      productTotalQty: { type: Number, default: 0 },
     },
   ],
 
@@ -77,16 +74,21 @@ const PurchaseSchema = new Schema({
     },
   ],
 
-  buttonsPurchases: [
+  accessoriesPurchases: [
     {
       productName: { type: String, required: true },
-      size: { type: String, required: true },
+      accessoryType: {
+        type: String,
+        enum: ["buttons", "packets", "other"],
+        required: true
+      },
+      size: { type: String, default: "Standard" },
       vendor: { type: String, required: true },
       vendorCode: { type: String },
       vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Supplier" },
       purchaseMode: {
         type: String,
-        enum: ["qty", "pieces"],
+        enum: ["qty", "pieces", "piece", "packet"],
         default: "pieces",
       },
       quantity: { type: Number, required: true },
@@ -94,35 +96,14 @@ const PurchaseSchema = new Schema({
       totalCost: { type: Number, default: 0 },
       gstPercentage: { type: Number, default: 0 },
       totalWithGst: { type: Number, default: 0 },
-      buttonType: String,
       color: String,
       remarks: String,
     },
   ],
+  totalAccessoriesCost: { type: Number, default: 0 },
+  totalAccessoriesGst: { type: Number, default: 0 },
 
-  packetsPurchases: [
-    {
-      productName: { type: String, required: true },
-      size: { type: String, required: true },
-      vendor: { type: String, required: true },
-      vendorCode: { type: String },
-      vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Supplier" },
-      purchaseMode: {
-        type: String,
-        enum: ["piece", "packet"],
-        default: "piece",
-      },
-      quantity: { type: Number, required: true },
-      costPerUnit: { type: Number, required: true },
-      totalCost: { type: Number, default: 0 },
-      gstPercentage: { type: Number, default: 0 },
-      totalWithGst: { type: Number, default: 0 },
-      packetType: String,
-      remarks: String,
-    },
-  ],
-
-  // NEW: Machines purchases (array) — not linked to order/production
+  // Machines purchases (array) — not linked to order/production
   machinesPurchases: [
     {
       machineName: { type: String, required: true },
@@ -140,12 +121,8 @@ const PurchaseSchema = new Schema({
 
   // Total Purchase Costs (existing)
   totalFabricCost: { type: Number, default: 0 },
-  totalButtonsCost: { type: Number, default: 0 },
-  totalPacketsCost: { type: Number, default: 0 },
 
   totalFabricGst: { type: Number, default: 0 },
-  totalButtonsGst: { type: Number, default: 0 },
-  totalPacketsGst: { type: Number, default: 0 },
 
   // NEW: Totals for machines
   totalMachinesCost: { type: Number, default: 0 },
@@ -177,7 +154,6 @@ PurchaseSchema.pre("save", async function (next) {
   try {
     // Generate PURNo atomically if not present
     if (!this.PURNo) {
-      // Use Counter document with _id: 'purchaseSeq'
       const counter = await Counter.findOneAndUpdate(
         { _id: "purchaseSeq" },
         { $inc: { seq: 1 } },
@@ -198,31 +174,19 @@ PurchaseSchema.pre("save", async function (next) {
       return acc + ((f.totalCost || 0) * ((f.gstPercentage || 0) / 100));
     }, 0);
 
-    // Buttons totals
-    this.totalButtonsCost = (this.buttonsPurchases || []).reduce((acc, b) => {
-      b.totalCost = (b.quantity || 0) * (b.costPerUnit || 0);
-      b.totalWithGst = b.totalCost + (b.totalCost * ((b.gstPercentage || 0) / 100));
-      return acc + (b.totalCost || 0);
+    // Accessories totals (replaces buttons and packets)
+    this.totalAccessoriesCost = (this.accessoriesPurchases || []).reduce((acc, a) => {
+      a.totalCost = (a.quantity || 0) * (a.costPerUnit || 0);
+      a.totalWithGst = a.totalCost + (a.totalCost * ((a.gstPercentage || 0) / 100));
+      return acc + (a.totalCost || 0);
     }, 0);
 
-    this.totalButtonsGst = (this.buttonsPurchases || []).reduce((acc, b) => {
-      return acc + ((b.totalCost || 0) * ((b.gstPercentage || 0) / 100));
+    this.totalAccessoriesGst = (this.accessoriesPurchases || []).reduce((acc, a) => {
+      return acc + ((a.totalCost || 0) * ((a.gstPercentage || 0) / 100));
     }, 0);
 
-    // Packets totals
-    this.totalPacketsCost = (this.packetsPurchases || []).reduce((acc, p) => {
-      p.totalCost = (p.quantity || 0) * (p.costPerUnit || 0);
-      p.totalWithGst = p.totalCost + (p.totalCost * ((p.gstPercentage || 0) / 100));
-      return acc + (p.totalCost || 0);
-    }, 0);
-
-    this.totalPacketsGst = (this.packetsPurchases || []).reduce((acc, p) => {
-      return acc + ((p.totalCost || 0) * ((p.gstPercentage || 0) / 100));
-    }, 0);
-
-    // Machines totals (NEW)
+    // Machines totals
     this.totalMachinesCost = (this.machinesPurchases || []).reduce((acc, m) => {
-      // treat 'cost' as base; totalCost mirrors cost, then GST applied
       m.totalCost = (m.cost || 0);
       m.totalWithGst = m.totalCost + (m.totalCost * ((m.gstPercentage || 0) / 100));
       return acc + (m.totalCost || 0);
@@ -232,15 +196,14 @@ PurchaseSchema.pre("save", async function (next) {
       return acc + ((m.totalCost || 0) * ((m.gstPercentage || 0) / 100));
     }, 0);
 
-    // Grand totals include machines
-    this.grandTotalCost = (this.totalFabricCost || 0) + (this.totalButtonsCost || 0) + (this.totalPacketsCost || 0) + (this.totalMachinesCost || 0);
-    this.grandTotalWithGst = (this.grandTotalCost || 0) + (this.totalFabricGst || 0) + (this.totalButtonsGst || 0) + (this.totalPacketsGst || 0) + (this.totalMachinesGst || 0);
+    // Grand totals (fabric + accessories + machines)
+    this.grandTotalCost = (this.totalFabricCost || 0) + (this.totalAccessoriesCost || 0) + (this.totalMachinesCost || 0);
+    this.grandTotalWithGst = (this.grandTotalCost || 0) + (this.totalFabricGst || 0) + (this.totalAccessoriesGst || 0) + (this.totalMachinesGst || 0);
 
-    // If any purchases arrays contain items, mark as Completed; otherwise keep as Pending
+    // Update status based on items
     const hasItems =
       (this.fabricPurchases && this.fabricPurchases.length > 0) ||
-      (this.buttonsPurchases && this.buttonsPurchases.length > 0) ||
-      (this.packetsPurchases && this.packetsPurchases.length > 0) ||
+      (this.accessoriesPurchases && this.accessoriesPurchases.length > 0) ||
       (this.machinesPurchases && this.machinesPurchases.length > 0);
 
     this.status = hasItems ? "Completed" : this.status || "Pending";
@@ -259,8 +222,7 @@ PurchaseSchema.index({ purchaseDate: -1 });
 PurchaseSchema.index({ status: 1 });
 PurchaseSchema.index({ orderType: 1 });
 PurchaseSchema.index({ "fabricPurchases.vendorId": 1 });
-PurchaseSchema.index({ "buttonsPurchases.vendorId": 1 });
-PurchaseSchema.index({ "packetsPurchases.vendorId": 1 });
+PurchaseSchema.index({ "accessoriesPurchases.vendorId": 1 });
 PurchaseSchema.index({ "machinesPurchases.vendorId": 1 });
 PurchaseSchema.index({ PURNo: 1 });
 

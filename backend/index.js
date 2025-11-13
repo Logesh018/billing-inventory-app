@@ -19,7 +19,8 @@ import supplierRoutes from "./src/routes/supplierRoutes.js"
 import fabricRoutes from "./src/routes/fabricRoutes.js";
 import documentRoutes from "./src/routes/documentRoutes.js";
 import machinePurchaseRoutes from "./src/routes/machinePurchaseRoutes.js";
-import purchaseEstimationRoutes from "./src/routes/purchaseEstimationRoutes.js"
+import purchaseEstimationRoutes from "./src/routes/purchaseEstimationRoutes.js";
+import purchaseOrderRoutes from "./src/routes/purchaseOrderRoutes.js";
 import { invoiceRouter } from "./src/routes/invoiceRoutes.js";
 
 dotenv.config();
@@ -46,6 +47,7 @@ app.use("/api/fabrics", fabricRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/machines", machinePurchaseRoutes);
 app.use("/api/purchase-estimations", purchaseEstimationRoutes);
+app.use("/api/purchase-orders", purchaseOrderRoutes);
 //app.use("/api/invoices", invoiceRouter);
 
 if (process.env.NODE_ENV === "production") {
