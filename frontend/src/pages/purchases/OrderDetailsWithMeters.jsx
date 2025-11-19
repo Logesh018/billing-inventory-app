@@ -1,5 +1,3 @@
-// import React, { useState, useEffect } from 'react';
-
 const OrderDetailsWithMeters = ({ selectedOrder, meterValues, onMeterChange }) => {
   // Helper: Extract fabric-color key
   const getFabricColorKey = (product) => {
@@ -64,45 +62,45 @@ const OrderDetailsWithMeters = ({ selectedOrder, meterValues, onMeterChange }) =
   }, 0);
 
   return (
-    <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-lg p-3 shadow-sm">
+    <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-3 shadow-sm">
       {/* Header info */}
       <div className="grid grid-cols-5 gap-3">
         <div>
-          <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-300 mb-0.5">Order Date</label>
-          <div className="text-xs font-medium text-gray-900 dark:text-gray-100">
+          <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Order Date</label>
+          <div className="text-xs font-medium text-gray-900">
             {selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleDateString('en-IN') : '-'}
           </div>
         </div>
         <div>
-          <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-300 mb-0.5">PO Number</label>
-          <div className="text-xs font-bold text-gray-900 dark:text-gray-100">{selectedOrder.PoNo || '-'}</div>
+          <label className="block text-[10px] font-medium text-gray-600 mb-0.5">PO Number</label>
+          <div className="text-xs font-bold text-gray-900">{selectedOrder.PoNo || '-'}</div>
         </div>
         <div>
-          <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-300 mb-0.5">Order Type</label>
+          <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Order Type</label>
           <div
             className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${selectedOrder.orderType === 'JOB-Works'
-              ? 'bg-purple-100 dark:bg-purple-900 dark:bg-opacity-50 text-purple-800 dark:text-purple-300'
-              : 'bg-blue-100 dark:bg-blue-900 dark:bg-opacity-50 text-blue-800 dark:text-blue-300'
+              ? 'bg-purple-100 text-purple-800'
+              : 'bg-blue-100 text-blue-800'
               }`}
           >
             {selectedOrder.orderType || '-'}
           </div>
         </div>
         <div>
-          <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-300 mb-0.5">Buyer Code</label>
-          <div className="text-xs font-medium text-gray-900 dark:text-gray-100">
+          <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Buyer Code</label>
+          <div className="text-xs font-medium text-gray-900">
             {selectedOrder.buyerDetails?.code || selectedOrder.buyerCode || '-'}
           </div>
         </div>
         <div>
-          <label className="block text-[10px] font-medium text-gray-600 dark:text-gray-300 mb-0.5">Status</label>
-          <div className="text-xs font-medium text-gray-900 dark:text-gray-100">{selectedOrder.status || '-'}</div>
+          <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Status</label>
+          <div className="text-xs font-medium text-gray-900">{selectedOrder.status || '-'}</div>
         </div>
       </div>
 
       {/* Table */}
       {sortedProducts.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-gray-300 dark:border-gray-600">
+        <div className="mt-2 pt-2 border-t border-gray-300">
           {/* Table header */}
           <div
             className="grid gap-3 mb-1.5"
@@ -110,14 +108,14 @@ const OrderDetailsWithMeters = ({ selectedOrder, meterValues, onMeterChange }) =
               gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr 0.6fr 0.8fr',
             }}
           >
-            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Product</label>
-            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Fabric</label>
-            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Style</label>
-            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Color</label>
-            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Size & Qty</label>
-            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-300 text-center">Total Qty</label>
-            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-300 text-center">Meters</label>
-            <label className="text-[10px] font-medium text-gray-600 dark:text-gray-300 text-center">Total Meters</label>
+            <label className="text-[10px] font-medium text-gray-600">Product</label>
+            <label className="text-[10px] font-medium text-gray-600">Fabric</label>
+            <label className="text-[10px] font-medium text-gray-600">Style</label>
+            <label className="text-[10px] font-medium text-gray-600">Color</label>
+            <label className="text-[10px] font-medium text-gray-600">Size & Qty</label>
+            <label className="text-[10px] font-medium text-gray-600 text-center">Total Qty</label>
+            <label className="text-[10px] font-medium text-gray-600 text-center">Meters</label>
+            <label className="text-[10px] font-medium text-gray-600 text-center">Total Meters</label>
           </div>
 
           {/* Table body */}
@@ -152,16 +150,16 @@ const OrderDetailsWithMeters = ({ selectedOrder, meterValues, onMeterChange }) =
             return (
               <div
                 key={idx}
-                className={`relative grid gap-3 py-1.5 ${idx > 0 ? 'border-t border-gray-200 dark:border-gray-600' : ''}`}
+                className={`relative grid gap-3 py-1.5 ${idx > 0 ? 'border-t border-gray-200' : ''}`}
                 style={{
                   gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr 0.6fr 0.8fr',
                 }}
               >
-                <div className="text-[10px] font-semibold text-gray-900 dark:text-gray-100">{prod.productName || '-'}</div>
-                <div className="text-[10px] text-gray-800 dark:text-gray-200">{prod.fabricType || ''}</div>
-                <div className="text-[10px] text-gray-800 dark:text-gray-200">{prod.style || '-'}</div>
-                <div className="text-[10px] text-gray-800 dark:text-gray-200">{firstColor}</div>
-                <div className="text-[10px] text-gray-800 dark:text-gray-200 font-mono">
+                <div className="text-[10px] font-semibold text-gray-900">{prod.productName || '-'}</div>
+                <div className="text-[10px] text-gray-800">{prod.fabricType || ''}</div>
+                <div className="text-[10px] text-gray-800">{prod.style || '-'}</div>
+                <div className="text-[10px] text-gray-800">{firstColor}</div>
+                <div className="text-[10px] text-gray-800 font-mono">
                   {sizeQtyPairs.length > 0 ? (
                     <div className="flex flex-wrap gap-x-2 gap-y-0.5">
                       {sizeQtyPairs.map((pair, i) => (
@@ -175,14 +173,14 @@ const OrderDetailsWithMeters = ({ selectedOrder, meterValues, onMeterChange }) =
                     '-'
                   )}
                 </div>
-                <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400 text-center">{productTotal}</div>
+                <div className="text-[10px] font-bold text-blue-600 text-center">{productTotal}</div>
                 <div className="flex justify-center">
                   <input
                     type="number"
                     step="0.01"
                     value={meterValues[idx] || ''}
                     onChange={(e) => onMeterChange(idx, e.target.value)}
-                    className="w-full px-1 py-0.5 text-[10px] text-center border border-gray-300 dark:border-gray-500 dark:bg-gray-600 dark:text-white rounded focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                    className="w-full px-1 py-0.5 text-[10px] text-center border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
                     placeholder="0.00"
                   />
                 </div>
@@ -190,11 +188,11 @@ const OrderDetailsWithMeters = ({ selectedOrder, meterValues, onMeterChange }) =
                 {/* Total Meters Column */}
                 <div className="text-[10px] font-bold text-center">
                   {showGroupTotal ? (
-                    <div className="absolute right-4 -top-3 bg-green-100 dark:bg-green-900 dark:bg-opacity-40 text-green-700 dark:text-green-300 px-2 py-1 rounded border border-green-300 dark:border-green-700 shadow-sm z-10">
+                    <div className="absolute right-4 -top-3 bg-green-100 text-green-700 px-2 py-1 rounded border border-green-300 shadow-sm z-10">
                       {groupTotalMeters.toFixed(2)}
                     </div>
                   ) : !isGrouped ? (
-                    <div className="text-purple-600 dark:text-purple-400">{totalMeters.toFixed(2)}</div>
+                    <div className="text-purple-600">{totalMeters.toFixed(2)}</div>
                   ) : null}
                 </div>
               </div>
@@ -204,8 +202,8 @@ const OrderDetailsWithMeters = ({ selectedOrder, meterValues, onMeterChange }) =
           {/* Grand Total Qty Row */}
           <div className="grid" style={{ gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr 0.6fr 0.8fr' }}>
             <div className="col-span-4"></div>
-            <div className="text-[9px] text-right pr-2 text-gray-600 dark:text-gray-300 font-semibold">Grand Qty:</div>
-            <div className="text-[9px] text-center text-blue-600 dark:text-blue-400 font-bold">{grandTotalQty}</div>
+            <div className="text-[9px] text-right pr-2 text-gray-600 font-semibold">Grand Qty:</div>
+            <div className="text-[9px] text-center text-blue-600 font-bold">{grandTotalQty}</div>
             <div></div>
             <div></div>
           </div>

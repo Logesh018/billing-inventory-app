@@ -1,12 +1,7 @@
-const OrderDetailsReadOnly = ({ selectedOrder }) => {
-  // Helper: Extract fabric-color key
-  const getFabricColorKey = (product) => {
-    const fabricType = product.fabricType?.trim().toUpperCase() || '';
-    const color = product.colors?.[0]?.color?.trim().toUpperCase() || '';
-    return `${fabricType}-${color}`;
-  };
+const EnhancedOrderDetailsReadOnly = ({ selectedOrder, stageName }) => {
+  // Determine if we should show production details based on stage
+  const showProductionDetails = stageName !== "Pending Production";
 
-  // Sort products by fabricType, color, then style
   const sortedProducts = [...(selectedOrder.products || [])].sort((a, b) => {
     const fabricA = a.fabricType?.toUpperCase() || '';
     const fabricB = b.fabricType?.toUpperCase() || '';
@@ -18,7 +13,6 @@ const OrderDetailsReadOnly = ({ selectedOrder }) => {
     return fabricA.localeCompare(fabricB) || colorA.localeCompare(colorB) || styleA.localeCompare(styleB);
   });
 
-  // Calculate grand total qty
   const grandTotalQty = sortedProducts.reduce((sum, prod) => {
     const productTotal =
       prod.colors?.reduce(
@@ -31,7 +25,7 @@ const OrderDetailsReadOnly = ({ selectedOrder }) => {
 
   return (
     <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-3 shadow-sm">
-      {/* Header info */}
+      {/* Header info - same as before */}
       <div className="grid grid-cols-5 gap-3">
         <div>
           <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Order Date</label>
@@ -66,14 +60,16 @@ const OrderDetailsReadOnly = ({ selectedOrder }) => {
         </div>
       </div>
 
-      {/* Table - WITHOUT Meters and Total Meters columns */}
+      {/* Products Table with conditional production details */}
       {sortedProducts.length > 0 && (
         <div className="mt-2 pt-2 border-t border-gray-300">
-          {/* Table header */}
+          {/* Table header - conditionally show production columns */}
           <div
             className="grid gap-3 mb-1.5"
             style={{
-              gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr',
+              gridTemplateColumns: showProductionDetails 
+                ? '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr'
+                : '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr',
             }}
           >
             <label className="text-[10px] font-medium text-gray-600">Product</label>
@@ -82,6 +78,16 @@ const OrderDetailsReadOnly = ({ selectedOrder }) => {
             <label className="text-[10px] font-medium text-gray-600">Color</label>
             <label className="text-[10px] font-medium text-gray-600">Size & Qty</label>
             <label className="text-[10px] font-medium text-gray-600 text-center">Total Qty</label>
+            
+            {/* Show previous stage production details */}
+            {showProductionDetails && (
+              <>
+                <label className="text-[10px] font-medium text-blue-600">Unit</label>
+                <label className="text-[10px] font-medium text-blue-600">DC</label>
+                <label className="text-[10px] font-medium text-blue-600">Tag</label>
+                <label className="text-[10px] font-medium text-blue-600">Shortage</label>
+              </>
+            )}
           </div>
 
           {/* Table body */}
@@ -99,13 +105,18 @@ const OrderDetailsReadOnly = ({ selectedOrder }) => {
               ) || [];
 
             const firstColor = prod.colors?.[0]?.color || '-';
+            
+            // Get production detail for this product
+            const prodDetail = selectedOrder.productionDetails?.[idx];
 
             return (
               <div
                 key={idx}
                 className={`relative grid gap-3 py-1.5 ${idx > 0 ? 'border-t border-gray-200' : ''}`}
                 style={{
-                  gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr',
+                  gridTemplateColumns: showProductionDetails
+                    ? '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr'
+                    : '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr',
                 }}
               >
                 <div className="text-[10px] font-semibold text-gray-900">{prod.productName || '-'}</div>
@@ -127,12 +138,37 @@ const OrderDetailsReadOnly = ({ selectedOrder }) => {
                   )}
                 </div>
                 <div className="text-[10px] font-bold text-blue-600 text-center">{productTotal}</div>
+
+                {/* Show production details from previous stage */}
+                {showProductionDetails && prodDetail && (
+                  <>
+                    <div className="text-[10px] text-blue-700 font-medium text-center">
+                      {prodDetail.measurementUnit || 'Meters'}
+                    </div>
+                    <div className="text-[10px] text-blue-700 text-center">
+                      {prodDetail.dcMtr || 0}
+                    </div>
+                    <div className="text-[10px] text-blue-700 text-center">
+                      {prodDetail.tagMtr || 0}
+                    </div>
+                    <div className="text-[10px] text-purple-600 font-semibold text-center">
+                      {prodDetail.shortageMtr || 0}
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}
 
-          {/* Grand Total Qty Row */}
-          <div className="grid pt-2 border-t border-gray-300" style={{ gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr' }}>
+          {/* Grand Total Row */}
+          <div 
+            className="grid pt-2 border-t border-gray-300" 
+            style={{ 
+              gridTemplateColumns: showProductionDetails
+                ? '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr 0.6fr 0.6fr 0.6fr 0.6fr'
+                : '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr'
+            }}
+          >
             <div className="col-span-4"></div>
             <div className="text-[9px] text-right pr-2 text-gray-600 font-semibold">Grand Qty:</div>
             <div className="text-[9px] text-center text-blue-600 font-bold">{grandTotalQty}</div>
@@ -143,4 +179,4 @@ const OrderDetailsReadOnly = ({ selectedOrder }) => {
   );
 };
 
-export default OrderDetailsReadOnly;
+export default EnhancedOrderDetailsReadOnly;

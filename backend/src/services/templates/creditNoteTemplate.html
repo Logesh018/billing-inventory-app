@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Credit Note {{noteNumber}}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      color: #000;
+      padding: 15px 25px;
+      line-height: 1.4;
+    }
+
+    /* ===== Header ===== */
+    .header {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      text-decoration: underline;
+    }
+
+    /* ===== Top Info Table ===== */
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+      border: 2px solid #000;
+    }
+    .info-table td {
+      border: 1.5px solid #000;
+      padding: 8px;
+      vertical-align: top;
+      font-size: 11px;
+    }
+    .info-table .section-title {
+      font-weight: bold;
+      border-bottom: 1px solid #000;
+      padding-bottom: 4px;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .info-table .field-label {
+      font-weight: bold;
+      display: inline-block;
+    }
+
+    /* ===== Reason Box ===== */
+    .reason-box {
+      background: #fff3cd;
+      border: 2px solid #000;
+      padding: 10px;
+      margin-bottom: 12px;
+      font-size: 11px;
+    }
+    .reason-box .reason-label {
+      font-weight: bold;
+      color: #856404;
+    }
+
+    /* ===== Main Items Table ===== */
+    .main-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      border: 2px solid #000;
+    }
+    .main-table th {
+      border: 1.5px solid #000;
+      padding: 6px 4px;
+      text-align: center;
+      background: #f5f5f5;
+      font-weight: bold;
+    }
+    .main-table td {
+      border-left: 1.5px solid #000;
+      border-right: 1.5px solid #000;
+      padding: 5px 6px;
+      text-align: center;
+    }
+
+    .main-table tr.no-bottom-border td {
+      border-bottom: none;
+    }
+
+    .main-table tr.bottom-border td {
+      border-bottom: 1.5px solid #000;
+    }
+
+    .main-table tr.full-border td {
+      border: 1.5px solid #000;
+    }
+
+    .left { text-align: left !important; }
+    .right { text-align: right !important; }
+    .center { text-align: center !important; }
+
+    /* ===== Bottom Section ===== */
+    .bottom-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin-top: 12px;
+      border: 2px solid #000;
+    }
+    .bottom-table td {
+      border: 1.5px solid #000;
+      padding: 8px;
+      vertical-align: top;
+    }
+    .amount-words {
+      text-transform: capitalize;
+      font-weight: bold;
+      margin-top: 5px;
+      color: #155724;
+    }
+    .signature-section {
+      text-align: right;
+      font-weight: bold;
+      padding-top: 10px;
+    }
+    .bank-header {
+      text-align: center;
+      font-weight: bold;
+      font-size: 12px;
+      padding: 8px;
+      background: #f5f5f5;
+    }
+    .bank-details {
+      text-align: center;
+      padding: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header: CREDIT NOTE -->
+  <div class="header">CREDIT NOTE</div>
+
+  <!-- Top Info: Bill To | Place of Supply | Credit Note Details -->
+  <table class="info-table">
+    <tr>
+      <!-- Bill To (Business) -->
+      <td style="width: 33%;">
+        <span class="section-title">From:</span>
+        <strong>{{business.name}}</strong><br>
+        {{business.address}}<br>
+        {{business.city}} - {{business.pincode}}<br>
+        {{business.state}} (IN)<br>
+        <span class="field-label">GSTIN No:-</span> {{business.gst}}
+      </td>
+
+      <!-- Place of Supply (Party) -->
+      <td style="width: 34%;">
+        <span class="section-title">Place of Supply:</span>
+        <strong>{{party.name}}</strong><br>
+        {{party.addressLine1}}<br>
+        {{party.addressLine2}}<br>
+        <span class="field-label">GSTIN No:-</span> {{party.gst}}
+      </td>
+
+      <!-- Credit Note Details -->
+      <td style="width: 33%;">
+        <div style="border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 4px;">
+          <span class="field-label">Ref No</span><br>
+          {{referenceNumber}}
+        </div>
+        <div style="border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 4px;">
+          <span class="field-label">Credit Note No</span><br>
+          {{noteNumber}}
+        </div>
+        <div>
+          <span class="field-label">Date</span><br>
+          {{noteDate}}
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Reason for Credit Note -->
+  <div class="reason-box">
+    <span class="reason-label">Reason for Credit:</span> {{reason}}
+    {{reasonDescription}}
+  </div>
+
+  <!-- Main Items + Totals Table -->
+  <table class="main-table">
+    <thead>
+      <tr>
+        <th class="left" style="width: 35%;">Description of Goods</th>
+        <th style="width: 12%;">HSN/SAC</th>
+        <th style="width: 10%;">Qty</th>
+        <th style="width: 8%;">Per</th>
+        <th style="width: 15%;">Rate</th>
+        <th style="width: 20%;">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- DYNAMIC ITEMS -->
+      {{items}}
+
+      <!-- Sub Total -->
+      <tr class="full-border">
+        <td class="left" colspan="5"><strong>Sub Total</strong></td>
+        <td class="right"><strong>₹{{subtotal}}</strong></td>
+      </tr>
+
+      <!-- Tax Rows (dynamically generated) -->
+      {{taxRows}}
+
+      <!-- Additional Charges (if any) -->
+      {{additionalCharges}}
+
+      <!-- Round Off -->
+      <tr class="full-border">
+        <td class="left" colspan="5">Round Off</td>
+        <td class="right">₹{{roundOff}}</td>
+      </tr>
+
+      <!-- Total Amount Credited -->
+      <tr class="full-border" style="background: #d4edda;">
+        <td class="left" colspan="5"><strong>Total Amount Credited (Roundup)</strong></td>
+        <td class="right"><strong>₹{{grandTotal}}</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Bottom Section: Amount in Words | Signature -->
+  <table class="bottom-table">
+    <tr>
+      <td style="width: 60%; vertical-align: top;">
+        <strong>Amount Credited (in words)</strong>
+        <div class="amount-words">{{amountInWords}}</div>
+      </td>
+      <td style="width: 40%;" rowspan="3">
+        <div class="signature-section">
+          For {{business.name}}<br><br><br><br><br>
+          Authorized Signatory
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>Company's PAN:</strong> {{business.pan}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>Note:</strong> This credit reduces the amount payable by the customer
+      </td>
+    </tr>
+  </table>
+
+  <!-- Bank Details -->
+  <table class="bottom-table" style="margin-top: 8px;">
+    <tr>
+      <td class="bank-header">
+        BANK DETAILS
+      </td>
+    </tr>
+    <tr>
+      <td class="bank-details">
+        {{business.name}}, A/c No: {{business.accountNumber}}, IFSC: {{business.ifsc}}, Branch: {{business.branch}}, {{business.bankName}}
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

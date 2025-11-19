@@ -112,13 +112,13 @@ export default function Production() {
 
   const tabs = [
     { key: "All Production", label: "All Production", count: productions.length },
-    { key: "Cutting", label: "Cutting", count: productions.filter(p => p.status === "Cutting").length },
-    { key: "Stitching", label: "Stitching", count: productions.filter(p => p.status === "Stitching").length },
-    { key: "Trimming", label: "Trimming", count: productions.filter(p => p.status === "Trimming").length },
-    { key: "QC", label: "QC", count: productions.filter(p => p.status === "QC").length },
-    { key: "Ironing", label: "Ironing", count: productions.filter(p => p.status === "Ironing").length },
-    { key: "Packing", label: "Packing", count: productions.filter(p => p.status === "Packing").length },
-    { key: "Production Completed", label: "Completed", count: productions.filter(p => p.status === "Production Completed").length },
+    // { key: "Cutting", label: "Cutting", count: productions.filter(p => p.status === "Cutting").length },
+    // { key: "Stitching", label: "Stitching", count: productions.filter(p => p.status === "Stitching").length },
+    // { key: "Trimming", label: "Trimming", count: productions.filter(p => p.status === "Trimming").length },
+    // { key: "QC", label: "QC", count: productions.filter(p => p.status === "QC").length },
+    // { key: "Ironing", label: "Ironing", count: productions.filter(p => p.status === "Ironing").length },
+    // { key: "Packing", label: "Packing", count: productions.filter(p => p.status === "Packing").length },
+    // { key: "Production Completed", label: "Completed", count: productions.filter(p => p.status === "Production Completed").length },
   ];
 
   const filteredData = activeTab === "All Production"
@@ -279,7 +279,8 @@ export default function Production() {
                 key={i}
                 className="px-1 py-1 border border-gray-300 rounded text-[9px] leading-tight break-words"
               >
-                {prod.productDetails?.style || "—"}
+                {/* ✅ FIXED: Check both prod.style and prod.productDetails?.style */}
+                {prod.style || prod.productDetails?.style || "—"}
               </div>
             ))}
           </div>
@@ -386,22 +387,22 @@ export default function Production() {
 
   const actions = isAdmin
     ? [
-        {
-          label: "Edit",
-          icon: Edit,
-          className: "bg-blue-500 text-white hover:bg-blue-600",
-          onClick: (production) => {
-            setEditProduction(production);
-            setShowForm(true);
-          },
+      {
+        label: "Edit",
+        icon: Edit,
+        className: "bg-blue-500 text-white hover:bg-blue-600",
+        onClick: (production) => {
+          setEditProduction(production);
+          setShowForm(true);
         },
-        {
-          label: "Delete",
-          icon: Trash2,
-          className: "bg-red-500 text-white hover:bg-red-600",
-          onClick: (production) => handleDelete(production._id),
-        },
-      ]
+      },
+      {
+        label: "Delete",
+        icon: Trash2,
+        className: "bg-red-500 text-white hover:bg-red-600",
+        onClick: (production) => handleDelete(production._id),
+      },
+    ]
     : [];
 
   const productionFields = [

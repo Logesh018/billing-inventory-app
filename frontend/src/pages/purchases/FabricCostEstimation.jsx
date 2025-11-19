@@ -115,8 +115,8 @@ const FabricCostEstimation = ({ fabricEstimations, setFabricEstimations, orderPr
     <div className="space-y-4 w-full p-2">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Fabric Cost Estimation</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Fabrics with same name & color will be grouped together</p>
+          <h3 className="text-lg font-semibold text-gray-800">Fabric Cost Estimation</h3>
+          <p className="text-xs text-gray-500">Fabrics with same name & color will be grouped together</p>
         </div>
         <button
           type="button"
@@ -129,30 +129,30 @@ const FabricCostEstimation = ({ fabricEstimations, setFabricEstimations, orderPr
       </div>
 
       {/* Input Rows */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">Fabric Name</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">Color</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">Style</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">Meter</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">Qty</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">Total</th>
-                <th className="px-3 py-2 text-center text-xs font-medium text-gray-700 dark:text-gray-300">Action</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Fabric Name</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Color</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Style</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Meter</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Qty</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Total</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-gray-700">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-gray-200">
               {fabricRows.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <tr key={row.id} className="hover:bg-gray-50">
                   <td className="px-3 py-2">
                     <input
                       type="text"
                       value={row.fabricName}
                       onChange={(e) => updateFabricRow(row.id, 'fabricName', e.target.value)}
                       placeholder="Fabric Name"
-                      className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-green-400"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-green-400"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -161,7 +161,7 @@ const FabricCostEstimation = ({ fabricEstimations, setFabricEstimations, orderPr
                       value={row.color}
                       onChange={(e) => updateFabricRow(row.id, 'color', e.target.value)}
                       placeholder="Color"
-                      className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-green-400"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-green-400"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -170,7 +170,7 @@ const FabricCostEstimation = ({ fabricEstimations, setFabricEstimations, orderPr
                       value={row.style}
                       onChange={(e) => updateFabricRow(row.id, 'style', e.target.value)}
                       placeholder="Style"
-                      className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-green-400"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-green-400"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -180,7 +180,7 @@ const FabricCostEstimation = ({ fabricEstimations, setFabricEstimations, orderPr
                       onFocus={handleNumberFocus}
                       onChange={(e) => updateFabricRow(row.id, 'meter', e.target.value)}
                       placeholder="0"
-                      className="w-20 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-green-400"
+                      className="w-20 px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-green-400"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -190,11 +190,11 @@ const FabricCostEstimation = ({ fabricEstimations, setFabricEstimations, orderPr
                       onFocus={handleNumberFocus}
                       onChange={(e) => updateFabricRow(row.id, 'qty', e.target.value)}
                       placeholder="0"
-                      className="w-20 px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-green-400"
+                      className="w-20 px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-green-400"
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <div className="px-2 py-1.5 text-sm bg-blue-50 dark:bg-blue-900 dark:bg-opacity-30 border border-blue-200 dark:border-blue-800 rounded text-blue-700 dark:text-blue-400 font-medium text-center">
+                    <div className="px-2 py-1.5 text-sm bg-blue-50 border border-blue-200 rounded text-blue-700 font-medium text-center">
                       {row.total.toFixed(2)}
                     </div>
                   </td>
@@ -203,7 +203,7 @@ const FabricCostEstimation = ({ fabricEstimations, setFabricEstimations, orderPr
                       <button
                         type="button"
                         onClick={() => removeFabricRow(row.id)}
-                        className="text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400 p-1 transition-colors"
+                        className="text-red-400 hover:text-red-600 p-1 transition-colors"
                         title="Remove Row"
                       >
                         <X className="w-4 h-4" />
@@ -219,43 +219,43 @@ const FabricCostEstimation = ({ fabricEstimations, setFabricEstimations, orderPr
 
       {/* Grouped Summary */}
       {groupedEstimations.length > 0 && (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-600 rounded-lg border border-green-200 dark:border-gray-600 p-4">
-          <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-4">
+          <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center">
             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
             Grouped Estimation (Purchase Requirements)
           </h4>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-green-100 dark:bg-gray-700">
+              <thead className="bg-green-100">
                 <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">Fabric Name</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">Color</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">Styles</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300">Total Meters</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300">Total Qty</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300">Grand Total</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Fabric Name</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Color</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700">Styles</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-700">Total Meters</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-700">Total Qty</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-700">Grand Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-green-200 dark:divide-gray-600 bg-white dark:bg-gray-800">
+              <tbody className="divide-y divide-green-200 bg-white">
                 {groupedEstimations.map((group, index) => (
-                  <tr key={index} className="hover:bg-green-50 dark:hover:bg-gray-700">
-                    <td className="px-3 py-2 text-sm font-medium text-gray-900 dark:text-gray-100">{group.fabricName}</td>
-                    <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{group.color}</td>
-                    <td className="px-3 py-2 text-xs text-gray-600 dark:text-gray-400 italic">{group.styles || 'N/A'}</td>
-                    <td className="px-3 py-2 text-sm text-right font-medium text-gray-900 dark:text-gray-100">{group.totalMeters.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-sm text-right font-medium text-gray-900 dark:text-gray-100">{group.totalQty.toFixed(0)}</td>
-                    <td className="px-3 py-2 text-sm text-right font-bold text-green-600 dark:text-green-400">{group.grandTotal.toFixed(2)}</td>
+                  <tr key={index} className="hover:bg-green-50">
+                    <td className="px-3 py-2 text-sm font-medium text-gray-900">{group.fabricName}</td>
+                    <td className="px-3 py-2 text-sm text-gray-700">{group.color}</td>
+                    <td className="px-3 py-2 text-xs text-gray-600 italic">{group.styles || 'N/A'}</td>
+                    <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">{group.totalMeters.toFixed(2)}</td>
+                    <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">{group.totalQty.toFixed(0)}</td>
+                    <td className="px-3 py-2 text-sm text-right font-bold text-green-600">{group.grandTotal.toFixed(2)}</td>
                   </tr>
                 ))}
-                <tr className="bg-green-100 dark:bg-gray-700 font-bold">
-                  <td colSpan="3" className="px-3 py-2 text-sm text-right text-gray-700 dark:text-gray-300">Overall Total:</td>
-                  <td className="px-3 py-2 text-sm text-right text-gray-900 dark:text-gray-100">
+                <tr className="bg-green-100 font-bold">
+                  <td colSpan="3" className="px-3 py-2 text-sm text-right text-gray-700">Overall Total:</td>
+                  <td className="px-3 py-2 text-sm text-right text-gray-900">
                     {groupedEstimations.reduce((sum, g) => sum + g.totalMeters, 0).toFixed(2)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-right text-gray-900 dark:text-gray-100">
+                  <td className="px-3 py-2 text-sm text-right text-gray-900">
                     {groupedEstimations.reduce((sum, g) => sum + g.totalQty, 0).toFixed(0)}
                   </td>
-                  <td className="px-3 py-2 text-sm text-right text-green-700 dark:text-green-400">
+                  <td className="px-3 py-2 text-sm text-right text-green-700">
                     {groupedEstimations.reduce((sum, g) => sum + g.grandTotal, 0).toFixed(2)}
                   </td>
                 </tr>

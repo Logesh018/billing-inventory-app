@@ -1,0 +1,265 @@
+// models/note.js
+import mongoose from "mongoose";
+
+const noteItemSchema = new mongoose.Schema({
+  description: {
+    type: String,
+    required: true
+  },
+  hsnCode: {
+    type: String,
+    default: ""
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    default: 1
+  },
+  rate: {
+    type: Number,
+    required: true
+  },
+  amount: {
+    type: Number,
+    required: true
+  },
+  taxRate: {
+    type: Number,
+    default: 5
+  }
+});
+
+const noteSchema = new mongoose.Schema({
+  // Note Type: 'credit' or 'debit'
+  noteType: {
+    type: String,
+    enum: ['credit', 'debit'],
+    required: true
+  },
+
+  // Note Number (e.g., CN/2025/001 or DN/2025/001)
+  noteNumber: {
+    type: String,
+    required: true,
+    unique: true
+  },
+
+  // Note Date
+  noteDate: {
+    type: Date,
+    required: true,
+    default: Date.now
+  },
+
+  // Reference Information
+  referenceType: {
+    type: String,
+    enum: ['invoice', 'proforma', 'purchase-order', 'other'],
+    required: true
+  },
+  referenceNumber: {
+    type: String,
+    required: true
+  },
+  referenceDate: {
+    type: Date
+  },
+
+  // Reason for Credit/Debit
+  reason: {
+    type: String,
+    required: true,
+    enum: [
+      // Credit Note reasons
+      'goods-returned',
+      'shortage-in-supply',
+      'overcharged-amount',
+      'discount-allowed',
+      'quality-issue',
+      'damaged-goods',
+      // Debit Note reasons
+      'undercharged-amount',
+      'additional-charges',
+      'price-difference',
+      'penalty-charges',
+      'other'
+    ]
+  },
+
+  reasonDescription: {
+    type: String,
+    default: ""
+  },
+
+  // Customer/Party Details
+  partyDetails: {
+    name: {
+      type: String,
+      required: true
+    },
+    address: {
+      type: String,
+      required: true
+    },
+    gst: {
+      type: String,
+      default: ""
+    },
+    state: {
+      type: String,
+      default: ""
+    }
+  },
+
+  // Business Details (Your Company)
+  businessDetails: {
+    name: {
+      type: String,
+      default: "NILA TEXGARMENTS"
+    },
+    address: {
+      type: String,
+      default: "31/4, Kamaraj Nagar, Gandhi Nagar, Karamadai"
+    },
+    city: {
+      type: String,
+      default: "Mettupalayam"
+    },
+    state: {
+      type: String,
+      default: "Tamil Nadu"
+    },
+    pincode: {
+      type: String,
+      default: "641104"
+    },
+    gst: {
+      type: String,
+      default: "33AAVFN6955C1ZX"
+    },
+    pan: {
+      type: String,
+      default: "AAVFN6955C"
+    },
+    accountNumber: {
+      type: String,
+      default: "42495390526"
+    },
+    ifsc: {
+      type: String,
+      default: "SBIN0001384"
+    },
+    branch: {
+      type: String,
+      default: "SBI Bank, Mettupalayam"
+    },
+    bankName: {
+      type: String,
+      default: "State Bank of India"
+    }
+  },
+
+  // Items
+  items: [noteItemSchema],
+
+  // Financial Details
+  subtotal: {
+    type: Number,
+    required: true,
+    default: 0
+  },
+
+  taxes: {
+    cgst: {
+      type: Number,
+      default: 0
+    },
+    sgst: {
+      type: Number,
+      default: 0
+    },
+    igst: {
+      type: Number,
+      default: 0
+    }
+  },
+
+  additionalCharges: {
+    description: {
+      type: String,
+      default: ""
+    },
+    amount: {
+      type: Number,
+      default: 0
+    },
+    hsnCode: {
+      type: String,
+      default: "9997"
+    },
+    taxRate: {
+      type: Number,
+      default: 18
+    }
+  },
+
+  roundOff: {
+    type: Number,
+    default: 0
+  },
+
+  grandTotal: {
+    type: Number,
+    required: true
+  },
+
+  amountInWords: {
+    type: String,
+    default: ""
+  },
+
+  // PDF Storage
+  pdfUrl: {
+    type: String,
+    default: ""
+  },
+  pdfPublicId: {
+    type: String,
+    default: ""
+  },
+
+  // Status
+  status: {
+    type: String,
+    enum: ['draft', 'issued', 'cancelled'],
+    default: 'issued'
+  },
+
+  // Metadata
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+
+  notes: {
+    type: String,
+    default: ""
+  }
+}, {
+  timestamps: true
+});
+
+// Indexes for faster queries
+noteSchema.index({ noteType: 1, noteNumber: 1 });
+noteSchema.index({ referenceNumber: 1 });
+noteSchema.index({ 'partyDetails.name': 1 });
+noteSchema.index({ noteDate: -1 });
+
+// Virtual for formatted note type
+noteSchema.virtual('formattedNoteType').get(function() {
+  return this.noteType === 'credit' ? 'Credit Note' : 'Debit Note';
+});
+
+const Note = mongoose.model('Note', noteSchema);
+
+export default Note;

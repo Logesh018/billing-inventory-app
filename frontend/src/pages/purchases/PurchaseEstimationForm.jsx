@@ -6,20 +6,12 @@ import OrderDetailsWithMeters from './OrderDetailsWithMeters';
 const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRemoveItemRow, onUpdateItemRow }) => {
   const [supplierSuggestions, setSupplierSuggestions] = useState([]);
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
-  // const [meterValues, setMeterValues] = useState({});
 
   const handleNumberFocus = (e) => {
     if (e.target.value === '0') {
       e.target.value = '';
     }
   };
-
-  // const handleMeterChange = (idx, value) => {
-  //   setMeterValues(prev => ({
-  //     ...prev,
-  //     [idx]: value
-  //   }));
-  // };
 
   const searchSuppliers = async (searchTerm) => {
     if (searchTerm.length < 2) {
@@ -72,14 +64,12 @@ const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRe
     return sum + calculateTotalWithGst(rowTotal, row.gstPercentage || 0);
   }, 0);
 
-
-
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow w-full">
+    <div className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm hover:shadow-md transition-shadow w-full">
       {/* Supplier Row */}
-      <div className="flex flex-wrap items-end gap-2 mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex flex-wrap items-end gap-2 mb-3 pb-3 border-b border-gray-200">
         <div className="w-32 relative">
-          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Supplier</label>
+          <label className="text-xs text-gray-500 block mb-1">Supplier</label>
           <input
             type="text"
             value={item.vendor}
@@ -89,18 +79,18 @@ const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRe
             }}
             onBlur={() => setTimeout(() => setShowSupplierDropdown(false), 200)}
             placeholder="Search supplier"
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
           />
           {showSupplierDropdown && supplierSuggestions.length > 0 && (
-            <div className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-40 overflow-y-auto mt-1">
+            <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto mt-1">
               {supplierSuggestions.map((supplier, index) => (
                 <div
                   key={supplier._id || index}
-                  className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-xs text-gray-700 dark:text-gray-200"
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-xs text-gray-700"
                   onClick={() => selectSupplier(supplier)}
                 >
-                  <div className="font-medium text-gray-700 dark:text-gray-200">{supplier.name}</div>
-                  <div className="text-gray-500 dark:text-gray-400">{supplier.mobile || supplier.code}</div>
+                  <div className="font-medium text-gray-700">{supplier.name}</div>
+                  <div className="text-gray-500">{supplier.mobile || supplier.code}</div>
                 </div>
               ))}
             </div>
@@ -108,20 +98,20 @@ const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRe
         </div>
 
         <div className="w-20">
-          <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Code</label>
+          <label className="text-xs text-gray-500 block mb-1">Code</label>
           <input
             type="text"
             value={item.vendorCode || ''}
             onChange={(e) => onUpdateItemForm(item.id, 'vendorCode', e.target.value)}
             placeholder="Code"
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
           />
         </div>
 
         <button
           type="button"
           onClick={() => onAddItemRow(item.id)}
-          className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900 dark:bg-opacity-30 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-400 rounded text-xs font-medium transition-colors h-9 flex items-center gap-1"
+          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded text-xs font-medium transition-colors h-9 flex items-center gap-1"
           title="Add Row"
         >
           <Plus className="w-3 h-3" />
@@ -132,7 +122,7 @@ const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRe
           <button
             type="button"
             onClick={() => onRemoveItemForm(item.id)}
-            className="text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 dark:hover:bg-opacity-30 rounded-full p-2 transition-colors"
+            className="text-red-500 hover:bg-red-50 rounded-full p-2 transition-colors"
             title="Remove Item"
           >
             <Trash2 className="w-4 h-4" />
@@ -149,11 +139,11 @@ const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRe
           return (
             <div key={row.id} className="flex items-end gap-2 flex-nowrap">
               <div className="w-20">
-                <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Type</label>
+                <label className="text-xs text-gray-500 block mb-1">Type</label>
                 <select
                   value={row.type}
                   onChange={(e) => onUpdateItemRow(item.id, row.id, 'type', e.target.value)}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
+                  className="w-full text-sm border border-gray-300 bg-white text-gray-900 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
                 >
                   <option value="fabric">Fabric</option>
                   <option value="accessories">Accessories</option>
@@ -161,36 +151,36 @@ const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRe
               </div>
 
               <div className="w-32">
-                <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Item Name</label>
+                <label className="text-xs text-gray-500 block mb-1">Item Name</label>
                 <input
                   type="text"
                   value={row.itemName}
                   onChange={(e) => onUpdateItemRow(item.id, row.id, 'itemName', e.target.value)}
                   placeholder="Item Name"
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
                 />
               </div>
 
               {row.type === 'fabric' && (
                 <div className="w-16">
-                  <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">GSM</label>
+                  <label className="text-xs text-gray-500 block mb-1">GSM</label>
                   <input
                     type="text"
                     value={row.gsm || ''}
                     onChange={(e) => onUpdateItemRow(item.id, row.id, 'gsm', e.target.value)}
                     placeholder="GSM"
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
                   />
                 </div>
               )}
 
               {row.type === 'accessories' && (
                 <div className="w-20">
-                  <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Acc. Type</label>
+                  <label className="text-xs text-gray-500 block mb-1">Acc. Type</label>
                   <select
                     value={row.accessoryType || 'other'}
                     onChange={(e) => onUpdateItemRow(item.id, row.id, 'accessoryType', e.target.value)}
-                    className="w-full text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
+                    className="w-full text-xs border border-gray-300 bg-white text-gray-900 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
                   >
                     <option value="buttons">Buttons</option>
                     <option value="packets">Packets</option>
@@ -200,22 +190,22 @@ const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRe
               )}
 
               <div className="w-24">
-                <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Color</label>
+                <label className="text-xs text-gray-500 block mb-1">Color</label>
                 <input
                   type="text"
                   value={row.color || ''}
                   onChange={(e) => onUpdateItemRow(item.id, row.id, 'color', e.target.value)}
                   placeholder="Color"
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
                 />
               </div>
 
               <div className="w-20">
-                <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Unit</label>
+                <label className="text-xs text-gray-500 block mb-1">Unit</label>
                 <select
                   value={row.purchaseUnit}
                   onChange={(e) => onUpdateItemRow(item.id, row.id, 'purchaseUnit', e.target.value)}
-                  className="w-full text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
+                  className="w-full text-xs border border-gray-300 bg-white text-gray-900 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
                 >
                   {row.type === 'fabric' ? (
                     <>
@@ -234,7 +224,7 @@ const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRe
               </div>
 
               <div className="w-16">
-                <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+                <label className="text-xs text-gray-500 block mb-1">
                   {row.type === 'fabric'
                     ? (row.purchaseUnit === 'kg' ? 'KG' : row.purchaseUnit === 'meter' ? 'Mtr' : 'Pcs')
                     : (row.purchaseUnit === 'qty' ? 'Qty' : row.purchaseUnit === 'packet' ? 'Pkts' : 'Pcs')
@@ -246,12 +236,12 @@ const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRe
                   onFocus={handleNumberFocus}
                   onChange={(e) => onUpdateItemRow(item.id, row.id, 'quantity', e.target.value)}
                   placeholder="Qty"
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
                 />
               </div>
 
               <div className="w-20">
-                <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+                <label className="text-xs text-gray-500 block mb-1">
                   {row.type === 'fabric'
                     ? (row.purchaseUnit === 'kg' ? '₹/KG' : row.purchaseUnit === 'meter' ? '₹/Mtr' : '₹/Pc')
                     : (row.purchaseUnit === 'qty' ? '₹/Qty' : row.purchaseUnit === 'packet' ? '₹/Pkt' : '₹/Pc')
@@ -263,23 +253,23 @@ const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRe
                   onFocus={handleNumberFocus}
                   onChange={(e) => onUpdateItemRow(item.id, row.id, 'costPerUnit', e.target.value)}
                   placeholder="Cost"
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-1 focus:ring-blue-400 h-9"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
                 />
               </div>
 
               <div className="w-20">
-                <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Total</label>
-                <div className="px-2 py-1.5 text-xs bg-green-50 dark:bg-green-900 dark:bg-opacity-30 border border-green-200 dark:border-green-800 rounded text-green-700 dark:text-green-400 font-medium text-center h-9 flex items-center justify-center">
+                <label className="text-xs text-gray-500 block mb-1">Total</label>
+                <div className="px-2 py-1.5 text-xs bg-green-50 border border-green-200 rounded text-green-700 font-medium text-center h-9 flex items-center justify-center">
                   ₹{rowTotal.toFixed(2)}
                 </div>
               </div>
 
               <div className="w-16">
-                <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">GST</label>
+                <label className="text-xs text-gray-500 block mb-1">GST</label>
                 <select
                   value={row.gstPercentage || ''}
                   onChange={(e) => onUpdateItemRow(item.id, row.id, 'gstPercentage', parseFloat(e.target.value) || 0)}
-                  className="w-full text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-1 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
+                  className="w-full text-xs border border-gray-300 bg-white text-gray-900 rounded px-1 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
                 >
                   <option value="">Select</option>
                   <option value="5">5%</option>
@@ -289,8 +279,8 @@ const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRe
               </div>
 
               <div className="w-20">
-                <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Total + GST</label>
-                <div className="px-2 py-1.5 text-xs bg-purple-50 dark:bg-purple-900 dark:bg-opacity-30 border border-purple-200 dark:border-purple-800 rounded text-purple-700 dark:text-purple-400 font-medium text-center h-9 flex items-center justify-center">
+                <label className="text-xs text-gray-500 block mb-1">Total + GST</label>
+                <div className="px-2 py-1.5 text-xs bg-purple-50 border border-purple-200 rounded text-purple-700 font-medium text-center h-9 flex items-center justify-center">
                   ₹{rowTotalWithGst.toFixed(2)}
                 </div>
               </div>
@@ -299,7 +289,7 @@ const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRe
                 <button
                   type="button"
                   onClick={() => onRemoveItemRow(item.id, row.id)}
-                  className="ml-1 text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400 p-2 transition-colors h-9"
+                  className="ml-1 text-red-400 hover:text-red-600 p-2 transition-colors h-9"
                   title="Remove Row"
                 >
                   <X className="w-4 h-4" />
@@ -312,14 +302,14 @@ const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRe
 
       {/* Item Grand Total */}
       {item.items.length > 1 && (
-        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-4">
+        <div className="mt-3 pt-3 border-t border-gray-200 flex justify-end gap-4">
           <div className="text-sm">
-            <span className="text-gray-600 dark:text-gray-400">Item Total: </span>
-            <span className="font-bold text-green-600 dark:text-green-400">₹{itemGrandTotal.toFixed(2)}</span>
+            <span className="text-gray-600">Item Total: </span>
+            <span className="font-bold text-green-600">₹{itemGrandTotal.toFixed(2)}</span>
           </div>
           <div className="text-sm">
-            <span className="text-gray-600 dark:text-gray-400">With GST: </span>
-            <span className="font-bold text-purple-600 dark:text-purple-400">₹{itemGrandTotalWithGst.toFixed(2)}</span>
+            <span className="text-gray-600">With GST: </span>
+            <span className="font-bold text-purple-600">₹{itemGrandTotalWithGst.toFixed(2)}</span>
           </div>
         </div>
       )}
@@ -399,7 +389,7 @@ const PurchaseItemsSection = ({ purchaseItems, setPurchaseItems, estimationType 
   return (
     <div className="space-y-3 w-full p-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Purchase Items</h3>
+        <h3 className="text-lg font-semibold text-gray-800">Purchase Items</h3>
         <button
           type="button"
           onClick={addNewItemForm}
@@ -463,7 +453,7 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
       const initialMeters = {};
       selectedOrder.products.forEach((prod, idx) => {
         const style = prod.style?.toUpperCase() || '';
-        let defaultMeter = 1.35; // Default for S/S
+        let defaultMeter = 1.35;
 
         if (style.includes('L/S') || style.includes('LONG')) {
           defaultMeter = 1.75;
@@ -497,8 +487,6 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
     setOrderLoading(true);
     try {
       const response = await axiosInstance.get(`/purchase-estimations/order/${encodeURIComponent(PoNo)}`);
-      // console.log("🔍 Raw Order Response:", response.data);
-      // console.log("🔍 Products:", response.data.products);
       setSelectedOrder(response.data);
       setFormData(prev => ({ ...prev, PoNo: response.data.PoNo }));
       setShowOrderDropdown(false);
@@ -605,14 +593,14 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
   };
 
   return (
-    <div className="w-full mx-auto bg-white dark:bg-gray-800 p-5 rounded-2xl">
+    <div className="w-full mx-auto bg-white p-5 rounded-2xl">
       <div className="space-y-2">
         <div className="flex items-center justify-between pb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
+            <h2 className="text-2xl font-bold text-gray-800">
               {isEditMode ? 'Edit Purchase Estimation' : 'Create Purchase Estimation'}
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            <p className="text-sm text-gray-600 mt-1">
               {estimationType === 'order' ? 'Create estimation for order materials' : 'Create estimation for machine purchase'}
             </p>
           </div>
@@ -620,7 +608,7 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
             <button
               type="button"
               onClick={onCancel}
-              className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium"
+              className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
             >
               <X className="w-4 h-4 mr-1.5" />
               Cancel
@@ -629,15 +617,15 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
         </div>
 
         {/* Estimation Type Selection */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 rounded-lg p-3 shadow-sm">
-          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Estimation Type</label>
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 shadow-sm">
+          <label className="block text-xs font-medium text-gray-700 mb-2">Estimation Type</label>
           <div className="flex gap-3">
             <button
               type="button"
               onClick={() => handleEstimationTypeChange('order')}
               className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all text-sm ${estimationType === 'order'
                 ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                 }`}
               disabled={isEditMode}
             >
@@ -649,7 +637,7 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
               onClick={() => handleEstimationTypeChange('machine')}
               className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all text-sm ${estimationType === 'machine'
                 ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                 }`}
               disabled={isEditMode}
             >
@@ -660,21 +648,21 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
         </div>
 
         {/* Estimation Date and Order Search */}
-        <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-lg p-3 shadow-sm">
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-3 shadow-sm">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Estimation Date</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Estimation Date</label>
               <input
                 type="date"
                 value={formData.estimationDate}
                 onChange={(e) => setFormData({ ...formData, estimationDate: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
             {estimationType === 'order' && (
               <div className="relative">
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Order Number (PoNo)
                 </label>
                 <input
@@ -685,19 +673,19 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
                     searchOrders(e.target.value);
                   }}
                   onBlur={() => setTimeout(() => setShowOrderDropdown(false), 200)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Search by PoNo..."
                 />
                 {showOrderDropdown && orderSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-y-auto mt-1">
+                  <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto mt-1">
                     {orderSuggestions.map((order) => (
                       <div
                         key={order._id}
-                        className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer border-b border-gray-100 dark:border-gray-600"
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100"
                         onClick={() => fetchOrderDetails(order.PoNo)}
                       >
-                        <div className="font-medium text-sm text-gray-800 dark:text-gray-200">{order.PoNo}</div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                        <div className="font-medium text-sm text-gray-800">{order.PoNo}</div>
+                        <div className="text-xs text-gray-600">
                           {order.buyerName} • {new Date(order.orderDate).toLocaleDateString()}
                         </div>
                       </div>
@@ -712,7 +700,7 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
         {orderLoading && (
           <div className="flex justify-center items-center py-3">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading order details...</span>
+            <span className="ml-2 text-sm text-gray-600">Loading order details...</span>
           </div>
         )}
 
@@ -733,26 +721,26 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
 
         <div className="flex justify-between pt-4">
           <div className="w-2/3">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Remarks</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Remarks</label>
             <input
               type="text"
               value={formData.remarks || ''}
               onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              className="w-full px-4 py-2 border border-gray-300 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               placeholder="Additional notes..."
             />
           </div>
-          <div className="bg-white dark:bg-gray-700 rounded-lg px-6 py-3 border border-gray-200 dark:border-gray-600 shadow-sm min-w-[180px]">
-            <div className="text-sm text-gray-600 dark:text-gray-300">Grand Total</div>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">₹{grandTotal.toLocaleString()}</div>
+          <div className="bg-white rounded-lg px-6 py-3 border border-gray-200 shadow-sm min-w-[180px]">
+            <div className="text-sm text-gray-600">Grand Total</div>
+            <div className="text-2xl font-bold text-green-600">₹{grandTotal.toLocaleString()}</div>
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-600">
+        <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-2.5 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium"
+            className="px-6 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
           >
             Cancel
           </button>
@@ -771,4 +759,3 @@ const PurchaseEstimationForm = ({ initialValues, onSubmit, onCancel, submitLabel
 };
 
 export default PurchaseEstimationForm;
-

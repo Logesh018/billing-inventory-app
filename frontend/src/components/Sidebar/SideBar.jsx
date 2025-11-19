@@ -21,26 +21,39 @@ import SubMenu from "./SubMenu";
 // Import Pages
 import HomePage from "./Sidebarpages/HomePage";
 // import Products from "../../pages/products/Products";
-import Purchase from "../../pages/purchases/Purchase";
-import Productions from "../../pages/productions/Productions";
+
 import Buyers from "./Sidebarpages/Buyers";
 import Suppliers from "./Sidebarpages/Supplier";
-import EventsPage from "./Sidebarpages/Events";
-import ReportsPage from "./Sidebarpages/Reports";
+
 import FOBOrders from "../../pages/orders/FOBOrders";
 import JobWorksOrders from "../../pages/orders/JobWorksOrders";
 import OwnOrders from "../../pages/OwnOrders";
+
+import Purchase from "../../pages/purchases/Purchase";
+import PurchaseEstimation from "../../pages/purchases/PurchaseEstimation";
+import PurchaseOrderForm from "../../pages/purchases/PurchaseOrderForm";
+import PurchaseOrders from "../../pages/purchases/PurchaseOrder";
+
+import Productions from "../../pages/productions/Productions";
+import Cutting from "../../pages/productions/Cutting";
+
 import Invoices from "../../pages/invoices/Invoices";
+import Proforma from "../../pages/invoices/Proforma";
+import Estimations from "../../pages/estimations/Estimations";
+import CreditNote from "../../pages/invoices/CreditNote";
+import DebitNote from "../../pages/invoices/DebitNote";
+
+import EventsPage from "./Sidebarpages/Events";
+import ReportsPage from "./Sidebarpages/Reports";
+
+
 import ExpensesPage from "./Expenses/Expenses";
 import RecurringExpenses from "./Expenses/RecurringExpenses";
 import Projects from "./Timetracking/Projects";
 import TimeSheet from "./Timetracking/TimeSheet";
+
 import UsersManagement from "../../pages/users/UsersManagement";
-import Proforma from "../../pages/invoices/Proforma";
-import Estimations from "../../pages/estimations/Estimations";
-import PurchaseEstimation from "../../pages/purchases/PurchaseEstimation";
-import PurchaseOrderForm from "../../pages/purchases/PurchaseOrderForm";
-import PurchaseOrders from "../../pages/purchases/PurchaseOrder";
+
 
 const menuItems = [
   { name: "Home", icon: Home, path: "/" },
@@ -239,30 +252,40 @@ export default function Sidebar() {
           <Route path="/vendor/suppliers" element={<Suppliers />} />
           <Route path="/vendor/buyers" element={<Buyers />} />
           <Route path="/vendor/sales" element={<EventsPage />} />
+
           {/* <Route path="/products" element={<Products />} /> */}
+
+           <Route path="/orders/fob" element={<FOBOrders />} />
+          <Route path="/orders/job-works" element={<JobWorksOrders />} />
+          <Route path="/orders/own-orders" element={<OwnOrders />} />
+
           <Route path="/purchases" element={<Purchase />} />
           <Route path="/purchase/return" element={<RecurringExpenses />} />
           <Route path="/purchase-estimations" element={<PurchaseEstimation />} />
           <Route path="/nila-po" element={<PurchaseOrders />} />
-          <Route path="/orders/fob" element={<FOBOrders />} />
-          <Route path="/orders/job-works" element={<JobWorksOrders />} />
-          <Route path="/orders/own-orders" element={<OwnOrders />} />
+
+         
           <Route path="/productions" element={<Productions />} />
-          <Route path="/production/cutting" element={<Projects />} />
+          <Route path="/production/cutting" element={<Cutting />} />
           <Route path="/production/stitching" element={<TimeSheet />} />
           <Route path="/production/trimming" element={<TimeSheet />} />
           <Route path="/production/qc" element={<TimeSheet />} />
           <Route path="/production/ironing" element={<TimeSheet />} />
           <Route path="/production/packing" element={<TimeSheet />} />
+
           <Route path="/invoice/invoice" element={<Invoices />} />
           <Route path="/invoice/proforma" element={<Proforma />} />
+          <Route path="/invoice/credit-note" element={<CreditNote />} />
+          <Route path="/invoice/debit-note" element={<DebitNote />} />
           <Route path="/invoice/estimate" element={<Estimations />} />
+
           <Route path="/yas/entry" element={<Projects />} />
           <Route path="/yas/mrp-sticker" element={<TimeSheet />} />
           <Route path="/yas/box-entry" element={<TimeSheet />} />
           <Route path="/sales/entry" element={<ExpensesPage />} />
           <Route path="/sales/return" element={<RecurringExpenses />} />
           <Route path="/reports" element={<ReportsPage />} />
+          
           <Route path="/users" element={<UsersManagement />} />
         </Routes>
       </main>

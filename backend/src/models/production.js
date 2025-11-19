@@ -45,7 +45,7 @@ const ProductionSchema = new mongoose.Schema({
   poNumber: { type: String },
   factoryReceivedDate: { type: Date },
 
-  // ✅ NEW: Production details per product
+  // Production details per product (Store IN stage)
   productionDetails: [
     {
       productName: { type: String },
@@ -64,22 +64,38 @@ const ProductionSchema = new mongoose.Schema({
     }
   ],
 
-  // ✅ DEPRECATED: Keep for backward compatibility but not used in new forms
-  dcNumber: { type: String },
-  dcMtr: { type: Number, default: 0 },
-  tagMtr: { type: Number, default: 0 },
-  cuttingMtr: { type: Number, default: 0 },
-  shortageMtr: { type: Number, default: 0 },
-  measurementUnit: {
-    type: String,
-    enum: ["Meters", "KG", "Qty", "Pcs"],
-    default: "Meters"
-  },
-  receivedFabric: { type: String },
-  goodsType: { type: String },
-  color: { type: String },
-  requiredQty: { type: Number, default: 0 },
-  expectedQty: { type: Number, default: 0 },
+  // ✅ NEW: Cutting details per product
+  cuttingDetails: [
+    {
+      productName: { type: String },
+      fabricType: { type: String },
+      color: { type: String },
+      meterPerProduct: { type: Number, default: 0 },      // Meter/product
+      productPerLay: { type: Number, default: 0 },        // Product/lay
+      meterPerLay: { type: Number, default: 0 },          // Meter/lay
+      totalLays: { type: Number, default: 0 },            // Total no. of lays
+      totalMetersUsed: { type: Number, default: 0 },      // Calculated: meter/lay × total lays
+      totalProductsCut: { type: Number, default: 0 },     // Calculated: product/lay × total lays
+    }
+  ],
+
+  // ✅ NEW: Stitching details (for future)
+  stitchingDetails: [
+    {
+      productName: { type: String },
+      // Add stitching-specific fields here later
+    }
+  ],
+
+  // ✅ NEW: Trimming details (for future)
+  trimmingDetails: [
+    {
+      productName: { type: String },
+      // Add trimming-specific fields here later
+    }
+  ],
+
+  // Continue for other stages...
 
   status: {
     type: String,
@@ -162,9 +178,9 @@ const ProductionSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-// ✅ Pre-save hook to calculate shortage for each production detail
+// ✅ Pre-save hook to calculate cutting totals
 ProductionSchema.pre("save", function (next) {
-  // Calculate shortage for each production detail
+  // Calculate shortage for production details
   if (this.productionDetails && this.productionDetails.length > 0) {
     this.productionDetails.forEach(detail => {
       if (detail.tagMtr !== undefined && detail.cuttingMtr !== undefined) {
@@ -173,9 +189,19 @@ ProductionSchema.pre("save", function (next) {
     });
   }
 
-  // Backward compatibility for old single-level fields
-  if (this.tagMtr !== undefined && this.cuttingMtr !== undefined) {
-    this.shortageMtr = this.tagMtr - this.cuttingMtr;
+  // ✅ Calculate cutting totals
+  if (this.cuttingDetails && this.cuttingDetails.length > 0) {
+    this.cuttingDetails.forEach(detail => {
+      // Total meters used = meter/lay × total lays
+      if (detail.meterPerLay !== undefined && detail.totalLays !== undefined) {
+        detail.totalMetersUsed = detail.meterPerLay * detail.totalLays;
+      }
+      
+      // Total products cut = product/lay × total lays
+      if (detail.productPerLay !== undefined && detail.totalLays !== undefined) {
+        detail.totalProductsCut = detail.productPerLay * detail.totalLays;
+      }
+    });
   }
   
   next();

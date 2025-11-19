@@ -178,10 +178,20 @@ export const updateProduction = async (req, res) => {
       production.productionDetails = req.body.productionDetails;
     }
 
+    // ✅ Update cutting details if provided
+    if (req.body.cuttingDetails) {
+      production.cuttingDetails = req.body.cuttingDetails;
+    }
+
+    // ✅ Update stitching details if provided (for future)
+    if (req.body.stitchingDetails) {
+      production.stitchingDetails = req.body.stitchingDetails;
+    }
+
     // Update other fields
     Object.assign(production, req.body);
 
-    // ✅ Auto-calculate shortage for each production detail (handled by pre-save hook)
+    // ✅ Auto-calculate totals (handled by pre-save hook)
     const updatedProduction = await production.save();
     console.log("Updated production:", updatedProduction);
 
@@ -191,6 +201,7 @@ export const updateProduction = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
 
 export const completeProduction = async (req, res) => {
   try {

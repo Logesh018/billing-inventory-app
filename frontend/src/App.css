@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@plugin "daisyui";
+
 
 /* ===== Scrollbar ===== */
 .custom-scrollbar::-webkit-scrollbar {
@@ -29,6 +29,7 @@ body {
 
 html {
 	background: transparent;
+	color-scheme: light; 
 }
 
 /* ===== Keyframe Animations ===== */
