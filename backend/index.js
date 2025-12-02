@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename);
 import userRoutes from "./src/routes/userRoutes.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import productRoutes from "./src/routes/productRoutes.js";
+import productAttributeRoutes from "./src/routes/productAttributeRoutes.js";
 import purchaseRoutes from "./src/routes/purchaseRoutes.js";
 import productionRoutes from "./src/routes/productionRoutes.js";
 import orderRoutes from "./src/routes/orderRoutes.js";
@@ -21,8 +22,9 @@ import documentRoutes from "./src/routes/documentRoutes.js";
 import machinePurchaseRoutes from "./src/routes/machinePurchaseRoutes.js";
 import purchaseEstimationRoutes from "./src/routes/purchaseEstimationRoutes.js";
 import purchaseOrderRoutes from "./src/routes/purchaseOrderRoutes.js";
-import noteRoutes from "./src/routes/noteRoutes.js"
-import { invoiceRouter } from "./src/routes/invoiceRoutes.js";
+import noteRoutes from "./src/routes/noteRoutes.js";
+import purchaseReturnRoutes from "./src/routes/purchaseReturnRoutes.js";
+
 
 dotenv.config();
 
@@ -39,6 +41,7 @@ app.use(express.json());
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/product-attributes", productAttributeRoutes);
 app.use("/api/purchases", purchaseRoutes);
 app.use("/api/productions", productionRoutes);
 app.use("/api/orders", orderRoutes);
@@ -50,6 +53,7 @@ app.use("/api/machines", machinePurchaseRoutes);
 app.use("/api/purchase-estimations", purchaseEstimationRoutes);
 app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/notes", noteRoutes);
+app.use('/api/purchase-returns', purchaseReturnRoutes);
 //app.use("/api/invoices", invoiceRouter);
 
 if (process.env.NODE_ENV === "production") {

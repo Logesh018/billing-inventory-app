@@ -1,4 +1,6 @@
+// models/production.js
 import mongoose from "mongoose";
+import { getNextSequence } from "../utils/counterUtils.js";
 
 const ProductionSchema = new mongoose.Schema({
   order: {
@@ -14,17 +16,20 @@ const ProductionSchema = new mongoose.Schema({
   PoNo: { type: String },
   orderType: {
     type: String,
-    enum: ["FOB", "JOB-Works","Own-Orders"],
+    enum: ["FOB", "JOB-Works", "Own-Orders"],
     required: true
   },
   buyerCode: { type: String },
   buyerName: { type: String },
 
+  // 🔴 CHANGE: Removed unique: true (Moved to bottom)
+  serialNo: { type: Number },
+
   products: [
     {
       productName: { type: String },
       fabricType: { type: String },
-      style: {type: String},
+      style: { type: String },
       colors: [
         {
           color: { type: String, required: true },
@@ -64,22 +69,22 @@ const ProductionSchema = new mongoose.Schema({
     }
   ],
 
-  // ✅ NEW: Cutting details per product
+  // Cutting details per product
   cuttingDetails: [
     {
       productName: { type: String },
       fabricType: { type: String },
       color: { type: String },
-      meterPerProduct: { type: Number, default: 0 },      // Meter/product
-      productPerLay: { type: Number, default: 0 },        // Product/lay
-      meterPerLay: { type: Number, default: 0 },          // Meter/lay
-      totalLays: { type: Number, default: 0 },            // Total no. of lays
-      totalMetersUsed: { type: Number, default: 0 },      // Calculated: meter/lay × total lays
-      totalProductsCut: { type: Number, default: 0 },     // Calculated: product/lay × total lays
+      meterPerProduct: { type: Number, default: 0 },
+      productPerLay: { type: Number, default: 0 },
+      meterPerLay: { type: Number, default: 0 },
+      totalLays: { type: Number, default: 0 },
+      totalMetersUsed: { type: Number, default: 0 },
+      totalProductsCut: { type: Number, default: 0 },
     }
   ],
 
-  // ✅ NEW: Stitching details (for future)
+  // Stitching details (for future)
   stitchingDetails: [
     {
       productName: { type: String },
@@ -87,15 +92,13 @@ const ProductionSchema = new mongoose.Schema({
     }
   ],
 
-  // ✅ NEW: Trimming details (for future)
+  // Trimming details (for future)
   trimmingDetails: [
     {
       productName: { type: String },
       // Add trimming-specific fields here later
     }
   ],
-
-  // Continue for other stages...
 
   status: {
     type: String,
@@ -178,9 +181,19 @@ const ProductionSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-// ✅ Pre-save hook to calculate cutting totals
-ProductionSchema.pre("save", function (next) {
-  // Calculate shortage for production details
+// ... (Your pre-save middleware remains EXACTLY the same) ...
+ProductionSchema.pre("save", async function (next) {
+  if (this.isNew && !this.serialNo) {
+    try {
+      const seq = await getNextSequence("productionSeq");
+      this.serialNo = seq;
+      console.log(`✅ Generated Production serial #${seq}`);
+    } catch (error) {
+      console.error("❌ Error generating Production serial:", error);
+      return next(error);
+    }
+  }
+
   if (this.productionDetails && this.productionDetails.length > 0) {
     this.productionDetails.forEach(detail => {
       if (detail.tagMtr !== undefined && detail.cuttingMtr !== undefined) {
@@ -189,15 +202,12 @@ ProductionSchema.pre("save", function (next) {
     });
   }
 
-  // ✅ Calculate cutting totals
   if (this.cuttingDetails && this.cuttingDetails.length > 0) {
     this.cuttingDetails.forEach(detail => {
-      // Total meters used = meter/lay × total lays
       if (detail.meterPerLay !== undefined && detail.totalLays !== undefined) {
         detail.totalMetersUsed = detail.meterPerLay * detail.totalLays;
       }
       
-      // Total products cut = product/lay × total lays
       if (detail.productPerLay !== undefined && detail.totalLays !== undefined) {
         detail.totalProductsCut = detail.productPerLay * detail.totalLays;
       }
@@ -207,6 +217,7 @@ ProductionSchema.pre("save", function (next) {
   next();
 });
 
+// Indexes
 ProductionSchema.index({ order: 1 });
 ProductionSchema.index({ purchase: 1 });
 ProductionSchema.index({ PoNo: 1 });
@@ -214,5 +225,8 @@ ProductionSchema.index({ buyerCode: 1 });
 ProductionSchema.index({ status: 1 });
 ProductionSchema.index({ orderType: 1 });
 ProductionSchema.index({ orderDate: -1 });
+
+// 🔴 CHANGE: Added { unique: true } here instead of in the schema definition
+ProductionSchema.index({ serialNo: 1 }, { unique: true });
 
 export default mongoose.model("Production", ProductionSchema);

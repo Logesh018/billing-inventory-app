@@ -27,6 +27,12 @@ export const updateOrder = async (id, data) => {
   return res.data;
 };
 
+// PDF Operations
+export const generateOrderPDF = async (id) => {
+  const res = await axiosInstance.post(`/orders/${id}/generate-pdf`);
+  return res.data;
+};
+
 // For FOB orders, just call:
 export const getAllFOBOrders = async () => {
   return getAllOrders("FOB");

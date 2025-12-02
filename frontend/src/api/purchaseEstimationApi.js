@@ -15,3 +15,4 @@ export const getEstimationPDF = (id) => axiosInstance.get(`/purchase-estimations
 export const generateEstimationPDF = (id) => axiosInstance.post(`/purchase-estimations/${id}/generate-pdf`);
 export const searchSuppliers = (query) => axiosInstance.get(`/purchase-estimations/search/suppliers?q=${query}`);
 export const searchOrders = (query) => axiosInstance.get(`/purchase-estimations/search/orders?q=${query}`);
+export const getNextPESNo = () => axiosInstance.get("/purchase-estimations/next-pes-no"); 

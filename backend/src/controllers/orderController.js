@@ -4,6 +4,8 @@ import Product from "../models/products.js";
 import Purchase from "../models/purchase.js";
 import Production from "../models/production.js";
 
+import { pdfService } from "../services/pdfService.js";
+import { cloudinaryService } from "../services/cloudinaryService.js";
 
 export const getCurrentFinancialYear = () => {
   const now = new Date();
@@ -23,9 +25,21 @@ export const createOrder = async (req, res) => {
       products: productsData
     } = req.body;
 
+    // ✅ DEBUG: Log incoming data structure
+    console.log("📥 Received order data:");
+    console.log("Products array:", JSON.stringify(productsData, null, 2));
+    console.log("First product:", productsData[0]);
+    console.log("First product.productDetails type:", typeof productsData[0]?.productDetails);
+    console.log("First product.productDetails:", productsData[0]?.productDetails);
+
     const { PoNo } = req.body;
     if (!PoNo || !PoNo.trim()) {
       return res.status(400).json({ message: "PO Number is required" });
+    }
+
+    // ✅ Validate products data structure
+    if (!Array.isArray(productsData) || productsData.length === 0) {
+      return res.status(400).json({ message: "Products array is required" });
     }
 
     let buyer;
@@ -69,72 +83,108 @@ export const createOrder = async (req, res) => {
     const processedProducts = [];
 
     for (const productData of productsData) {
-      let product;
-
-      // Check if product exists with same name+style+color+fabricType combination
-      const existingProduct = await Product.findOne({
-        name: productData.productDetails.name,
-        style: productData.productDetails.style,
-        color: productData.productDetails.color,
-        fabricType: productData.productDetails.fabricType,
-      });
-
-      if (existingProduct) {
-        product = existingProduct;
-        console.log("✅ Using existing product:", product._id);
-      } else {
-        // Create new product - different combination
-        product = new Product({
-          name: productData.productDetails.name,
-          style: productData.productDetails.style,
-          color: productData.productDetails.color,
-          fabricType: productData.productDetails.fabricType,
-          hsn: "",
-          category: "Garment", // Add default category
+      // ✅ Validate productData structure
+      if (!productData.productDetails) {
+        return res.status(400).json({
+          message: "Each product must have productDetails"
         });
-
-        const savedProduct = await product.save();
-        product = savedProduct;
-        console.log("✅ New product variant created:", savedProduct._id);
       }
 
+      let product;
+
+      // Find or create product
+      const existingProduct = await Product.findOrCreateProduct({
+        name: productData.productDetails.name,
+        category: productData.productDetails.category || "Garment",
+        type: Array.isArray(productData.productDetails.type)
+          ? productData.productDetails.type
+          : [],
+        style: Array.isArray(productData.productDetails.style)
+          ? productData.productDetails.style
+          : [],
+        fabric: productData.productDetails.fabric,
+        color: productData.productDetails.color,
+      });
+
+      product = existingProduct;
+      console.log(`✅ Using/Created product:`, product._id);
+
+      // ✅ CRITICAL FIX: Ensure productDetails is an OBJECT, not an array
       const productDetails = {
-        name: product.name || productData.productDetails.name,
-        style: product.style || productData.productDetails.style,
-        color: product.color || productData.productDetails.color,
-        fabricType: product.fabricType || productData.productDetails.fabricType,
+        category: productData.productDetails.category || product.category || "",
+        name: productData.productDetails.name || product.name || "",
+        type: Array.isArray(productData.productDetails.type)
+          ? productData.productDetails.type
+          : (product.type || []),
+        style: Array.isArray(productData.productDetails.style)
+          ? productData.productDetails.style
+          : (product.style || []),
+        fabric: productData.productDetails.fabric || product.fabric || "",
+        color: productData.productDetails.color || product.color || "",
       };
+
+      // ✅ Validate sizes
+      if (!Array.isArray(productData.sizes) || productData.sizes.length === 0) {
+        return res.status(400).json({
+          message: `Product "${productDetails.name}" must have at least one size`
+        });
+      }
 
       const sizes = productData.sizes.map(sizeData => ({
         size: sizeData.size.trim(),
         qty: parseInt(sizeData.qty) || 0,
       }));
 
+      // ✅ Push correctly structured product
       processedProducts.push({
         product: product._id,
-        productDetails,
-        sizes,
+        productDetails: productDetails, // This is an OBJECT
+        sizes: sizes,
       });
     }
 
+    console.log("🔍 FINAL CHECK before creating Order:");
+    console.log("processedProducts structure:");
+    processedProducts.forEach((p, i) => {
+      console.log(`Product ${i}:`);
+      console.log(`  - product ID: ${p.product}`);
+      console.log(`  - productDetails type: ${typeof p.productDetails}`);
+      console.log(`  - productDetails is array?: ${Array.isArray(p.productDetails)}`);
+      console.log(`  - productDetails value:`, JSON.stringify(p.productDetails, null, 2));
+      console.log(`  - type field:`, p.productDetails.type);
+      console.log(`  - style field:`, p.productDetails.style);
+    });
+
+    // If productDetails is somehow an array, this will catch it:
+    processedProducts.forEach((p, i) => {
+      if (Array.isArray(p.productDetails)) {
+        console.error(`❌ ERROR: Product ${i} has productDetails as ARRAY!`);
+        console.error(`This should be an OBJECT, not an array!`);
+        throw new Error("productDetails must be an object, not an array");
+      }
+    });
+
+    // ✅ Create order with validated data
     const order = new Order({
       orderDate: new Date(orderDate),
       PoNo,
       orderType,
       buyer: buyer._id,
       buyerDetails,
-      products: processedProducts,
+      products: processedProducts, // Array of products with object productDetails
     });
 
     const savedOrder = await order.save();
     console.log("✅ New order created:", savedOrder._id);
+    console.log("✅ Global Order Serial:", savedOrder.orderId);
 
+    // Update buyer statistics
     await Buyer.findByIdAndUpdate(buyer._id, {
       $inc: { totalOrders: 1 },
       lastOrderDate: new Date()
     });
 
-    // ✅ FIXED: Update product statistics
+    // Update product statistics
     for (const productData of processedProducts) {
       const totalQty = productData.sizes.reduce((sum, size) => sum + size.qty, 0);
 
@@ -147,31 +197,35 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // ✅ FIXED: Create purchase products structure
+    // Create purchase products structure
     const purchaseProducts = processedProducts.map(p => ({
-      product: p.product,  // Include the ObjectId reference
+      product: p.product,
       productDetails: {
+        category: p.productDetails.category,
         name: p.productDetails.name,
+        type: p.productDetails.type,
         style: p.productDetails.style,
+        fabric: p.productDetails.fabric,
         color: p.productDetails.color,
-        fabricType: p.productDetails.fabricType,
       },
       sizes: p.sizes.map(s => ({
         size: s.size,
-        qty: s.qty  // Use 'qty' not 'quantity' to match PurchaseSchema
+        qty: s.qty
       })),
       productTotalQty: p.sizes.reduce((sum, s) => sum + s.qty, 0),
     }));
 
-    // Create EMPTY purchase (status = "Pending")
+    // Create EMPTY purchase
     const newPurchase = new Purchase({
       order: savedOrder._id,
+      orderId: savedOrder.orderId,
       orderDate: savedOrder.orderDate,
       PoNo: savedOrder.PoNo,
+      purchaseDate: null, 
       orderType: savedOrder.orderType,
       buyerCode: savedOrder.buyerDetails.code,
       orderStatus: "Pending Purchase",
-      products: purchaseProducts,  // Now matches PurchaseSchema structure
+      products: purchaseProducts,
       totalQty: savedOrder.totalQty,
       remarks: `Pending purchase details for ${orderType} order`,
       status: "Pending",
@@ -179,13 +233,26 @@ export const createOrder = async (req, res) => {
       buttonsPurchases: [],
       packetsPurchases: [],
     });
+
     const savedPurchase = await newPurchase.save();
     console.log(`✅ ${orderType} Purchase placeholder created:`, savedPurchase._id);
+    console.log(`✅ Purchase Date set to: ${savedPurchase.purchaseDate}`);
 
     // Link purchase to order
     await Order.findByIdAndUpdate(savedOrder._id, {
       purchase: savedPurchase._id
     });
+
+    try {
+      const pdfResult = await pdfService.generateOrderPDF(savedOrder);
+      savedOrder.pdfUrl = pdfResult.url;
+      savedOrder.pdfPublicId = pdfResult.publicId;
+      await savedOrder.save();
+      console.log("✅ Order PDF generated:", pdfResult.url);
+    } catch (pdfError) {
+      console.error("❌ Order PDF generation failed:", pdfError);
+      // Order is still saved, just without PDF
+    }
 
     // Populate and return
     const populatedOrder = await Order.findById(savedOrder._id)
@@ -197,6 +264,7 @@ export const createOrder = async (req, res) => {
     res.status(201).json(populatedOrder);
   } catch (error) {
     console.error("❌ Error in createOrder:", error.message);
+    console.error("❌ Full error:", error);
     res.status(500).json({
       message: "Error creating order",
       error: error.message
@@ -531,6 +599,94 @@ export const getProductConfiguration = async (req, res) => {
     console.error("❌ Error in getProductConfiguration:", error.message);
     res.status(500).json({
       message: "Error fetching product configuration",
+      error: error.message
+    });
+  }
+};
+
+// Generate/Regenerate Order PDF
+export const generateOrderPDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const order = await Order.findById(id)
+      .populate("buyer", "name code mobile gst email address company")
+      .populate("products.product", "name hsn");
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // Delete existing PDF if any
+    if (order.pdfPublicId) {
+      try {
+        await cloudinaryService.deletePDF(order.pdfPublicId);
+        console.log("✅ Old PDF deleted");
+      } catch (error) {
+        console.error("❌ Failed to delete old PDF:", error);
+      }
+    }
+
+    // Generate new PDF
+    console.log(`📄 Generating PDF for Order: ${order.orderId}`);
+    const pdfResult = await pdfService.generateOrderPDF(order);
+
+    // Update order with PDF details
+    order.pdfUrl = pdfResult.url;
+    order.pdfPublicId = pdfResult.publicId;
+    await order.save();
+
+    console.log("✅ Order PDF generated successfully:", pdfResult.url);
+
+    res.json({
+      message: "Order PDF generated successfully",
+      pdfUrl: pdfResult.url,
+      order: {
+        _id: order._id,
+        orderId: order.orderId,
+        PoNo: order.PoNo,
+        orderType: order.orderType
+      }
+    });
+  } catch (error) {
+    console.error("❌ Error generating Order PDF:", error);
+    res.status(500).json({
+      message: "Error generating Order PDF",
+      error: error.message
+    });
+  }
+};
+
+// Download Order PDF
+export const downloadOrderPDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (!order.pdfUrl) {
+      // Generate PDF on demand
+      const populatedOrder = await Order.findById(id)
+        .populate("buyer", "name code mobile gst email address company")
+        .populate("products.product", "name hsn");
+
+      const pdfResult = await pdfService.generateOrderPDF(populatedOrder);
+      order.pdfUrl = pdfResult.url;
+      order.pdfPublicId = pdfResult.publicId;
+      await order.save();
+
+      console.log("✅ PDF generated on-demand for order:", order.orderId);
+    }
+
+    // Redirect to PDF URL
+    res.redirect(order.pdfUrl);
+  } catch (error) {
+    console.error("❌ Error downloading Order PDF:", error);
+    res.status(500).json({
+      message: "Error downloading Order PDF",
       error: error.message
     });
   }

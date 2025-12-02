@@ -1,409 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { Plus, Trash2, Save, X } from 'lucide-react';
-import { axiosInstance } from '../../lib/axios';
-
-const ItemForm = ({ item, onUpdateItemForm, onRemoveItemForm, onAddItemRow, onRemoveItemRow, onUpdateItemRow }) => {
-  const [supplierSuggestions, setSupplierSuggestions] = useState([]);
-  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
-
-  const handleNumberFocus = (e) => {
-    if (e.target.value === '0') {
-      e.target.value = '';
-    }
-  };
-
-  const searchSuppliers = async (searchTerm) => {
-    if (searchTerm.length < 2) {
-      setSupplierSuggestions([]);
-      setShowSupplierDropdown(false);
-      return;
-    }
-
-    try {
-      const { data } = await axiosInstance.get(`/purchases/search/suppliers?q=${searchTerm}`);
-      const uniqueSuppliers = data.filter(
-        (supplier, index, self) =>
-          index === self.findIndex(
-            (s) =>
-              (s._id && s._id === supplier._id) ||
-              (s.name === supplier.name && s.mobile === supplier.mobile)
-          )
-      );
-      setSupplierSuggestions(uniqueSuppliers);
-      setShowSupplierDropdown(true);
-    } catch (error) {
-      console.error("Error searching suppliers:", error);
-      setSupplierSuggestions([]);
-      setShowSupplierDropdown(false);
-    }
-  };
-
-  const selectSupplier = (supplier) => {
-    onUpdateItemForm(item.id, 'vendor', supplier.name);
-    onUpdateItemForm(item.id, 'supplierId', supplier._id);
-    onUpdateItemForm(item.id, 'vendorCode', supplier.code || '');
-    setShowSupplierDropdown(false);
-    setSupplierSuggestions([]);
-  };
-
-  const calculateRowTotal = (row) => {
-    const quantity = parseFloat(row.quantity) || 0;
-    const cost = parseFloat(row.costPerUnit) || 0;
-    return quantity * cost;
-  };
-
-  const calculateTotalWithGst = (total, gst) => {
-    const gstAmount = total * (gst / 100);
-    return total + gstAmount;
-  };
-
-  const itemGrandTotal = item.items.reduce((sum, row) => sum + calculateRowTotal(row), 0);
-  const itemGrandTotalWithGst = item.items.reduce((sum, row) => {
-    const rowTotal = calculateRowTotal(row);
-    return sum + calculateTotalWithGst(rowTotal, row.gstPercentage || 0);
-  }, 0);
-
-  return (
-    <div className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm hover:shadow-md transition-shadow w-full">
-      {/* Supplier Row */}
-      <div className="flex flex-wrap items-end gap-2 mb-3 pb-3 border-b border-gray-200">
-        <div className="w-32 relative">
-          <label className="text-xs text-gray-500 block mb-1">Supplier</label>
-          <input
-            type="text"
-            value={item.vendor}
-            onChange={(e) => {
-              onUpdateItemForm(item.id, 'vendor', e.target.value);
-              searchSuppliers(e.target.value);
-            }}
-            onBlur={() => setTimeout(() => setShowSupplierDropdown(false), 200)}
-            placeholder="Search supplier"
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
-          />
-          {showSupplierDropdown && supplierSuggestions.length > 0 && (
-            <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto mt-1">
-              {supplierSuggestions.map((supplier, index) => (
-                <div
-                  key={supplier._id || index}
-                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-xs text-gray-700"
-                  onClick={() => selectSupplier(supplier)}
-                >
-                  <div className="font-medium text-gray-700">{supplier.name}</div>
-                  <div className="text-gray-500">{supplier.mobile || supplier.code}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="w-20">
-          <label className="text-xs text-gray-500 block mb-1">Code</label>
-          <input
-            type="text"
-            value={item.vendorCode || ''}
-            onChange={(e) => onUpdateItemForm(item.id, 'vendorCode', e.target.value)}
-            placeholder="Code"
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onAddItemRow(item.id)}
-          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded text-xs font-medium transition-colors h-9 flex items-center gap-1"
-          title="Add Row"
-        >
-          <Plus className="w-3 h-3" />
-          Row
-        </button>
-
-        <div className="ml-auto">
-          <button
-            type="button"
-            onClick={() => onRemoveItemForm(item.id)}
-            className="text-red-500 hover:bg-red-50 rounded-full p-2 transition-colors"
-            title="Remove Item"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Item Rows  */}
-      <div className="space-y-2">
-        {item.items.map((row) => {
-          const rowTotal = calculateRowTotal(row);
-          const rowTotalWithGst = calculateTotalWithGst(rowTotal, row.gstPercentage || 0);
-
-          return (
-            <div key={row.id} className="flex items-end gap-2 flex-nowrap">
-              <div className="w-20">
-                <label className="text-xs text-gray-500 block mb-1">Type</label>
-                <select
-                  value={row.type}
-                  onChange={(e) => onUpdateItemRow(item.id, row.id, 'type', e.target.value)}
-                  className="w-full text-sm border border-gray-300 bg-white text-gray-900 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
-                >
-                  <option value="fabric">Fabric</option>
-                  <option value="accessories">Accessories</option>
-                </select>
-              </div>
-
-              <div className="w-32">
-                <label className="text-xs text-gray-500 block mb-1">Item Name</label>
-                <input
-                  type="text"
-                  value={row.itemName}
-                  onChange={(e) => onUpdateItemRow(item.id, row.id, 'itemName', e.target.value)}
-                  placeholder="Item Name"
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
-                />
-              </div>
-
-              {row.type === 'fabric' && (
-                <div className="w-16">
-                  <label className="text-xs text-gray-500 block mb-1">GSM</label>
-                  <input
-                    type="text"
-                    value={row.gsm || ''}
-                    onChange={(e) => onUpdateItemRow(item.id, row.id, 'gsm', e.target.value)}
-                    placeholder="GSM"
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
-                  />
-                </div>
-              )}
-
-              <div className="w-24">
-                <label className="text-xs text-gray-500 block mb-1">Color</label>
-                <input
-                  type="text"
-                  value={row.color || ''}
-                  onChange={(e) => onUpdateItemRow(item.id, row.id, 'color', e.target.value)}
-                  placeholder="Color"
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
-                />
-              </div>
-
-              <div className="w-20">
-                <label className="text-xs text-gray-500 block mb-1">Unit</label>
-                <select
-                  value={row.purchaseUnit}
-                  onChange={(e) => onUpdateItemRow(item.id, row.id, 'purchaseUnit', e.target.value)}
-                  className="w-full text-xs border border-gray-300 bg-white text-gray-900 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
-                >
-                  {row.type === 'fabric' ? (
-                    <>
-                      <option value="kg">per KG</option>
-                      <option value="meter">per Meter</option>
-                      <option value="piece">per Piece</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="qty">per Qty</option>
-                      <option value="piece">per Piece</option>
-                      <option value="packet">per Packet</option>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              <div className="w-16">
-                <label className="text-xs text-gray-500 block mb-1">
-                  {row.type === 'fabric'
-                    ? (row.purchaseUnit === 'kg' ? 'KG' : row.purchaseUnit === 'meter' ? 'Mtr' : 'Pcs')
-                    : (row.purchaseUnit === 'qty' ? 'Qty' : row.purchaseUnit === 'packet' ? 'Pkts' : 'Pcs')
-                  }
-                </label>
-                <input
-                  type="number"
-                  value={row.quantity || ''}
-                  onFocus={handleNumberFocus}
-                  onChange={(e) => onUpdateItemRow(item.id, row.id, 'quantity', e.target.value)}
-                  placeholder="Qty"
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
-                />
-              </div>
-
-              <div className="w-20">
-                <label className="text-xs text-gray-500 block mb-1">
-                  {row.type === 'fabric'
-                    ? (row.purchaseUnit === 'kg' ? '₹/KG' : row.purchaseUnit === 'meter' ? '₹/Mtr' : '₹/Pc')
-                    : (row.purchaseUnit === 'qty' ? '₹/Qty' : row.purchaseUnit === 'packet' ? '₹/Pkt' : '₹/Pc')
-                  }
-                </label>
-                <input
-                  type="number"
-                  value={row.costPerUnit || ''}
-                  onFocus={handleNumberFocus}
-                  onChange={(e) => onUpdateItemRow(item.id, row.id, 'costPerUnit', e.target.value)}
-                  placeholder="Cost"
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-blue-400 h-9"
-                />
-              </div>
-
-              <div className="w-20">
-                <label className="text-xs text-gray-500 block mb-1">Total</label>
-                <div className="px-2 py-1.5 text-xs bg-green-50 border border-green-200 rounded text-green-700 font-medium text-center h-9 flex items-center justify-center">
-                  ₹{rowTotal.toFixed(2)}
-                </div>
-              </div>
-
-              <div className="w-16">
-                <label className="text-xs text-gray-500 block mb-1">GST</label>
-                <select
-                  value={row.gstPercentage || ''}
-                  onChange={(e) => onUpdateItemRow(item.id, row.id, 'gstPercentage', parseFloat(e.target.value) || 0)}
-                  className="w-full text-xs border border-gray-300 bg-white text-gray-900 rounded px-1 py-1.5 focus:ring-1 focus:ring-blue-400 h-9"
-                >
-                  <option value="">Select</option>
-                  <option value="5">5%</option>
-                  <option value="14">14%</option>
-                  <option value="18">18%</option>
-                </select>
-              </div>
-
-              <div className="w-20">
-                <label className="text-xs text-gray-500 block mb-1">Total + GST</label>
-                <div className="px-2 py-1.5 text-xs bg-purple-50 border border-purple-200 rounded text-purple-700 font-medium text-center h-9 flex items-center justify-center">
-                  ₹{rowTotalWithGst.toFixed(2)}
-                </div>
-              </div>
-
-              {item.items.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => onRemoveItemRow(item.id, row.id)}
-                  className="ml-1 text-red-400 hover:text-red-600 p-2 transition-colors h-9"
-                  title="Remove Row"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Item Grand Total */}
-      {item.items.length > 1 && (
-        <div className="mt-3 pt-3 border-t border-gray-200 flex justify-end gap-4">
-          <div className="text-sm">
-            <span className="text-gray-600">Item Total: </span>
-            <span className="font-bold text-green-600">₹{itemGrandTotal.toFixed(2)}</span>
-          </div>
-          <div className="text-sm">
-            <span className="text-gray-600">With GST: </span>
-            <span className="font-bold text-purple-600">₹{itemGrandTotalWithGst.toFixed(2)}</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const PurchaseItemsSection = ({ purchaseItems, setPurchaseItems }) => {
-  const createNewItemRow = () => ({
-    id: Date.now() + Math.random(),
-    type: 'fabric',
-    itemName: '',
-    gsm: '',
-    color: '',
-    purchaseUnit: 'kg',
-    quantity: '',
-    costPerUnit: '',
-    gstPercentage: 0
-  });
-
-  const createNewItemForm = () => ({
-    id: Date.now(),
-    vendor: '',
-    vendorCode: '',
-    supplierId: '',
-    items: [createNewItemRow()]
-  });
-
-  const addNewItemForm = () => {
-    setPurchaseItems([...purchaseItems, createNewItemForm()]);
-  };
-
-  const updateItemForm = (id, field, value) => {
-    setPurchaseItems(prevItems => prevItems.map(item =>
-      item.id === id ? { ...item, [field]: value } : item
-    ));
-  };
-
-  const removeItemForm = (itemId) => {
-    setPurchaseItems(prevItems => prevItems.filter(item => item.id !== itemId));
-  };
-
-  const addItemRow = (itemId) => {
-    setPurchaseItems(prevItems => prevItems.map(item =>
-      item.id === itemId
-        ? { ...item, items: [...item.items, createNewItemRow()] }
-        : item
-    ));
-  };
-
-  const removeItemRow = (itemId, rowId) => {
-    setPurchaseItems(prevItems => prevItems.map(item =>
-      item.id === itemId
-        ? { ...item, items: item.items.filter(row => row.id !== rowId) }
-        : item
-    ));
-  };
-
-  const updateItemRow = (itemId, rowId, field, value) => {
-    setPurchaseItems(prevItems => prevItems.map(item =>
-      item.id === itemId
-        ? {
-          ...item,
-          items: item.items.map(row =>
-            row.id === rowId ? { ...row, [field]: value } : row
-          )
-        }
-        : item
-    ));
-  };
-
-  useEffect(() => {
-  if (purchaseItems.length === 0) {
-    setPurchaseItems([createNewItemForm()]);
-  }
-}, []);
-
-
-  return (
-    <div className="space-y-3 w-full p-2">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-800">Purchase Items</h3>
-        <button
-          type="button"
-          onClick={addNewItemForm}
-          className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors font-medium shadow-sm"
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          Add Item
-        </button>
-      </div>
-
-      {purchaseItems.length > 0 && (
-        <div className="space-y-4">
-          {purchaseItems.map((item) => (
-            <ItemForm
-              key={item.id}
-              item={item}
-              onUpdateItemForm={updateItemForm}
-              onRemoveItemForm={removeItemForm}
-              onAddItemRow={addItemRow}
-              onRemoveItemRow={removeItemRow}
-              onUpdateItemRow={updateItemRow}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+import PurchaseItemsSection from './PurchaseItemsSection';
+import OrderDetailsWithMeters from './OrderDetailsWithMeters';
 
 const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMode }) => {
   const [formData, setFormData] = useState({
@@ -415,17 +13,20 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
     orderStatus: '',
     products: [],
     totalQty: 0,
+    purchaseDate: '', // Purchase Date field
     remarks: '',
     ...initialValues
   });
 
   const [purchaseItems, setPurchaseItems] = useState([]);
   const [grandTotal, setGrandTotal] = useState(0);
+  const [PESNo, setPESNo] = useState('N/A');
+  const [estimationDate, setEstimationDate] = useState(null);
 
   useEffect(() => {
     if (initialValues && Object.keys(initialValues).length > 0) {
       setFormData({
-        orderId: initialValues.order?._id || initialValues.orderId || '',
+        orderId: initialValues.orderId || initialValues.order?.orderId || '',
         orderDate: initialValues.orderDate || '',
         PoNo: initialValues.PoNo || '',
         orderType: initialValues.orderType || '',
@@ -433,8 +34,14 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
         orderStatus: initialValues.status || initialValues.orderStatus || '',
         products: initialValues.products || [],
         totalQty: initialValues.totalQty || 0,
+        purchaseDate: initialValues.purchaseDate
+          ? new Date(initialValues.purchaseDate).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0], // Default to today
         remarks: initialValues.remarks || '',
       });
+
+      setPESNo(initialValues.PESNo || 'N/A');
+      setEstimationDate(initialValues.estimationDate || null);
     }
   }, [initialValues]);
 
@@ -451,8 +58,7 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
 
   const handleSubmit = () => {
     const fabricPurchases = [];
-    const buttonsPurchases = [];
-    const packetsPurchases = [];
+    const accessoriesPurchases = [];  // ✅ Single array for all accessories
 
     purchaseItems.forEach(item => {
       item.items.forEach(row => {
@@ -479,25 +85,24 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
           purchaseData.gsm = row.gsm;
           purchaseData.colors = [row.color];
           fabricPurchases.push(purchaseData);
-        } else if (row.purchaseUnit === 'packet') {
-          purchaseData.packetType = 'Standard';
-          packetsPurchases.push(purchaseData);
-        } else {
-          purchaseData.buttonType = 'Standard';
-          purchaseData.color = row.color;
-          buttonsPurchases.push(purchaseData);
+        } else if (row.type === 'accessories') {
+          // ✅ Determine accessory type based on purchase unit
+          purchaseData.accessoryType = row.purchaseUnit === 'packet' ? 'packets' : 'buttons';
+          purchaseData.size = 'Standard';
+          purchaseData.color = row.color || '';
+          accessoriesPurchases.push(purchaseData);  // ✅ Add to accessoriesPurchases
         }
       });
     });
 
     const submitData = {
-      ...formData,
+      orderId: formData.orderId,
+      purchaseDate: formData.purchaseDate || new Date().toISOString(),
       fabricPurchases,
-      buttonsPurchases,
-      packetsPurchases,
-      grandTotalCost: grandTotal
+      accessoriesPurchases,  // ✅ Send this instead of buttonsPurchases/packetsPurchases
+      remarks: formData.remarks,
     };
-
+    console.log("📤 Submitting purchase data:", submitData);  // For debugging
     onSubmit(submitData);
   };
 
@@ -525,95 +130,31 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
         </div>
 
         {/* Order Details (Read-only) */}
-        <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-3 shadow-sm">
-          {/* Order Info Row */}
-          <div className="grid grid-cols-5 gap-3">
-            <div>
-              <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Order Date</label>
-              <div className="text-xs font-medium text-gray-900">
-                {formData.orderDate ? new Date(formData.orderDate).toLocaleDateString('en-IN') : '-'}
-              </div>
-            </div>
-            <div>
-              <label className="block text-[10px] font-medium text-gray-600 mb-0.5">PO Number</label>
-              <div className="text-xs font-bold text-gray-900">{formData.PoNo || '-'}</div>
-            </div>
-            <div>
-              <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Order Type</label>
-              <div className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${formData.orderType === 'JOB-Works'
-                ? 'bg-purple-100 text-purple-800'
-                : 'bg-blue-100 text-blue-800'
-                }`}>
-                {formData.orderType || '-'}
-              </div>
-            </div>
-            <div>
-              <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Buyer Code</label>
-              <div className="text-xs font-medium text-gray-900">{formData.buyerCode || '-'}</div>
-            </div>
-            <div>
-              <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Status</label>
-              <div className="text-xs font-medium text-gray-900">{formData.orderStatus || '-'}</div>
-            </div>
-          </div>
+        <OrderDetailsWithMeters
+          selectedOrder={{
+            orderId: formData.orderId,
+            orderDate: formData.orderDate,
+            PoNo: formData.PoNo,
+            orderType: formData.orderType,
+            buyerCode: formData.buyerCode,
+            buyerDetails: { code: formData.buyerCode },
+            status: formData.orderStatus,
+            products: formData.products || []
+          }}
+          showEstimationFields={true}
+          PESNo={PESNo}
+          estimationDate={estimationDate}
+        />
 
-          {/* Products Details Section */}
-          {formData.products && formData.products.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-gray-300">
-              {/* Product Labels - Single Row */}
-              <div className="grid gap-3 mb-1.5" style={{ gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr' }}>
-                <label className="text-[10px] font-medium text-gray-600">Product</label>
-                <label className="text-[10px] font-medium text-gray-600">Fabric</label>
-                <label className="text-[10px] font-medium text-gray-600">Style</label>
-                <label className="text-[10px] font-medium text-gray-600">Color</label>
-                <label className="text-[10px] font-medium text-gray-600">Size & Qty</label>
-                <label className="text-[10px] font-medium text-gray-600 text-center">Total Qty</label>
-              </div>
-
-              {/* Product Data Rows */}
-              {formData.products.map((prod, idx) => {
-                const productTotal = prod.sizes?.reduce((sum, s) => sum + (s.qty || 0), 0) || 0;
-                const sizeQtyPairs = prod.sizes?.map(s => `${s.size}:${s.qty}`) || [];
-                return (
-                  <div
-                    key={idx}
-                    className={`grid gap-3 py-1.5 ${idx > 0 ? 'border-t border-gray-200' : ''}`}
-                    style={{ gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr' }}
-                  >
-                    <div className="text-[10px] font-semibold text-gray-900 break-words leading-tight">
-                      {prod.productDetails?.name || '-'}
-                    </div>
-                    <div className="text-[10px] text-gray-800 break-words leading-tight">
-                      {prod.productDetails?.fabricType || '-'}
-                    </div>
-                    <div className="text-[10px] text-gray-800 break-words leading-tight">
-                      {prod.productDetails?.style || '-'}
-                    </div>
-                    <div className="text-[10px] text-gray-800 break-words leading-tight">
-                      {prod.productDetails?.color || '-'}
-                    </div>
-                    <div className="text-[10px] text-gray-800 font-mono leading-tight">
-                      {sizeQtyPairs.length > 0 ? (
-                        <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-                          {sizeQtyPairs.map((pair, i) => (
-                            <span key={i} className="whitespace-nowrap">{pair}{i < sizeQtyPairs.length - 1 ? ',' : ''}</span>
-                          ))}
-                        </div>
-                      ) : '-'}
-                    </div>
-                    <div className="text-[10px] font-bold text-blue-600 text-center">
-                      {productTotal}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
+        {/* Purchase Items Section with Date Field */}
         <PurchaseItemsSection
           purchaseItems={purchaseItems}
           setPurchaseItems={setPurchaseItems}
+          showStateField={false}
+          showGstTypeToggle={false}
+          showPurchaseDate={true}
+          purchaseDate={formData.purchaseDate}
+          onPurchaseDateChange={(date) => setFormData({ ...formData, purchaseDate: date })}
         />
 
         {/* General Remarks and Grand Total */}

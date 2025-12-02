@@ -131,6 +131,16 @@ export default function Production() {
   };
 
   const columns = [
+     {
+      key: "serialNo",
+      label: "No.",
+      width: "3%",
+      render: (o) => (
+        <div className="font-mono text-[10px] font-semibold text-gray-700">
+          {o.serialNo || "-"}
+        </div>
+      )
+    },
     {
       key: "orderDate",
       label: "Date",

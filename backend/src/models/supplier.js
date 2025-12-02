@@ -1,8 +1,20 @@
 import mongoose from "mongoose";
 
 const SupplierSchema = new mongoose.Schema({
+  // Basic Information
   name: { type: String, required: true, trim: true },
   code: { type: String, unique: true, uppercase: true },
+  company: { type: String, trim: true },
+  companyType: { 
+    type: String, 
+    enum: ["Proprietorship", "Partnership", "Private Limited", "Public Limited", "LLP", ""],
+    default: ""
+  },
+  industryType: { type: String, trim: true },
+  industrySector: { type: String, trim: true },
+  gst: { type: String, trim: true, uppercase: true },
+
+  // Contact Information
   mobile: { 
     type: String, 
     required: true, 
@@ -14,37 +26,101 @@ const SupplierSchema = new mongoose.Schema({
       message: props => `${props.value} is not a valid 10-digit mobile number!`
     }
   },
-  gst: { type: String, trim: true, uppercase: true },
+  alternateMobile: { type: String, trim: true },
+  landline: { type: String, trim: true },
   email: { 
     type: String, 
     trim: true, 
     lowercase: true,
     validate: {
       validator: function(v) {
-        return !v || /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(v);
+        return !v || /^[\w.-]+@[\w.-]+\.[A-Za-z]{2,}$/.test(v);
       },
       message: props => `${props.value} is not a valid email!`
     }
   },
-  address: { type: String, trim: true },
-  company: { type: String, trim: true },
-  
-  vendorGoods: {
-    type: {
-      category: {
-        type: String,
-        enum: ["Fabrics", "Accessories"],
-        required: true
+  alternateEmail: { 
+    type: String, 
+    trim: true, 
+    lowercase: true,
+    validate: {
+      validator: function(v) {
+        return !v || /^[\w.-]+@[\w.-]+\.[A-Za-z]{2,}$/.test(v);
       },
-      details: { 
-        type: String,
-        trim: true
-      }
+      message: props => `${props.value} is not a valid email!`
+    }
+  },
+  website: { type: String, trim: true },
+
+  // Address Details
+  doorNoStreet: { type: String, trim: true },
+  city: { type: String, trim: true },
+  state: { type: String, trim: true },
+  pincode: { 
+    type: String, 
+    trim: true,
+    validate: {
+      validator: function(v) {
+        return !v || /^\d{6}$/.test(v);
+      },
+      message: props => `${props.value} is not a valid 6-digit pincode!`
+    }
+  },
+  country: { type: String, trim: true, default: "India" },
+  address: { type: String, trim: true }, 
+
+  // Point of Contact
+  pocName: { type: String, trim: true },
+  pocEmail: { 
+    type: String, 
+    trim: true, 
+    lowercase: true,
+    validate: {
+      validator: function(v) {
+        return !v || /^[\w.-]+@[\w.-]+\.[A-Za-z]{2,}$/.test(v);
+      },
+      message: props => `${props.value} is not a valid email!`
+    }
+  },
+  pocContactEmail: { 
+    type: String, 
+    trim: true, 
+    lowercase: true,
+    validate: {
+      validator: function(v) {
+        return !v || /^[\w.-]+@[\w.-]+\.[A-Za-z]{2,}$/.test(v);
+      },
+      message: props => `${props.value} is not a valid email!`
+    }
+  },
+  pocDesignation: { type: String, trim: true },
+
+  // Business Details
+  paymentType: { 
+    type: String, 
+    enum: ["Cash", "Credit", "Bank Transfer", "Cheque", "UPI", ""],
+    default: ""
+  },
+  totalRequirements: { type: Number, default: 0 },
+  
+  // Vendor Goods
+  vendorGoods: {
+    category: {
+      type: String,
+      enum: ["Fabrics", "Accessories"],
+      required: true
     },
-    required: true
+    accessoryName: { 
+      type: String,
+      trim: true
+    }
   },
 
+  // Others
+  remarks: { type: String, trim: true },
   isActive: { type: Boolean, default: true },
+
+  // Relationship tracking
   totalPurchases: { type: Number, default: 0 },
   totalPurchaseValue: { type: Number, default: 0 },
   lastPurchaseDate: { type: Date },
@@ -57,6 +133,9 @@ SupplierSchema.index({ name: 1 });
 SupplierSchema.index({ mobile: 1 });
 SupplierSchema.index({ gst: 1 });
 SupplierSchema.index({ isActive: 1 });
+SupplierSchema.index({ city: 1 });
+SupplierSchema.index({ state: 1 });
+SupplierSchema.index({ "vendorGoods.category": 1 });
 
 // Pre-save middleware to format name
 SupplierSchema.pre("save", function (next) {
@@ -104,7 +183,7 @@ SupplierSchema.statics.searchByName = function (searchTerm) {
         ]
       }
     ]
-  }).select('name code').limit(10);
+  }).select('name code mobile gst email company city state vendorGoods').limit(10);
 };
 
-export default mongoose.model("Supplier", SupplierSchema);
+export default mongoose.model("Supplier", SupplierSchema)

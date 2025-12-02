@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { Plus, Edit, Trash2, Package } from "lucide-react";
 import { axiosInstance } from "../../../lib/axios";
+import SupplierForm from "./SupplierForm";
 
 // Supplier API with axiosInstance
 const supplierApi = {
@@ -21,286 +22,6 @@ const supplierApi = {
     return data;
   }
 };
-
-function SupplierForm({ onSubmit, onClose, initialValues = {} }) {
-  const [formData, setFormData] = useState({
-    name: "",
-    code: "",
-    mobile: "",
-    gst: "",
-    email: "",
-    address: "",
-    company: "",
-    vendorCategory: "Fabrics",
-    accessoryName: "",
-    isActive: true
-  });
-
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
-
-  useEffect(() => {
-    if (initialValues && Object.keys(initialValues).length > 0) {
-      setFormData({
-        name: initialValues.name || "",
-        code: initialValues.code || "",
-        mobile: initialValues.mobile || "",
-        gst: initialValues.gst || "",
-        email: initialValues.email || "",
-        address: initialValues.address || "",
-        company: initialValues.company || "",
-        contactPerson: initialValues.contactPerson || "",
-        alternatePhone: initialValues.alternatePhone || "",
-        businessType: initialValues.businessType || "",
-        paymentTerms: initialValues.paymentTerms || "",
-        creditLimit: initialValues.creditLimit || 0,
-        isActive: initialValues.isActive !== undefined ? initialValues.isActive : true
-      });
-    }
-  }, [initialValues]);
-
-  const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = "Supplier name is required";
-    }
-
-    if (!formData.mobile.trim()) {
-      newErrors.mobile = "Mobile number is required";
-    } else if (!/^\d{10}$/.test(formData.mobile.trim())) {
-      newErrors.mobile = "Mobile number must be 10 digits";
-    }
-
-    if (formData.email && !/^[\w.-]+@[\w.-]+\.[A-Za-z]{2,}$/.test(formData.email)) {
-      newErrors.email = "Invalid email format";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-
-    setLoading(true);
-    try {
-      const payload = {
-        ...formData,
-        vendorGoods: {
-          category: formData.vendorCategory,
-          accessoryName: formData.vendorCategory === "Accessories" ? formData.accessoryName : ""
-        }
-      };
-
-      await onSubmit(payload);
-    } catch (error) {
-      console.error("Error submitting supplier:", error);
-      alert(`Failed to save supplier: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-3">
-      <div className="max-w-5xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4">
-          <div className="text-center mb-3">
-            <h1 className="text-xl font-bold text-gray-800">
-              {initialValues._id ? "Edit Supplier" : "Create New Supplier"}
-            </h1>
-          </div>
-
-          {/* Basic Information */}
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <div className="w-1 h-4 bg-blue-500 rounded mr-2"></div>
-              Basic Information
-            </h3>
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Supplier Name*
-                </label>
-                <input
-                  placeholder="Enter supplier name"
-                  className={`w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 ${errors.name
-                    ? 'border-red-500 focus:ring-red-400'
-                    : 'border-gray-300 focus:ring-blue-400'
-                    }`}
-                  value={formData.name}
-                  onChange={(e) => handleChange('name', e.target.value)}
-                />
-                {errors.name && (
-                  <p className="text-xs text-red-500 mt-0.5">{errors.name}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Supplier Code
-                </label>
-                <input
-                  placeholder="Auto-generated if empty"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                  value={formData.code}
-                  onChange={(e) => handleChange('code', e.target.value.toUpperCase())}
-                />
-                <p className="text-xs text-gray-500 mt-0.5">Leave empty for auto-code</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Mobile*
-                </label>
-                <input
-                  placeholder="10-digit number"
-                  className={`w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 ${errors.mobile
-                    ? 'border-red-500 focus:ring-red-400'
-                    : 'border-gray-300 focus:ring-blue-400'
-                    }`}
-                  value={formData.mobile}
-                  onChange={(e) => handleChange('mobile', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                />
-                {errors.mobile && (
-                  <p className="text-xs text-red-500 mt-0.5">{errors.mobile}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Contact Details */}
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-              <div className="w-1 h-4 bg-green-500 rounded mr-2"></div>
-              Contact Details
-            </h3>
-            <div className="grid grid-cols-3 gap-2 mb-2">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  placeholder="email@example.com"
-                  className={`w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 ${errors.email
-                    ? 'border-red-500 focus:ring-red-400'
-                    : 'border-gray-300 focus:ring-green-400'
-                    }`}
-                  value={formData.email}
-                  onChange={(e) => handleChange('email', e.target.value.toLowerCase())}
-                />
-                {errors.email && (
-                  <p className="text-xs text-red-500 mt-0.5">{errors.email}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  GST Number
-                </label>
-                <input
-                  placeholder="GST number"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
-                  value={formData.gst}
-                  onChange={(e) => handleChange('gst', e.target.value.toUpperCase())}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Contact Person
-                </label>
-                <input
-                  placeholder="Contact person name"
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
-                  value={formData.contactPerson}
-                  onChange={(e) => handleChange('contactPerson', e.target.value)}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                Address
-              </label>
-              <textarea
-                placeholder="Complete address"
-                rows="2"
-                className="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
-                value={formData.address}
-                onChange={(e) => handleChange('address', e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="mt-3">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Vendor Goods
-            </label>
-            <div className="flex gap-2">
-              <select
-                className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
-                value={formData.vendorCategory}
-                onChange={(e) => handleChange('vendorCategory', e.target.value)}
-              >
-                <option value="Fabrics">Fabrics</option>
-                <option value="Accessories">Accessories</option>
-              </select>
-
-              {formData.vendorCategory === "Accessories" && (
-                <input
-                  placeholder="Enter accessory name (e.g. buttons, packets)"
-                  className="w-1/2 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
-                  value={formData.accessoryName}
-                  onChange={(e) => handleChange('accessoryName', e.target.value)}
-                />
-              )}
-            </div>
-          </div>
-
-
-          {/* Status */}
-          <div className="mb-4">
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={formData.isActive}
-                onChange={(e) => handleChange('isActive', e.target.checked)}
-                className="rounded"
-              />
-              <span className="font-medium">Active Supplier</span>
-            </label>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={loading}
-              className="bg-gray-500 hover:bg-gray-600 text-white rounded px-4 py-1.5 text-xs font-medium disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-1.5 text-xs font-medium disabled:opacity-50"
-            >
-              {loading ? "Saving..." : initialValues._id ? "Update Supplier" : "Create Supplier"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function DataTable({ columns, data, actions }) {
   return (
@@ -427,6 +148,16 @@ export default function Suppliers() {
 
   const columns = [
     {
+      key: "serialNo",
+      label: "S.No",
+      width: "20px",
+      render: (s) => (
+        <span className="font-mono text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+          {s.serialNo || "—"}
+        </span>
+      ),
+    },
+    {
       key: "name",
       label: "Supplier Name",
       width: "180px",
@@ -474,7 +205,17 @@ export default function Suppliers() {
       width: "120px",
       render: (s) => (
         <div className="font-mono text-xs text-gray-700" title={s.gst}>
-          {s.gst ? truncate(s.gst, 15) : "—"}
+          {s.gst ? truncate(s.gst, 25) : "—"}
+        </div>
+      )
+    },
+    {
+      key: "location",
+      label: "Location",
+      width: "120px",
+      render: (s) => (
+        <div className="text-xs text-gray-700">
+          {s.city && s.state ? `${s.city}, ${s.state}` : s.city || s.state || "—"}
         </div>
       )
     },

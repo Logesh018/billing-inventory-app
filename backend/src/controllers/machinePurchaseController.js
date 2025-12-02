@@ -104,7 +104,7 @@ export const getAllMachinePurchases = async (req, res) => {
     });
 
     console.log(`📦 Returning ${flattenedMachines.length} flattened machine items`);
-    console.log("📦 First item:", flattenedMachines[0]);
+    // console.log("📦 First item:", flattenedMachines[0]);
 
     // Return flattened array directly in 'data' property
     return res.status(200).json({

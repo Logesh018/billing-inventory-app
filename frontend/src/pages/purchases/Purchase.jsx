@@ -7,7 +7,38 @@ import { Plus, Edit, Trash2, ShoppingCart } from "lucide-react";
 import { getMachinePurchases, createMachinePurchase, deleteMachinePurchase } from "../../api/machinePurchaseApi";
 import MachinePurchasesTable from "./MachinePurchasesTable";
 import MachinePurchaseForm from "./MachinePurchaseForm";
-import { showSuccess, showError, showWarning, showConfirm, showLoading, dismissAndSuccess, dismissAndError } from "../../utils/toast"
+import { useFormNavigation } from "../../utils/FormExitModal";
+import { showSuccess, showError, showWarning, showConfirm, showLoading, dismissAndSuccess, dismissAndError } from "../../utils/toast";
+
+// Helper function to render product details cleanly
+const renderProductDetails = (products, key, isArray = false) => {
+  if (!products || products.length === 0)
+    return <span className="text-gray-400 text-[9px]">—</span>;
+
+  return (
+    <div className="space-y-1.5">
+      {products.map((p, i) => {
+        let value = p.productDetails?.[key];
+
+        // Handle array fields like 'type' or 'style'
+        if (isArray) {
+          value = Array.isArray(value) ? value.join(", ") : value || "—";
+        } else {
+          value = value || "—";
+        }
+
+        return (
+          <div
+            key={i}
+            className="px-1 py-0 border border-gray-200 rounded text-[8px] font-semibold leading-tight break-words min-h-[20px] flex items-center justify-center"
+          >
+            {value}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 export default function Purchase() {
   const { user, hasAccess } = useAuth();
@@ -21,6 +52,7 @@ export default function Purchase() {
   const [machinePurchases, setMachinePurchases] = useState([]);
   const [showMachineForm, setShowMachineForm] = useState(false);
   const [editMachine, setEditMachine] = useState(null);
+  const { setIsFormOpen, registerFormClose, unregisterFormClose } = useFormNavigation();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -30,6 +62,27 @@ export default function Purchase() {
     fetchPurchases();
     fetchMachinePurchases();
   }, [hasAccess]);
+
+  useEffect(() => {
+    const isAnyFormOpen = showForm || showMachineForm;
+
+    if (isAnyFormOpen) {
+      setIsFormOpen(true);
+      registerFormClose(() => {
+        setShowForm(false);
+        setEditPurchase(null);
+        setSelectedOrder(null);
+        setShowMachineForm(false);
+        setEditMachine(null);
+      });
+    } else {
+      setIsFormOpen(false);
+      unregisterFormClose();
+    }
+    return () => {
+      unregisterFormClose();
+    };
+  }, [showForm, showMachineForm, setIsFormOpen, registerFormClose, unregisterFormClose]);
 
   const fetchPurchases = async () => {
     try {
@@ -107,73 +160,54 @@ export default function Purchase() {
   };
 
   const handleFormSubmit = async (data) => {
-    if (isSubmitting) {
-      console.log("⚠️ Already submitting, ignoring duplicate request");
-      return;
-    }
+    if (isSubmitting) return;
 
     try {
       setIsSubmitting(true);
 
       const hasPurchaseItems =
         (data.fabricPurchases && data.fabricPurchases.length > 0) ||
-        (data.buttonsPurchases && data.buttonsPurchases.length > 0) ||
-        (data.packetsPurchases && data.packetsPurchases.length > 0);
+        (data.accessoriesPurchases && data.accessoriesPurchases.length > 0);
 
       if (!hasPurchaseItems) {
-        showWarning("Please add at least one purchase item (fabric, buttons, or packets)");
+        showWarning("Please add at least one purchase item");
         return;
       }
 
       const payload = {
         orderId: data.orderId,
+        purchaseDate: data.purchaseDate,
         fabricPurchases: data.fabricPurchases || [],
-        buttonsPurchases: data.buttonsPurchases || [],
-        packetsPurchases: data.packetsPurchases || [],
+        accessoriesPurchases: data.accessoriesPurchases || [],
         remarks: data.remarks,
       };
 
       console.log("📤 Submitting purchase payload:", payload);
 
       if (editPurchase && editPurchase._id) {
-        console.log("📝 Updating existing purchase:", editPurchase._id);
+        // Explicit update
         await updatePurchase(editPurchase._id, payload);
-      } else if (selectedOrder && selectedOrder._id) {
-        try {
-          const existingPurchaseResponse = await getPurchases();
-          const existingPurchase = existingPurchaseResponse.data.find(
-            p => p.order?._id === selectedOrder.orderId || p.order === selectedOrder.orderId
-          );
-
-          if (existingPurchase) {
-            console.log("📝 Found existing purchase, updating:", existingPurchase._id);
-            await updatePurchase(existingPurchase._id, payload);
-          } else {
-            console.log("📝 No existing purchase found, creating new one");
-            await createPurchase(payload);
-          }
-        } catch (error) {
-          console.error("Error finding existing purchase:", error);
-          throw error;
-        }
+        showSuccess("Purchase updated successfully!");
       } else {
-        console.log("📝 Creating new purchase (fallback)");
-        await createPurchase(payload);
+        // Let backend decide: create new or update existing
+        const response = await createPurchase(payload);
+
+        if (response.data.wasUpdated) {
+          showSuccess("Existing purchase updated successfully!");
+        } else {
+          showSuccess("Purchase created successfully!");
+        }
       }
 
       setShowForm(false);
       setEditPurchase(null);
       setSelectedOrder(null);
+      setIsFormOpen(false);
       await fetchPurchases();
-      showSuccess(editPurchase ? "Purchase updated successfully!" : "Purchase created successfully!");
+
     } catch (error) {
       console.error("Error saving purchase:", error);
-
-      if (error.response?.status === 400 && error.response?.data?.message?.includes("already exists")) {
-        showError("This order already has a purchase. The form has been populated with existing data. Please update the values and try again.");
-      } else {
-        showError(`Failed to save purchase: ${error.response?.data?.message || error.message}`);
-      }
+      showError(`Failed to save purchase: ${error.response?.data?.message || error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -207,7 +241,7 @@ export default function Purchase() {
       } else {
         setSelectedOrder({
           _id: purchase._id,
-          orderId: purchase.order?._id || purchase._id,
+          orderId: purchase.orderId,  // ✅ FIXED: Use purchase.orderId directly
           orderDate: purchase.orderDate,
           PoNo: purchase.PoNo,
           orderType: purchase.orderType,
@@ -237,12 +271,32 @@ export default function Purchase() {
 
   const columns = [
     {
-      key: "orderDate",
-      label: "Date",
+      key: "serialNo",
+      label: "S.NO",
+      width: "3%",
+      render: (p) => (
+        <div className="font-mono text-[9px] font-semibold text-gray-700">
+          {p.serialNo || "—"}
+        </div>
+      )
+    },
+    {
+      key: "PURNo",
+      label: "PUR ID",
       width: "5%",
       render: (p) => (
-        <div className="text-[10px] leading-tight">
-          {p.orderDate ? new Date(p.orderDate).toLocaleDateString('en-IN', {
+        <div className="font-medium text-[9px] leading-tight break-words">
+          <div className="text-gray-800 font-semibold text-[9px] mt-0.5">{p.PURNo || "—"}</div>
+        </div>
+      )
+    },
+    {
+      key: "purchaseDate",
+      label: "P DATE",
+      width: "5%",
+      render: (p) => (
+        <div className="text-[9px] font-semibold leading-tight">
+          {p.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString('en-IN', {
             day: '2-digit',
             month: '2-digit',
             year: '2-digit'
@@ -251,37 +305,39 @@ export default function Purchase() {
       )
     },
     {
-      key: "PURNo",
-      label: "PUR",
-      width: "5%",
-      render: (p) => <span className="font-medium text-[10px]">{p.PURNo || "—"}</span>
-    },
-    {
-      key: "PoNo",
-      label: "PO No",
-      width: "8%",
+      key: "orderId",
+      label: "ODR ID",
+      width: "6%",
       render: (p) => (
-        <div className="font-medium text-[10px] leading-tight break-words">
-          {p.PoNo || "—"}
+        <div className="font-medium text-[9px] leading-tight break-words">
+          <div className="text-gray-800 font-semibold text-[9px] mt-0.5">{p.order?.orderId || p.orderId || "—"}</div>
         </div>
       )
     },
     {
-      key: "buyerCode",
-      label: "Buyer",
+      key: "orderDate",
+      label: "O DATE",
       width: "5%",
       render: (p) => (
-        <div className="text-[10px] leading-tight break-words">
-          {p.buyerCode || "—"}
+        <div className="text-[9px] font-semibold leading-tight">
+          {p.order?.orderDate ? new Date(p.order.orderDate).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit'
+          }) : p.orderDate ? new Date(p.orderDate).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit'
+          }) : "—"}
         </div>
       )
     },
     {
       key: "orderType",
-      label: "Type",
-      width: "4%",
+      label: "O Type",
+      width: "5%",
       render: (p) => (
-        <span className={`px-1 py-0.5 rounded text-[8px] font-medium inline-block ${p.orderType === "JOB-Works"
+        <span className={`px-1 py-0.5 rounded text-[9px] font-medium inline-block ${p.orderType === "JOB-Works"
           ? "bg-purple-100 text-purple-700"
           : p.orderType === "Own-Orders"
             ? "bg-teal-100 text-teal-700"
@@ -292,9 +348,123 @@ export default function Purchase() {
       )
     },
     {
-      key: "status",
-      label: "Status",
+      key: "buyerId",
+      label: "BUYER ID",
+      width: "6%",
+      render: (p) => (
+        <div className="text-[9px] leading-tight break-words">
+          <div className="font-semibold text-gray-800">{p.order?.buyerDetails?.code || p.buyerCode || "—"}</div>
+        </div>
+      )
+    },
+    {
+      key: "estimationId",
+      label: "EST ID",
+      width: "6%",
+      render: (p) => (
+        <div className="font-medium text-[9px] leading-tight break-words">
+          <div className="text-gray-800 font-semibold text-[9px] mt-0.5">
+            {p.PESNo || "—"}
+          </div>
+        </div>
+      )
+    },
+    {
+      key: "estimationDate",
+      label: "EST DATE",
+      width: "6%",
+      render: (p) => (
+        <div className="text-[9px] font-semibold leading-tight">
+          {p.estimationDate ? new Date(p.estimationDate).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit'
+          }) : "—"}
+        </div>
+      )
+    },
+    {
+      key: "products",
+      label: "PRODUCT",
+      width: "12%",
+      render: (p) => renderProductDetails(p.products || p.order?.products, 'name'),
+    },
+    {
+      key: "fabric",
+      label: "FABRIC",
+      width: "8%",
+      render: (p) => renderProductDetails(p.products || p.order?.products, 'fabric'), // Changed from 'fabricType'
+    },
+    {
+      key: "color",
+      label: "COLOR",
+      width: "6%",
+      render: (p) => renderProductDetails(p.products || p.order?.products, 'color'),
+    },
+    {
+      key: "sizeQty",
+      label: "Size & Qty",
+      width: "15%",
+      render: (p) => {
+        const products = p.products || p.order?.products;
+        if (!products || products.length === 0)
+          return <span className="text-gray-800 text-[9px]">—</span>;
+
+        return (
+          <div className="space-y-1.5">
+            {products.map((product, i) => (
+              <div
+                key={i}
+                className="px-0.5 py-1 border border-gray-200 rounded text-gray-800 font-mono text-[8px] leading-tight break-words min-h-[15px] flex items-center"
+              >
+                {product.sizes?.map((s) => `${s.size}:${s.qty}`).join(", ") || "—"}
+              </div>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      key: "totalQty",
+      label: "TOTAL",
       width: "5%",
+      render: (p) => {
+        const products = p.products || p.order?.products;
+        if (!products || products.length === 0) {
+          return (
+            <div className="flex flex-col justify-end">
+              <span className="font-extrabold text-green-600 text-[10px] bg-green-50 p-1 rounded-sm text-center mt-auto">
+                {p.totalQty || p.order?.totalQty || 0}
+              </span>
+            </div>
+          );
+        }
+        return (
+          <div className="flex flex-col">
+            <div className="space-y-2 mt-1 mb-1">
+              {products.map((prod, i) => {
+                const productTotal = (prod.sizes || []).reduce((sum, s) => sum + (s.qty || 0), 0);
+                return (
+                  <div
+                    key={i}
+                    className="px-1 pt-1.5 text-center font-bold text-blue-700 text-[9px] leading-tight min-h-[15px] flex items-center justify-center"
+                  >
+                    {productTotal}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="font-semibold text-green-600 text-[9px] bg-green-50 rounded-sm text-center">
+              {p.totalQty || p.order?.totalQty || 0}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "status",
+      label: "STATUS",
+      width: "7%",
       render: (p) => {
         const status = p.status || "Pending";
         const styles = {
@@ -308,138 +478,6 @@ export default function Purchase() {
           </span>
         );
       }
-    },
-    {
-      key: "products",
-      label: "Products",
-      width: "14%",
-      render: (p) => {
-        if (!p.products || p.products.length === 0) {
-          return <span className="text-gray-400 text-[10px]">—</span>;
-        }
-
-        return (
-          <div className="space-y-1">
-            {p.products.map((prod, i) => (
-              <div
-                key={i}
-                className="px-1 py-1 border border-gray-300 rounded text-[9px] leading-tight"
-              >
-                <div className="font-medium text-gray-800 break-words">
-                  {prod.productDetails?.name || "—"}
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      }
-    },
-    {
-      key: "fabricType",
-      label: "Fabric",
-      width: "8%",
-      render: (p) => {
-        if (!p.products || p.products.length === 0) {
-          return <span className="text-gray-400 text-[10px]">—</span>;
-        }
-
-        return (
-          <div className="space-y-1">
-            {p.products.map((prod, i) => (
-              <div
-                key={i}
-                className="px-1 py-1 border border-gray-300 rounded text-[9px] leading-tight break-words"
-              >
-                {prod.productDetails?.fabricType || "—"}
-              </div>
-            ))}
-          </div>
-        );
-      }
-    },
-    {
-      key: "style",
-      label: "Style",
-      width: "10%",
-      render: (p) => {
-        if (!p.products || p.products.length === 0) {
-          return <span className="text-gray-400 text-[9px]">—</span>;
-        }
-
-        return (
-          <div className="space-y-1">
-            {p.products.map((prod, i) => (
-              <div
-                key={i}
-                className="px-1 py-1 border border-gray-300 rounded text-[9px] leading-tight break-words"
-              >
-                {prod.productDetails?.style || "—"}
-              </div>
-            ))}
-          </div>
-        );
-      }
-    },
-    {
-      key: "color",
-      label: "Color",
-      width: "7%",
-      render: (p) => {
-        if (!p.products || p.products.length === 0) {
-          return <span className="text-gray-400 text-[9px]">—</span>;
-        }
-
-        return (
-          <div className="space-y-1">
-            {p.products.map((prod, i) => (
-              <div
-                key={i}
-                className="px-1 py-1 border border-gray-300 rounded text-[9px] leading-tight break-words"
-              >
-                {prod.productDetails?.color || "—"}
-              </div>
-            ))}
-          </div>
-        );
-      }
-    },
-    {
-      key: "sizeQty",
-      label: "Size & Qty",
-      width: "16%",
-      render: (p) => {
-        if (!p.products || p.products.length === 0) {
-          return <span className="text-gray-400 text-[8px]">—</span>;
-        }
-
-        return (
-          <div className="space-y-1">
-            {p.products.map((prod, i) => {
-              const sizeQtyStr = prod.sizes
-                ?.map(s => `${s.size}:${s.qty}`)
-                .join(", ") || "—";
-              return (
-                <div
-                  key={i}
-                  className="py-1 border border-gray-300 rounded text-gray-600 font-mono font-semibold text-[9px] leading-tight break-words"
-                >
-                  {sizeQtyStr}
-                </div>
-              );
-            })}
-          </div>
-        );
-      }
-    },
-    {
-      key: "totalQty",
-      label: "Total",
-      width: "4%",
-      render: (p) => (
-        <span className="font-semibold text-blue-600 text-[10px]">
-          {p.totalQty || 0}
-        </span>
-      )
     }
   ];
 
@@ -601,6 +639,3 @@ export default function Purchase() {
     </div>
   );
 }
-
-
-

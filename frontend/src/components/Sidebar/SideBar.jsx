@@ -1,5 +1,5 @@
 ﻿import { useState } from "react";
-import { Routes, Route, NavLink, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   Building2,
@@ -10,61 +10,51 @@ import {
   Database,
   Receipt,
   BarChart3,
-  Users,
   ChevronDown,
   ChevronRight,
   ChevronLeft,
   UserCog
 } from "lucide-react";
 import SubMenu from "./SubMenu";
+import { useFormNavigation } from "../../utils/FormExitModal";
 
 // Import Pages
 import HomePage from "./Sidebarpages/HomePage";
-// import Products from "../../pages/products/Products";
-
-import Buyers from "./Sidebarpages/Buyers";
-import Suppliers from "./Sidebarpages/Supplier";
-
+import Buyers from "../../pages/vendors/buyers/Buyers"
+import Suppliers from "../../pages/vendors/supplier/Supplier";
+import YASSales from "../../pages/vendors/yas/YASSales";
 import FOBOrders from "../../pages/orders/FOBOrders";
 import JobWorksOrders from "../../pages/orders/JobWorksOrders";
-import OwnOrders from "../../pages/OwnOrders";
-
+import OwnOrders from "../../pages/orders/OwnOrders";
 import Purchase from "../../pages/purchases/Purchase";
 import PurchaseEstimation from "../../pages/purchases/PurchaseEstimation";
 import PurchaseOrderForm from "../../pages/purchases/PurchaseOrderForm";
 import PurchaseOrders from "../../pages/purchases/PurchaseOrder";
-
+import PurchaseReturn from "../../pages/purchases/PurchaseReturn";
 import Productions from "../../pages/productions/Productions";
 import Cutting from "../../pages/productions/Cutting";
-
 import Invoices from "../../pages/invoices/Invoices";
 import Proforma from "../../pages/invoices/Proforma";
 import Estimations from "../../pages/estimations/Estimations";
 import CreditNote from "../../pages/invoices/CreditNote";
 import DebitNote from "../../pages/invoices/DebitNote";
-
 import EventsPage from "./Sidebarpages/Events";
 import ReportsPage from "./Sidebarpages/Reports";
-
-
 import ExpensesPage from "./Expenses/Expenses";
 import RecurringExpenses from "./Expenses/RecurringExpenses";
 import Projects from "./Timetracking/Projects";
 import TimeSheet from "./Timetracking/TimeSheet";
-
 import UsersManagement from "../../pages/users/UsersManagement";
-
 
 const menuItems = [
   { name: "Home", icon: Home, path: "/" },
-  // { name: "Products", icon: Package, path: "/products" },
   {
     name: "Vendor Management",
     icon: Building2,
     subMenu: [
-      { name: "Supplier", path: "/vendor/suppliers" },
       { name: "Buyers", path: "/vendor/buyers" },
-      { name: "YASH Sales", path: "/vendor/sales" },
+      { name: "Supplier", path: "/vendor/suppliers" },
+      { name: "YAS Sales", path: "/vendor/yas-sales" },
     ],
   },
   {
@@ -134,9 +124,11 @@ const menuItems = [
 ];
 
 export default function Sidebar() {
+  const { requestNavigation, isFormOpen } = useFormNavigation();
   const [openMenus, setOpenMenus] = useState({});
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const toggleMenu = (name) => {
     if (isCollapsed) {
@@ -153,11 +145,23 @@ export default function Sidebar() {
     return subMenu.some((sub) => location.pathname.startsWith(sub.path));
   };
 
+  const handleNavigation = (path, label) => {
+    if (isFormOpen) {
+      requestNavigation(label, () => {
+        navigate(path);
+      });
+    } else {
+      navigate(path);
+    }
+  };
+
   return (
     <div className="flex w-full h-[calc(100vh-56px)]">
       {/* Sidebar */}
       <aside
-        className={`h-full flex flex-col bg-slate-900/95 backdrop-blur-sm transition-all duration-500 ease-in-out ${isCollapsed ? "w-21" : "w-60"}`}
+        className={`h-full flex flex-col bg-slate-900/95 backdrop-blur-sm transition-all duration-500 ease-in-out ${
+          isCollapsed ? "w-21" : "w-60"
+        }`}
       >
         <nav className="flex-1 px-3 py-4 space-y-1 bg-slate-800/90 overflow-y-auto custom-scrollbar transition-all duration-300">
           {menuItems.map((item) => {
@@ -172,16 +176,19 @@ export default function Sidebar() {
                     {/* Menu with SubMenu */}
                     <button
                       onClick={() => toggleMenu(item.name)}
-                      className={`flex items-center justify-between w-full px-4 py-2 rounded-lg group 
-                transition-colors duration-300 ease-in-out overflow-hidden ${isActive
+                      className={`flex items-center justify-between w-full px-4 py-2 rounded-lg group transition-colors duration-300 ease-in-out overflow-hidden ${
+                        isActive
                           ? "bg-slate-900 text-green-500"
                           : "text-gray-300 hover:bg-slate-900 hover:text-green-500"
-                        }`}
+                      }`}
                     >
                       <div className="flex items-center min-w-10 flex-1 overflow-hidden">
                         <item.icon
-                          className={`w-6 h-6 flex-shrink-0 transition-colors duration-300 ${isActive ? "text-green-500" : "text-gray-300 group-hover:text-green-500"
-                            }`}
+                          className={`w-6 h-6 flex-shrink-0 transition-colors duration-300 ${
+                            isActive
+                              ? "text-green-500"
+                              : "text-gray-300 group-hover:text-green-500"
+                          }`}
                         />
                         {!isCollapsed && (
                           <span className="ml-3 whitespace-nowrap group-hover:animate-scroll-text">
@@ -191,41 +198,42 @@ export default function Sidebar() {
                       </div>
                       {!isCollapsed && (
                         <ChevronDown
-                          className={`w-4 h-4 ml-2 flex-shrink-0 transition-transform duration-300 ${openMenus[item.name] ? "rotate-180" : "rotate-0"
-                            }`}
+                          className={`w-4 h-4 ml-2 flex-shrink-0 transition-transform duration-300 ${
+                            openMenus[item.name] ? "rotate-180" : "rotate-0"
+                          }`}
                         />
                       )}
                     </button>
                     {/* SubMenu Items */}
                     {!isCollapsed && openMenus[item.name] && (
-                      <SubMenu items={item.subMenu} />
+                      <SubMenu items={item.subMenu} onNavigate={handleNavigation} />
                     )}
                   </>
                 ) : (
                   /* Menu without SubMenu */
-                  <NavLink
-                    to={item.path}
-                    className={({ isActive }) =>
-                      `flex items-center justify-between w-full px-4 py-2 rounded-lg transition-colors duration-300 ease-in-out group overflow-hidden ${isActive
+                  <button
+                    onClick={() => handleNavigation(item.path, item.name)}
+                    className={`flex items-center justify-between w-full px-4 py-2 rounded-lg transition-colors duration-300 ease-in-out group overflow-hidden ${
+                      isActive
                         ? "bg-green-600 text-white"
                         : "text-gray-300 hover:bg-slate-900 hover:text-green-500"
-                      }`
-                    }
+                    }`}
                   >
-                    {({ isActive }) => (
-                      <div className="flex items-center min-w-10 flex-1 overflow-hidden">
-                        <item.icon
-                          className={`w-6 h-6 flex-shrink-0 transition-colors duration-300 ${isActive ? "text-white" : "text-gray-300 group-hover:text-green-500"
-                            }`}
-                        />
-                        {!isCollapsed && (
-                          <span className="ml-3 whitespace-nowrap group-hover:animate-scroll-text">
-                            {item.name}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </NavLink>
+                    <div className="flex items-center min-w-10 flex-1 overflow-hidden">
+                      <item.icon
+                        className={`w-6 h-6 flex-shrink-0 transition-colors duration-300 ${
+                          isActive
+                            ? "text-white"
+                            : "text-gray-300 group-hover:text-green-500"
+                        }`}
+                      />
+                      {!isCollapsed && (
+                        <span className="ml-3 whitespace-nowrap group-hover:animate-scroll-text">
+                          {item.name}
+                        </span>
+                      )}
+                    </div>
+                  </button>
                 )}
               </div>
             );
@@ -251,20 +259,17 @@ export default function Sidebar() {
           <Route path="/" element={<HomePage />} />
           <Route path="/vendor/suppliers" element={<Suppliers />} />
           <Route path="/vendor/buyers" element={<Buyers />} />
-          <Route path="/vendor/sales" element={<EventsPage />} />
+          <Route path="/vendor/yas-sales" element={<YASSales />} />
 
-          {/* <Route path="/products" element={<Products />} /> */}
-
-           <Route path="/orders/fob" element={<FOBOrders />} />
+          <Route path="/orders/fob" element={<FOBOrders />} />
           <Route path="/orders/job-works" element={<JobWorksOrders />} />
           <Route path="/orders/own-orders" element={<OwnOrders />} />
 
           <Route path="/purchases" element={<Purchase />} />
-          <Route path="/purchase/return" element={<RecurringExpenses />} />
+          <Route path="/purchase-return" element={<PurchaseReturn />} />
           <Route path="/purchase-estimations" element={<PurchaseEstimation />} />
           <Route path="/nila-po" element={<PurchaseOrders />} />
 
-         
           <Route path="/productions" element={<Productions />} />
           <Route path="/production/cutting" element={<Cutting />} />
           <Route path="/production/stitching" element={<TimeSheet />} />
@@ -285,14 +290,10 @@ export default function Sidebar() {
           <Route path="/sales/entry" element={<ExpensesPage />} />
           <Route path="/sales/return" element={<RecurringExpenses />} />
           <Route path="/reports" element={<ReportsPage />} />
-          
+
           <Route path="/users" element={<UsersManagement />} />
         </Routes>
       </main>
-
     </div>
   );
 }
-
-
-

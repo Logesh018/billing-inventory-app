@@ -10,7 +10,9 @@ import {
   getOrdersByBuyer,
   searchBuyers,
   searchProducts,
-  getCurrentFinancialYear
+  getCurrentFinancialYear,
+  generateOrderPDF,
+  downloadOrderPDF 
 } from "../controllers/orderController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
@@ -50,5 +52,9 @@ router.get("/:id", protect, authorize("order", "SuperAdmin", "Admin", "Employee"
 router.put("/:id", protect, authorize("order", "SuperAdmin", "Admin"), updateOrder);
 router.patch("/:id/status", protect, authorize("order", "SuperAdmin", "Admin"), updateOrderStatus);
 router.delete("/:id", protect, authorize("order", "SuperAdmin"), deleteOrder);
+
+// PDF operations
+router.get("/:id/download-pdf", protect, authorize("order", "SuperAdmin", "Admin", "Employee"), downloadOrderPDF);
+router.post("/:id/generate-pdf", protect, authorize("order", "SuperAdmin", "Admin"), generateOrderPDF);
 
 export default router;

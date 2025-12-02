@@ -11,14 +11,14 @@ const DataTable = ({ columns, data, actions = [], className = "" }) => {
               <th
                 key={index}
                 style={{ width: column.width || 'auto' }}
-                className="px-1 py-1.5 text-center text-xs font-semibold text-gray-700 uppercase tracking-tight first:rounded-tl-lg"
+                className="px-1 py-1.5 ml-2 text-center text-[10px] font-semibold text-gray-700 uppercase tracking-tight first:rounded-tl-lg"
               >
                 {column.label}
               </th>
             ))}
             {actions.length > 0 && (
               <th 
-                style={{ width: '80px' }}
+                style={{ width: '100px' }}
                 className="px-1 py-1.5 text-center text-xs font-semibold text-gray-700 uppercase tracking-tight rounded-tr-lg"
               >
                 Actions
@@ -50,7 +50,7 @@ const DataTable = ({ columns, data, actions = [], className = "" }) => {
                 ))}
                 {actions.length > 0 && (
                   <td 
-                    style={{ width: '80px' }}
+                    style={{ width: '50px' }}
                     className="px-1 py-1.5 text-center"
                   >
                     <div className="flex justify-center space-x-0.5">

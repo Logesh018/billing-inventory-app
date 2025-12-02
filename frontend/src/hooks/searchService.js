@@ -119,7 +119,6 @@ class SearchService {
 
 // Create singleton instance
 export const searchService = new SearchService();
-
 // components/SearchDropdown/SearchDropdown.jsx
 // Reusable search dropdown component
 

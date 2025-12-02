@@ -1,14 +1,19 @@
 ﻿import React from "react";
 import { useState, useEffect } from "react";
 import { axiosInstance } from "../../lib/axios";
-import { showSuccess, showError, showWarning } from "../../utils/toast"
+import AttributeDropdown from "../../components/AttributeDropdown";
+import MultiSelectDropdown from "../../components/MultiSelectDropdown";
+import { useFormNavigation } from "../../utils/FormExitModal";
 
 export default function OrderForm({ onSubmit, onClose, initialValues = {}, defaultOrderType }) {
+  const { setIsFormOpen, registerFormClose, unregisterFormClose, requestNavigation } = useFormNavigation();
+  
   const [formData, setFormData] = useState({
     PoNo: "",
     orderDate: new Date().toISOString().split('T')[0],
     orderType: defaultOrderType || "",
     buyer: {
+      _id: "",
       name: "",
       code: "",
       mobile: "",
@@ -20,7 +25,14 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
 
   const [products, setProducts] = useState([
     {
-      productDetails: { name: "", style: "", color: "", fabricType: "" },
+      productDetails: {
+        category: "",
+        name: "",
+        type: [],  // Array for multiple types
+        style: [],
+        fabric: "",
+        color: ""
+      },
       variations: [
         { size: "S", qty: "" },
         { size: "M", qty: "" },
@@ -30,14 +42,32 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
     },
   ]);
 
-
   // Dropdown states
+  const [buyerSearchTerm, setBuyerSearchTerm] = useState("");
   const [buyerSuggestions, setBuyerSuggestions] = useState([]);
   const [showBuyerDropdown, setShowBuyerDropdown] = useState(false);
-  const [productSuggestions, setProductSuggestions] = useState([]);
-  const [showProductDropdown, setShowProductDropdown] = useState({});
   const [loading, setLoading] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+  useEffect(() => {
+    // Mark as having unsaved changes when user starts editing
+    setHasUnsavedChanges(true);
+  }, [formData, products]);
+
+  useEffect(() => {
+    setIsFormOpen(true);
+    
+    // Register the close handler - just call onClose
+    registerFormClose(() => {
+      onClose(); // This will trigger the parent's close handler
+    });
+
+    // Cleanup on unmount
+    return () => {
+      setIsFormOpen(false);
+      unregisterFormClose();
+    };
+  }, [setIsFormOpen, registerFormClose, unregisterFormClose, onClose]);
 
   // Initialize form with existing data for editing
   useEffect(() => {
@@ -57,13 +87,19 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
         }
       });
 
+      if (initialValues.buyerDetails?.name) {
+        setBuyerSearchTerm(initialValues.buyerDetails.name);
+      }
+
       if (initialValues.products && initialValues.products.length > 0) {
         setProducts(initialValues.products.map(p => ({
           productDetails: {
+            category: p.productDetails?.category || "",
             name: p.productDetails?.name || "",
-            style: p.productDetails?.style || "",
+            type: Array.isArray(p.productDetails?.type) ? p.productDetails.type : [],
+            style: Array.isArray(p.productDetails?.style) ? p.productDetails.style : [],
+            fabric: p.productDetails?.fabric || p.productDetails?.fabricType || "",
             color: p.productDetails?.color || "",
-            fabricType: p.productDetails?.fabricType || "",
           },
           variations: p.sizes?.map(s => ({
             size: s.size || "",
@@ -79,7 +115,6 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
     }
   }, [initialValues]);
 
-  // Add normalization function for size input
   const normalizeSizeInput = (value) => {
     return value.trim().toUpperCase();
   };
@@ -93,8 +128,6 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
 
     try {
       const { data } = await axiosInstance.get(`/orders/search/buyers?q=${searchTerm}`);
-
-      // Deduplicate buyers (by _id or name+mobile)
       const uniqueBuyers = data.filter(
         (buyer, index, self) =>
           index === self.findIndex(
@@ -103,7 +136,6 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
               (b.name === buyer.name && b.mobile === buyer.mobile)
           )
       );
-
       setBuyerSuggestions(uniqueBuyers);
       setShowBuyerDropdown(true);
     } catch (error) {
@@ -113,49 +145,8 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
     }
   };
 
-  const searchProducts = async (searchTerm, productIndex) => {
-    if (searchTerm.length < 2) {
-      setProductSuggestions([]);
-      setShowProductDropdown({});
-      return;
-    }
-
-    try {
-      const { data } = await axiosInstance.get(`/products/search?q=${encodeURIComponent(searchTerm)}`);
-
-      // Deduplicate products (by _id or name+hsn)
-      const uniqueProducts = data.filter(
-        (prod, index, self) =>
-          index === self.findIndex(
-            (p) =>
-              (p._id && p._id === prod._id) ||
-              (p.name === prod.name && p.hsn === prod.hsn)
-          )
-      );
-
-      setProductSuggestions(uniqueProducts);
-      setShowProductDropdown({ [productIndex]: true });
-    } catch (error) {
-      console.error("Error searching products:", error);
-      setProductSuggestions([]);
-      setShowProductDropdown({});
-    }
-  };
-
   const handleFormChange = (field, value) => {
-    if (field.startsWith('buyer.')) {
-      const buyerField = field.replace('buyer.', '');
-      setFormData(prev => ({
-        ...prev,
-        buyer: { ...prev.buyer, [buyerField]: value }
-      }));
-
-      if (buyerField === 'name') {
-        searchBuyers(value);
-      }
-    } else {
-      setFormData(prev => ({ ...prev, [field]: value }));
-    }
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const selectBuyer = (buyer) => {
@@ -171,86 +162,16 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
         address: buyer.address || "",
       }
     }));
+    setBuyerSearchTerm(buyer.name);
     setShowBuyerDropdown(false);
     setBuyerSuggestions([]);
-  };
-
-  const selectProduct = (prod, pIndex) => {
-    const updated = [...products];
-    updated[pIndex].productDetails.name = prod.name;
-    updated[pIndex].productDetails.style = prod.style || "";
-    updated[pIndex].productDetails.color = prod.color || "";
-    updated[pIndex].productDetails.fabricType = prod.fabricType || "";
-    setProducts(updated);
-    setShowProductDropdown({});
-    setProductSuggestions([]);
-  };
-
-  const handleSaveBuyer = async () => {
-    try {
-      setLoading(true);
-
-      if (!formData.buyer.name.trim()) {
-        showWarning("Buyer name is required");
-        return;
-      }
-      if (!formData.buyer.mobile.trim()) {
-        showWarning("Buyer mobile is required");
-        return;
-      }
-
-      const buyerData = {
-        name: formData.buyer.name,
-        code: formData.buyer.code || "",
-        mobile: formData.buyer.mobile,
-        gst: formData.buyer.gst || "",
-        email: formData.buyer.email || "",
-        address: formData.buyer.address || "",
-      };
-
-      const { data: newBuyer } = await axiosInstance.post("/buyers", buyerData);
-
-      setFormData(prev => ({
-        ...prev,
-        PoNo: "",
-        orderDate: new Date().toISOString().split('T')[0],
-        orderType: "",
-        buyer: {
-          _id: newBuyer._id,
-          name: newBuyer.name,
-          code: newBuyer.code,
-          mobile: newBuyer.mobile,
-          gst: newBuyer.gst,
-          email: newBuyer.email,
-          address: newBuyer.address,
-        }
-      }));
-      setProducts([
-        {
-          productDetails: { name: "", style: "", color: "", fabricType: "" },  // ✅ Correct
-          variations: [
-            { size: "S", qty: "" },
-            { size: "M", qty: "" },
-            { size: "L", qty: "" },
-            { size: "XL", qty: "" }
-          ],
-        },
-      ]);
-
-      showSuccess("Buyer saved successfully!");
-    } catch (error) {
-      console.error("Error saving buyer:", error);
-      showError("Failed to save buyer. Please try again.");
-    } finally {
-      setLoading(false);
-    }
   };
 
   const addProduct = () => {
     setProducts([
       ...products,
       {
-        productDetails: { name: "", style: "", color: "", fabricType: "" },  // ✅ Correct structure
+        productDetails: { category: "", name: "", type: [], style: [], fabric: "", color: "" },
         variations: [
           { size: "S", qty: "" },
           { size: "M", qty: "" },
@@ -275,7 +196,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
 
   const removeVariation = (pIndex, vIndex) => {
     const updated = [...products];
-    if (updated[pIndex].variations.length > 1) { // Allow removal if more than 1 variation exists
+    if (updated[pIndex].variations.length > 1) {
       updated[pIndex].variations.splice(vIndex, 1);
       setProducts(updated);
     }
@@ -283,22 +204,12 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
 
   const handleProductChange = (pIndex, field, value) => {
     const updated = [...products];
-    if (field === 'name') {
-      updated[pIndex].productDetails.name = value;
-      searchProducts(value, pIndex);
-    } else if (field === 'style') {
-      updated[pIndex].productDetails.style = value;
-    } else if (field === 'color') {
-      updated[pIndex].productDetails.color = value;
-    } else if (field === 'fabricType') {
-      updated[pIndex].productDetails.fabricType = value;
-    }
+    updated[pIndex].productDetails[field] = value;
     setProducts(updated);
   };
 
   const handleVariationChange = (pIndex, vIndex, field, value) => {
     const updated = [...products];
-    // Normalize size input to uppercase and trim whitespace
     if (field === 'size') {
       updated[pIndex].variations[vIndex][field] = normalizeSizeInput(value);
     } else {
@@ -321,52 +232,37 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
     try {
       setLoading(true);
 
-      // Add validation for PO No
+      // Validation
       if (!formData.PoNo.trim()) {
-        showWarning("PO No is required");
+        alert("PO No is required");
         return;
       }
       if (!formData.orderType) {
-        showWarning("Order type is required");
+        alert("Order type is required");
         return;
       }
-      if (!formData.buyer.name.trim()) {
-        showWarning("Buyer name is required");
-        return;
-      }
-      if (!formData.buyer.mobile.trim()) {
-        showWarning("Buyer mobile is required");
+      if (!formData.buyer._id) {
+        alert("Please select a buyer");
         return;
       }
 
       for (let i = 0; i < products.length; i++) {
         const product = products[i];
         if (!product.productDetails.name.trim()) {
-          showWarning(`Product ${i + 1}: Name is required`);
-          return;
-        }
-        if (!product.productDetails.style.trim()) {
-          showWarning(`Product ${i + 1}: Style is required`);
-          return;
-        }
-        if (!product.productDetails.color.trim()) {
-          showWarning(`Product ${i + 1}: Color is required`);
-          return;
-        }
-        if (!product.productDetails.fabricType.trim()) {
-          showWarning(`Product ${i + 1}: Fabric Type is required`);
+          alert(`Product ${i + 1}: Name is required`);
           return;
         }
 
         for (let j = 0; j < product.variations.length; j++) {
           const variation = product.variations[j];
           if (!variation.size.trim() || !variation.qty) {
-            showWarning(`Product ${i + 1}, Size ${j + 1}: All fields are required`);
+            alert(`Product ${i + 1}, Size ${j + 1}: All fields are required`);
             return;
           }
         }
       }
 
+      // ✅ CRITICAL FIX: Ensure productDetails is an OBJECT, not wrapped in array
       const submitData = {
         PoNo: formData.PoNo,
         orderDate: formData.orderDate,
@@ -381,25 +277,53 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
           address: formData.buyer.address,
         },
         products: products.map(p => ({
-          productDetails: {
-            name: p.productDetails.name,
-            style: p.productDetails.style,
-            color: p.productDetails.color,
-            fabricType: p.productDetails.fabricType,
+          productDetails: {  // ← This should be an OBJECT, not an array
+            category: p.productDetails.category || "",
+            name: p.productDetails.name || "",
+            type: Array.isArray(p.productDetails.type) ? p.productDetails.type : [],
+            style: Array.isArray(p.productDetails.style) ? p.productDetails.style : [],
+            fabric: p.productDetails.fabric || "",
+            color: p.productDetails.color || "",
           },
-          sizes: p.variations.map(v => ({
-            size: v.size,
-            qty: parseInt(v.qty) || 0,
-          })),
+          sizes: p.variations
+            .filter(v => v.size.trim() && v.qty) // Only include valid sizes
+            .map(v => ({
+              size: v.size.trim(),
+              qty: parseInt(v.qty) || 0,
+            })),
         }))
       };
 
+      // ✅ Add debugging
+      console.log("📤 Submitting order data:", JSON.stringify(submitData, null, 2));
+      console.log("📋 First product structure:", submitData.products[0]);
+
       await onSubmit(submitData);
+      setHasUnsavedChanges(false); 
+      setIsFormOpen(false);
+      onClose();
     } catch (error) {
       console.error("Error submitting order:", error);
-      showError("Failed to save order. Please try again.");
+      alert("Failed to save order. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    // If there are unsaved changes, use the navigation context
+    if (hasUnsavedChanges) {
+      // Use requestNavigation to handle the form close
+      requestNavigation('Orders List', () => {
+        setHasUnsavedChanges(false);
+        setIsFormOpen(false);
+        onClose();
+      });
+    } else {
+      // No unsaved changes, just close
+      setHasUnsavedChanges(false);
+      setIsFormOpen(false);
+      onClose();
     }
   };
 
@@ -417,24 +341,26 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
         </h1>
       </div>
 
-      {/* Buyer Information Section */}
+      {/* Buyer Search Section */}
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
           <div className="w-1 h-4 bg-blue-500 rounded mr-2"></div>
           Buyer Information
         </h3>
 
-        <div className="grid grid-cols-12 gap-2 items-start mb-2">
-          {/* Buyer Name - 2 cols */}
-          <div className="relative col-span-2">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Buyer*
+        <div className="flex gap-4 items-start">
+          <div className="relative w-1/3 min-w-[200px] max-w-xs">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Buyer/Buyer ID<span className="text-red-500">*</span>
             </label>
             <input
-              placeholder="Enter buyer name"
-              className="w-full border border-gray-300 text-gray-700 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-              value={formData.buyer.name}
-              onChange={(e) => handleFormChange('buyer.name', e.target.value)}
+              placeholder="Enter buyer name or code"
+              className="w-full border border-gray-400 text-gray-800 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={buyerSearchTerm}
+              onChange={(e) => {
+                setBuyerSearchTerm(e.target.value);
+                searchBuyers(e.target.value);
+              }}
               onBlur={() => setTimeout(() => setShowBuyerDropdown(false), 200)}
             />
             {showBuyerDropdown && buyerSuggestions.length > 0 && (
@@ -442,116 +368,68 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
                 {buyerSuggestions.map((buyer, index) => (
                   <div
                     key={buyer._id || index}
-                    className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-xs text-gray-700"
+                    className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-700"
                     onClick={() => selectBuyer(buyer)}
                   >
                     <div className="font-medium text-gray-700">{buyer.name}</div>
-                    <div className="text-gray-500">{buyer.mobile}</div>
+                    <div className="text-xs text-gray-500">{buyer.code ? `Code: ${buyer.code} • ` : ''}{buyer.mobile}</div>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Buyer Code - 1 col */}
-          <div className="col-span-1">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Code
-            </label>
-            <input
-              placeholder="Auto"
-              className="w-full border border-gray-300 rounded px-2 py-1 text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-              value={formData.buyer.code}
-              onChange={(e) => handleFormChange('buyer.code', e.target.value)}
-            />
-          </div>
-
-          {/* Mobile - 2 cols */}
-          <div className="col-span-2">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Mobile*
-            </label>
-            <input
-              placeholder="Mobile number"
-              className="w-full border border-gray-300 text-gray-700 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-              value={formData.buyer.mobile}
-              onChange={(e) => handleFormChange('buyer.mobile', e.target.value)}
-            />
-          </div>
-
-          {/* GST - 2 cols */}
-          <div className="col-span-2">
-            <label className="block text-xs font-medium text-gray-600 mb-1">
-              GST
-            </label>
-            <input
-              placeholder="GST number"
-              className="w-full border border-gray-300 text-gray-700 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-              value={formData.buyer.gst}
-              onChange={(e) => handleFormChange('buyer.gst', e.target.value)}
-            />
-          </div>
-
-          {/* Email - 2 cols */}
-          <div className="col-span-2">
-            <label className="block text-xs font-medium text-gray-600 mb-1">
-              Email
-            </label>
-            <input
-              placeholder="Email address"
-              className="w-full border border-gray-300 text-gray-700 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
-              value={formData.buyer.email}
-              onChange={(e) => handleFormChange('buyer.email', e.target.value)}
-            />
-          </div>
-
-          {/* Address - 3 cols */}
-          <div className="col-span-3">
-            <label className="block text-xs font-medium text-gray-600 mb-1">
-              Address
-            </label>
-            <textarea
-              placeholder="Address"
-              rows="1"
-              className="w-full border border-gray-300 text-gray-700 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 resize-none"
-              value={formData.buyer.address}
-              onChange={(e) => handleFormChange('buyer.address', e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Buttons row */}
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="bg-gray-500 hover:bg-gray-600 text-white rounded px-4 py-1.5 text-xs font-medium disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSaveBuyer}
-            disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-1.5 text-xs font-medium disabled:opacity-50"
-          >
-            {loading ? "Saving..." : "Save Buyer"}
-          </button>
+          {formData.buyer._id && (
+            <div className="flex-grow border border-gray-300 rounded-md overflow-hidden shadow-md">
+              <div className="grid grid-cols-6 text-center text-xs font-semibold text-gray-700 bg-gray-100 border-b border-gray-300">
+                <div className="py-1 px-1 truncate col-span-1 border-r border-gray-300">Buyer ID</div>
+                <div className="py-1 px-1 truncate col-span-1 border-r border-gray-300">Name</div>
+                <div className="py-1 px-1 truncate col-span-1 border-r border-gray-300">Billing Address</div>
+                <div className="py-1 px-1 truncate col-span-1 border-r border-gray-300">GST</div>
+                <div className="py-1 px-1 truncate col-span-1 border-r border-gray-300">Mobile</div>
+                <div className="py-1 px-1 truncate col-span-1 border-r border-gray-300">Email</div>
+              </div>
+              <div className="grid grid-cols-6 text-xs text-gray-800 font-medium bg-gradient-to-r from-blue-50 to-blue-100">
+                <div className="py-1 px-1 text-center text-[10px] col-span-1 border-r border-gray-300">{formData.buyer.code}</div>
+                <div className="py-1 px-1 text-center text-[10px] col-span-1 border-r border-gray-300">{formData.buyer.name}</div>
+                <div className="py-1 px-1 text-[9px] border-r border-gray-300 col-span-1">{formData.buyer.address}</div>
+                <div className="py-1 px-1 text-center text-[9px] col-span-1 border-r border-gray-300">{formData.buyer.gst}</div>
+                <div className="py-1 px-1 text-center text-[10px] col-span-1 border-r border-gray-300">{formData.buyer.mobile}</div>
+                <div className="py-1 px-1 text-center text-[9px] col-span-1 border-r border-gray-300">{formData.buyer.email}</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Order Details Section */}
+      <hr className="my-4 border-gray-200" />
+
+      {/* Order Details Section - ALL IN ONE ROW */}
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
           <div className="w-1 h-4 bg-green-500 rounded mr-2"></div>
           Order Details
         </h3>
-        <div className="grid grid-cols-4 gap-2">
-          {/* PO No - Now Editable */}
+
+        <div className="grid grid-cols-4 gap-3">
+          {/* Order ID - Auto generated (read-only display) */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              PO No*
+              Order ID (Auto)
+            </label>
+            <input
+              placeholder="Auto-generated"
+              className="w-full border border-gray-300 text-gray-500 rounded px-2 py-1 text-xs bg-gray-50 cursor-not-allowed"
+              value="OID-XXXX"
+              disabled
+              readOnly
+            />
+          </div>
+
+          {/* Buyer PO No */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Buyer PO No*
             </label>
             <input
               placeholder="Enter PO No"
@@ -565,7 +443,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
           {/* Order Type */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">
-              Type*
+              Order Type*
             </label>
             <select
               className="w-full border border-gray-300 rounded px-2 py-1 text-xs text-gray-800 focus:outline-none focus:ring-1 focus:ring-green-400 focus:border-green-400 bg-white"
@@ -573,11 +451,10 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
               onChange={(e) => handleFormChange('orderType', e.target.value)}
               required
             >
-              <option value="">Select type</option>
+              <option value="">Select Type</option>
               <option value="FOB">FOB</option>
               <option value="JOB-Works">JOB-Works</option>
               <option value="Own-Orders">Own Orders</option>
-
             </select>
           </div>
 
@@ -630,17 +507,26 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
           <table className="min-w-full border border-gray-300 text-xs">
             <thead>
               <tr className="bg-gray-100">
-                <th className="border border-gray-300 px-2 py-1.5 font-semibold text-gray-700 text-left w-1/4">
+                <th className="border border-gray-300 px-2 py-1.5 font-semibold text-gray-700 text-center w-12">
+                  S.No
+                </th>
+                <th className="border border-gray-300 px-2 py-1.5 font-semibold text-gray-700 text-center w-1/7">
+                  Product Category
+                </th>
+                <th className="border border-gray-300 px-2 py-1.5 font-semibold text-gray-700 text-center w-1/7">
                   Product
                 </th>
-                <th className="border border-gray-300 px-2 py-1.5 font-semibold text-gray-700 text-left w-1/6">
-                  Style
+                <th className="border border-gray-300 px-2 py-1.5 font-semibold text-gray-700 text-center w-1/7">
+                  Product Type
                 </th>
-                <th className="border border-gray-300 px-2 py-1.5 font-semibold text-gray-700 text-left w-1/6">
+                <th className="border border-gray-300 px-2 py-1.5 font-semibold text-gray-700 text-center w-1/7">
+                  Product Style
+                </th>
+                <th className="border border-gray-300 px-2 py-1.5 font-semibold text-gray-700 text-center w-1/7">
+                  Fabric
+                </th>
+                <th className="border border-gray-300 px-2 py-1.5 font-semibold text-gray-700 text-center w-1/7">
                   Color
-                </th>
-                <th className="border border-gray-300 px-2 py-1.5 font-semibold text-gray-700 text-left w-1/6">
-                  Fabric Type
                 </th>
                 <th className="border border-gray-300 px-2 py-1.5 font-semibold text-gray-700 text-center w-16">
                   Size
@@ -665,10 +551,9 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
 
                 return (
                   <React.Fragment key={pIndex}>
-                    {/* Add spacing row between products */}
                     {pIndex > 0 && (
                       <tr className="bg-white-100">
-                        <td colSpan="8" className="p-1">
+                        <td colSpan="11" className="p-1">
                           <div className="h-3"></div>
                         </td>
                       </tr>
@@ -678,52 +563,94 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
                         key={`${pIndex}-${vIndex}`}
                         className={`hover:bg-gray-50 ${pIndex % 2 === 1 ? 'bg-white-50' : ''}`}
                       >
-                        {/* Product Name - only show in first row */}
+                        {/* Serial Number */}
                         {vIndex === 0 ? (
                           <td
-                            className="border border-gray-300 px-2 py-1 align-top relative"
+                            className="border border-gray-300 px-2 py-1 text-center font-semibold text-gray-700 align-top"
                             rowSpan={product.variations.length}
                           >
-                            <input
-                              placeholder="Product name"
-                              className="w-full border border-gray-300 rounded px-2 py-1.5 text-[10px] text-gray-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                              value={product.productDetails.name}
-                              onChange={(e) => handleProductChange(pIndex, "name", e.target.value)}
-                              onBlur={() => setTimeout(() => setShowProductDropdown({}), 200)}
-                            />
-                            {showProductDropdown[pIndex] && productSuggestions.length > 0 && (
-                              <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto mt-1 left-2">
-                                {productSuggestions.map((prod, index) => (
-                                  <div
-                                    key={prod._id || index}
-                                    className="px-3 py-2 hover:bg-gray-100 text-gray-800 cursor-pointer text-xs"
-                                    onClick={() => selectProduct(prod, pIndex)}
-                                  >
-                                    <div className="font-medium text-gray-800">{prod.name}</div>
-                                    <div className="text-gray-700">Style: {prod.style}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                            {pIndex + 1}
                           </td>
                         ) : null}
 
-                        {/* Style - only show in first row */}
+                        {/* Product Category - Using AttributeDropdown */}
                         {vIndex === 0 ? (
                           <td
                             className="border border-gray-300 px-2 py-1 align-top"
                             rowSpan={product.variations.length}
                           >
-                            <input
-                              placeholder="Style"
-                              className="w-full border border-gray-300 text-gray-800 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
-                              value={product.productDetails.style}
-                              onChange={(e) => handleProductChange(pIndex, "style", e.target.value)}
+                            <AttributeDropdown
+                              attributeType="category"
+                              value={product.productDetails.category}
+                              onChange={(value) => handleProductChange(pIndex, "category", value)}
+                              placeholder="Category"
                             />
                           </td>
                         ) : null}
 
-                        {/* Color - only show in first row */}
+                        {/* Product Name - Keep existing search */}
+                        {vIndex === 0 ? (
+                          <td
+                            className="border border-gray-300 px-2 py-1 align-top relative"
+                            rowSpan={product.variations.length}
+                          >
+                            <AttributeDropdown
+                              attributeType="list"
+                              value={product.productDetails.name}
+                              onChange={(value) => handleProductChange(pIndex, "name", value)}
+                              placeholder="Product name"
+                              required
+                            />
+                          </td>
+                        ) : null}
+
+                        {/* Product Type - Using MultiSelectDropdown */}
+                        {vIndex === 0 ? (
+                          <td
+                            className="border border-gray-300 px-2 py-1 align-top"
+                            rowSpan={product.variations.length}
+                          >
+                            <MultiSelectDropdown
+                              attributeType="type"
+                              values={product.productDetails.type}
+                              onChange={(values) => handleProductChange(pIndex, "type", values)}
+                              placeholder="Select types"
+                            />
+                          </td>
+                        ) : null}
+
+                        {/* Product Style - Using AttributeDropdown */}
+                        {vIndex === 0 ? (
+                          <td
+                            className="border border-gray-300 px-2 py-1 align-top"
+                            rowSpan={product.variations.length}
+                          >
+                            <MultiSelectDropdown
+                              attributeType="style"
+                              values={product.productDetails.style}
+                              onChange={(values) => handleProductChange(pIndex, "style", values)}
+                              placeholder="Select styles"
+                            />
+                          </td>
+                        ) : null}
+
+                        {/* Fabric - Using AttributeDropdown */}
+                        {vIndex === 0 ? (
+                          <td
+                            className="border border-gray-300 px-2 py-1 align-top"
+                            rowSpan={product.variations.length}
+                          >
+                            <AttributeDropdown
+                              attributeType="fabric"
+                              value={product.productDetails.fabric}
+                              onChange={(value) => handleProductChange(pIndex, "fabric", value)}
+                              placeholder="Fabric"
+                              required
+                            />
+                          </td>
+                        ) : null}
+
+                        {/* Color - Keep as regular input */}
                         {vIndex === 0 ? (
                           <td
                             className="border border-gray-300 px-2 py-1 align-top"
@@ -738,22 +665,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
                           </td>
                         ) : null}
 
-                        {/* Fabric Type - only show in first row */}
-                        {vIndex === 0 ? (
-                          <td
-                            className="border border-gray-300 px-2 py-1 align-top"
-                            rowSpan={product.variations.length}
-                          >
-                            <input
-                              placeholder="Fabric Type"
-                              className="w-full border border-gray-300 text-gray-800 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
-                              value={product.productDetails.fabricType}
-                              onChange={(e) => handleProductChange(pIndex, "fabricType", e.target.value)}
-                            />
-                          </td>
-                        ) : null}
-
-                        {/* Size - show in every row */}
+                        {/* Size */}
                         <td className="border border-gray-300 px-1 py-0.5">
                           <input
                             placeholder="Size"
@@ -763,19 +675,20 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
                           />
                         </td>
 
-                        {/* Qty - show in every row */}
+                        {/* Qty */}
                         <td className="border border-gray-300 px-1 py-0.5">
                           <input
                             type="number"
                             min="1"
                             placeholder="Qty"
-                            className="w-full border border-gray-300 text-gray-800 rounded px-1.5 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-15 border border-gray-300 text-gray-800 rounded px-1.5 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-500 "
                             value={variation.qty}
                             onChange={(e) => handleVariationChange(pIndex, vIndex, "qty", e.target.value)}
+                            onWheel={(e) => e.currentTarget.blur()}
                           />
                         </td>
 
-                        {/* Actions - show in every row */}
+                        {/* Actions */}
                         <td className="border border-gray-300 px-1 py-0.5 text-center">
                           <div className="flex items-center justify-center gap-1">
                             <button
@@ -796,7 +709,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
                           </div>
                         </td>
 
-                        {/* Total - only show in first row */}
+                        {/* Total */}
                         {vIndex === 0 ? (
                           <td
                             className="border border-gray-300 px-3 py-1 text-center font-semibold text-gray-800 align-top"
@@ -822,7 +735,7 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleCancel}
             disabled={loading}
             className="bg-gray-500 hover:bg-gray-600 text-white rounded px-4 py-1.5 text-xs font-medium disabled:opacity-50"
           >
@@ -841,4 +754,3 @@ export default function OrderForm({ onSubmit, onClose, initialValues = {}, defau
     </div>
   );
 }
-

@@ -10,8 +10,44 @@ import {
 } from "../../api/purchaseEstimationApi";
 import PurchaseEstimationForm from "./PurchaseEstimationForm.jsx";
 import DataTable from "../../components/UI/DataTable.jsx";
-import { Plus, Edit, Trash2, FileText, Printer, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, FileText, Eye } from "lucide-react";
 import { showConfirm, showError, showSuccess, showWarning, showLoading, dismissAndSuccess, dismissAndError } from "../../utils/toast.jsx";
+
+// Helper function to render product details cleanly
+const renderProductDetails = (products, key, isArray = false) => {
+  if (!products || products.length === 0)
+    return <span className="text-gray-400 text-[9px]">—</span>;
+
+  return (
+    <div className="space-y-1.5">
+      {products.map((p, i) => {
+        let value = p.productDetails?.[key];
+
+        // Handle array fields like 'type' or 'style'
+        if (isArray) {
+          value = Array.isArray(value) ? value.join(", ") : value || "—";
+        } else {
+          value = value || "—";
+        }
+
+        // Calculate total quantity for the product
+        const productTotalQty = (p.sizes || []).reduce((sum, s) => sum + (s.qty || 0), 0);
+
+        return (
+          <div
+            key={i}
+            className="px-1 py-0 border border-gray-200 rounded text-[8px] font-semibold leading-tight break-words min-h-[20px] flex items-center justify-center"
+          >
+            {value}
+            {key === 'totalQty' &&
+              <div className="font-semibold text-blue-700">{productTotalQty}</div>
+            }
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 export default function PurchaseEstimation() {
   const { user } = useAuth();
@@ -38,7 +74,7 @@ export default function PurchaseEstimation() {
       setEstimations(data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
       setError(null);
     } catch (err) {
-      console.error("Error fetching estimations", err);
+      console.error("❌ CLIENT: Error fetching estimations", err);
       setError("Failed to fetch estimations");
       setEstimations([]);
     } finally {
@@ -56,7 +92,7 @@ export default function PurchaseEstimation() {
           await fetchEstimations();
           dismissAndSuccess(toastId, "Estimation deleted successfully!");
         } catch (error) {
-          console.error("Error deleting estimation:", error);
+          console.error("❌ CLIENT: Error deleting estimation:", error);
           dismissAndError(toastId, `Failed to delete: ${error.response?.data?.message || error.message}`);
         }
       }
@@ -68,17 +104,17 @@ export default function PurchaseEstimation() {
     try {
       // If PDF URL exists in the estimation object, open it immediately
       if (estimation.pdfUrl) {
-        console.log("✅ Opening existing PDF:", estimation.pdfUrl);
+        console.log("✅ CLIENT: Opening existing PDF:", estimation.pdfUrl);
         window.open(estimation.pdfUrl, '_blank');
         return;
       }
 
       // If no PDF URL, check the server (in case it was generated but state is stale)
-      console.log("🔍 Checking if PDF exists on server...");
+      console.log("🔍 CLIENT: Checking if PDF exists on server...");
       const response = await getEstimationPDF(estimation._id);
 
       if (response.data.pdfUrl) {
-        console.log("✅ PDF found on server, opening:", response.data.pdfUrl);
+        console.log("✅ CLIENT: PDF found on server, opening:", response.data.pdfUrl);
         window.open(response.data.pdfUrl, '_blank');
         // Refresh to update the UI
         await fetchEstimations();
@@ -93,7 +129,7 @@ export default function PurchaseEstimation() {
           }
         );
       } else {
-        console.error("Error viewing PDF:", error);
+        console.error("❌ CLIENT: Error viewing PDF:", error);
         showError(`Failed to view PDF: ${error.response?.data?.message || error.message}`);
       }
     }
@@ -103,13 +139,13 @@ export default function PurchaseEstimation() {
   const handleGeneratePDF = async (estimation) => {
     try {
       setGeneratingPDF(estimation._id);
-      console.log("🔄 Generating PDF for estimation:", estimation.PESNo);
+      console.log("🔄 CLIENT: Generating PDF for estimation:", estimation.PESNo);
 
       const response = await generateEstimationPDF(estimation._id);
 
       // Open PDF in new tab immediately after generation
       if (response.data.pdfUrl) {
-        console.log("✅ PDF generated successfully, opening:", response.data.pdfUrl);
+        console.log("✅ CLIENT: PDF generated successfully, opening:", response.data.pdfUrl);
         window.open(response.data.pdfUrl, '_blank');
       }
 
@@ -119,7 +155,7 @@ export default function PurchaseEstimation() {
       // Show success message
       showSuccess("PDF generated and finalized successfully!");
     } catch (error) {
-      console.error("Error generating PDF:", error);
+      console.error("❌ CLIENT: Error generating PDF:", error);
       showError(`Failed to generate PDF: ${error.response?.data?.message || error.message}`);
     } finally {
       setGeneratingPDF(null);
@@ -127,62 +163,54 @@ export default function PurchaseEstimation() {
   };
 
   const handleFormSubmit = async (data) => {
+    console.log('\n📥 CLIENT: handleFormSubmit called');
+    console.log('📦 CLIENT: Received data from form:', JSON.stringify(data, null, 2));
+
     if (isSubmitting) {
-      console.log("⚠️ Already submitting, ignoring duplicate request");
+      console.log("⚠️ CLIENT: Already submitting, ignoring duplicate request");
       return;
     }
 
     try {
       setIsSubmitting(true);
 
-      const hasPurchaseItems =
-        (data.fabricPurchases && data.fabricPurchases.length > 0) ||
-        (data.buttonsPurchases && data.buttonsPurchases.length > 0) ||
-        (data.packetsPurchases && data.packetsPurchases.length > 0) ||
-        (data.machinesPurchases && data.machinesPurchases.length > 0);
-
-      if (!hasPurchaseItems) {
-        showWarning("Please add at least one purchase item (fabric, buttons, packets, or machine)");
+      // ✅ FIXED: Check for purchaseItems instead of old field names
+      if (!data.purchaseItems || data.purchaseItems.length === 0) {
+        console.log("❌ CLIENT: No purchase items found");
+        showWarning("Please add at least one purchase item");
         return;
       }
 
-      // Create the payload with all the required fields
+      console.log(`✅ CLIENT: Found ${data.purchaseItems.length} purchase items`);
+
+      // ✅ FIXED: Send data in the correct format expected by the backend
       const payload = {
-        estimationType: data.estimationType,
         estimationDate: data.estimationDate,
-        fabricPurchases: data.fabricPurchases || [],
-        buttonsPurchases: data.buttonsPurchases || [],
-        packetsPurchases: data.packetsPurchases || [],
-        machinesPurchases: data.machinesPurchases || [],
-        remarks: data.remarks,
+        remarks: data.remarks || "",
+        PoNo: data.PoNo || null,
+        orderId: data.orderId || null,
+        purchaseItems: data.purchaseItems,
+        fabricCostEstimation: data.fabricCostEstimation || [],
       };
 
-      // Add order-specific fields if it's an order estimation
-      if (data.estimationType === 'order') {
-        payload.PoNo = data.PoNo || null;
-        payload.order = data.order || null;
-        payload.orderDate = data.orderDate || null;
-        payload.orderType = data.orderType || null;
-        payload.buyerDetails = data.buyerDetails || null;
-        payload.orderProducts = data.orderProducts || [];
-        payload.totalOrderQty = data.totalOrderQty || 0;
-      }
-
-      console.log("📤 Submitting estimation payload:", payload);
+      console.log("📤 CLIENT: Submitting estimation payload:", JSON.stringify(payload, null, 2));
 
       if (editEstimation && editEstimation._id) {
-        console.log("📝 Updating existing estimation:", editEstimation._id);
+        console.log("📝 CLIENT: Updating existing estimation:", editEstimation._id);
         await updatePurchaseEstimation(editEstimation._id, payload);
+        showSuccess("Estimation updated successfully!");
       } else {
-        console.log("📝 Creating new estimation");
+        console.log("📝 CLIENT: Creating new estimation");
         await createPurchaseEstimation(payload);
+        showSuccess("Estimation created successfully!");
       }
 
       setShowForm(false);
       setEditEstimation(null);
       await fetchEstimations();
     } catch (error) {
-      console.error("Error saving estimation:", error);
+      console.error("❌ CLIENT: Error saving estimation:", error);
+      console.error("❌ CLIENT: Error response:", error.response?.data);
       showError(`Failed to save estimation: ${error.response?.data?.message || error.message}`);
     } finally {
       setIsSubmitting(false);
@@ -198,18 +226,67 @@ export default function PurchaseEstimation() {
       return true;
     });
 
-  const truncate = (str, max = 10) => {
-    if (!str) return "—";
-    return str.length > max ? str.substring(0, max) + "…" : str;
-  };
-
   const columns = [
     {
-      key: "estimationDate",
-      label: "Date",
-      width: "65px",
+      key: "serialNo",
+      label: "S No",
+      width: "4%",
+      render: (e, index) => (
+        <div className="font-mono text-[9px] font-semibold text-gray-700">
+          {index + 1}
+        </div>
+      )
+    },
+    {
+      key: "PoNo",
+      label: "ODR ID",
+      width: "5%",
       render: (e) => (
-        <div className="text-xs">
+        <div className="font-medium text-[9px] leading-tight break-words">
+          <div className="text-gray-800 font-semibold text-[9px] mt-0.5">{e.PoNo || "—"}</div>
+        </div>
+      )
+    },
+    {
+      key: "orderDate",
+      label: "ODR Date",
+      width: "6%",
+      render: (e) => (
+        <div className="text-[9px] font-semibold leading-tight">
+          {e.orderDate ? new Date(e.orderDate).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit'
+          }) : "—"}
+        </div>
+      )
+    },
+    {
+      key: "buyer",
+      label: "BUYER ID",
+      width: "7%",
+      render: (e) => (
+        <div className="text-[9px] leading-tight break-words" title={e.buyerDetails?.name || e.buyer?.name}>
+          <div className="font-semibold text-gray-800">{e.buyerDetails?.code || "—"}</div>
+        </div>
+      )
+    },
+    {
+      key: "PESNo",
+      label: "EST ID",
+      width: "5%",
+      render: (e) => (
+        <div className="font-medium text-[9px] leading-tight break-words">
+          <div className="text-gray-800 font-semibold text-[9px] mt-0.5">{e.PESNo || "—"}</div>
+        </div>
+      )
+    },
+    {
+      key: "estimationDate",
+      label: "EST Date",
+      width: "5%",
+      render: (e) => (
+        <div className="text-[9px] font-semibold leading-tight">
           {e.estimationDate ? new Date(e.estimationDate).toLocaleDateString('en-IN', {
             day: '2-digit',
             month: '2-digit',
@@ -219,83 +296,25 @@ export default function PurchaseEstimation() {
       )
     },
     {
-      key: "PESNo",
-      label: "PES-No",
-      width: "60px",
-      render: (e) => <span className="font-medium text-xs">{e.PESNo || "—"}</span>
-    },
-    {
-      key: "PoNo",
-      label: "PO No",
-      width: "75px",
-      render: (e) => (
-        <div className="font-medium text-[11px]" title={e.PoNo}>
-          {truncate(e.PoNo, 12) || "—"}
-        </div>
-      )
-    },
-    {
-      key: "buyerCode",
-      label: "Buyer",
-      width: "60px",
-      render: (e) => (
-        <div className="text-[11px]" title={e.buyerDetails?.code}>
-          {truncate(e.buyerDetails?.code, 8) || "—"}
-        </div>
-      )
-    },
-    {
       key: "orderType",
-      label: "Type",
-      width: "60px",
-      render: (e) => {
-        if (e.estimationType === "machine") {
-          return (
-            <span className="px-1 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-              Machine
-            </span>
-          );
-        }
-        return (
-          <span className={`px-1 py-0.5 rounded text-xs font-medium ${e.orderType === "JOB-Works"
-            ? "bg-purple-100 text-purple-700"
+      label: "ODR Type",
+      width: "5%",
+      render: (e) => (
+        <span className={`px-1 py-0.5 rounded text-[9px] font-medium inline-block ${e.orderType === "JOB-Works"
+          ? "bg-purple-100 text-purple-700"
+          : e.orderType === "Own-Orders"
+            ? "bg-teal-100 text-teal-700"
             : "bg-blue-100 text-blue-700"
-            }`}>
-            {e.orderType === "JOB-Works" ? "JOB-Works" : "FOB"}
-          </span>
-        );
-      }
-    },
-    {
-      key: "status",
-      label: "Status",
-      width: "65px",
-      render: (e) => {
-        const status = e.status || "Draft";
-        const styles = {
-          Draft: "bg-yellow-100 text-yellow-700",
-          Finalized: "bg-green-500 text-white",
-        };
-        return (
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${styles[status] || "bg-gray-100 text-gray-700"}`}>
-            {status}
-          </span>
-        );
-      }
+          }`}>
+          {e.orderType === "JOB-Works" ? "JOB" : e.orderType === "Own-Orders" ? "OWN" : "FOB"}
+        </span>
+      )
     },
     {
       key: "products",
-      label: "Products",
-      width: "85px",
+      label: "Product",
+      width: "8%",
       render: (e) => {
-        if (e.estimationType === "machine") {
-          return (
-            <div className="text-xs">
-              <div className="truncate">Machine</div>
-            </div>
-          );
-        }
-
         if (!e.orderProducts || e.orderProducts.length === 0) {
           return <span className="text-gray-400 text-xs">—</span>;
         }
@@ -305,29 +324,7 @@ export default function PurchaseEstimation() {
         return (
           <div className="text-xs" title={productNames.join(", ")}>
             {productNames.map((name, idx) => (
-              <div key={idx} className="truncate">{truncate(name, 11)}</div>
-            ))}
-          </div>
-        );
-      }
-    },
-    {
-      key: "fabricType",
-      label: "Fabric",
-      width: "70px",
-      render: (e) => {
-        if (e.estimationType === "machine") {
-          return <span className="text-gray-400 text-xs">—</span>;
-        }
-
-        if (!e.orderProducts || e.orderProducts.length === 0) return <span className="text-gray-400 text-xs">—</span>;
-
-        const types = [...new Set(e.orderProducts.map(prod => prod.fabricType))];
-
-        return (
-          <div className="text-xs" title={types.join(", ")}>
-            {types.map((type, idx) => (
-              <div key={idx} className="truncate">{truncate(type, 10)}</div>
+              <div key={idx} className="truncate">{name}</div>
             ))}
           </div>
         );
@@ -336,12 +333,8 @@ export default function PurchaseEstimation() {
     {
       key: "color",
       label: "Color",
-      width: "70px",
+      width: "6%",
       render: (e) => {
-        if (e.estimationType === "machine") {
-          return <span className="text-gray-400 text-xs">—</span>;
-        }
-
         if (!e.orderProducts || e.orderProducts.length === 0) {
           return <span className="text-gray-400 text-xs">—</span>;
         }
@@ -385,12 +378,8 @@ export default function PurchaseEstimation() {
     {
       key: "sizeQtyByColor",
       label: "Size & Qty",
-      width: "150px",
+      width: "15%",
       render: (e) => {
-        if (e.estimationType === "machine") {
-          return <span className="text-gray-400 text-xs">—</span>;
-        }
-
         if (!e.orderProducts || e.orderProducts.length === 0) {
           return <span className="text-gray-400 text-xs">—</span>;
         }
@@ -445,17 +434,8 @@ export default function PurchaseEstimation() {
     {
       key: "totalQty",
       label: "Total",
-      width: "60px",
+      width: "6%",
       render: (e) => {
-        if (e.estimationType === "machine") {
-          const machineCount = e.machinesPurchases?.length || 0;
-          return (
-            <span className="font-semibold text-blue-600 text-sm">
-              {machineCount || 0}
-            </span>
-          );
-        }
-
         return (
           <span className="font-semibold text-blue-600 text-sm">
             {e.totalOrderQty || 0}
@@ -464,15 +444,32 @@ export default function PurchaseEstimation() {
       }
     },
     {
-      key: "pdfStatus",
+      key: "status",
+      label: "Status",
+      width: "6%",
+      render: (e) => {
+        const status = e.status || "Draft";
+        const statusStyles = {
+          "Draft": "bg-yellow-100 text-yellow-700",
+          "Finalized": "bg-green-500 text-white",
+        };
+        return (
+          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusStyles[status] || "bg-gray-100 text-gray-700"}`}>
+            {status}
+          </span>
+        );
+      }
+    },
+    {
+      key: "pdfUrl",
       label: "PDF",
-      width: "60px",
+      width: "3%",
       render: (e) => (
         <div className="text-center">
           {e.pdfUrl ? (
-            <FileText className="w-4 h-4 text-green-600 mx-auto" title="PDF Available" />
+            <FileText className="w-4 h-4 text-green-600 mx-auto" />
           ) : (
-            <span className="text-gray-400 text-[10px]">Not generated</span>
+            <span className="text-gray-400 text-xs">—</span>
           )}
         </div>
       )
@@ -485,15 +482,6 @@ export default function PurchaseEstimation() {
       icon: Eye,
       className: "bg-blue-500 text-white hover:bg-blue-600",
       onClick: (estimation) => handleViewPDF(estimation),
-      // Show for all estimations - will offer to generate if doesn't exist
-    },
-    {
-      label: "Generate PDF",
-      icon: Printer,
-      className: "bg-purple-500 text-white hover:bg-purple-600",
-      onClick: (estimation) => handleGeneratePDF(estimation),
-      disabled: (estimation) => generatingPDF === estimation._id || estimation.status === "Finalized",
-      // Only show if not finalized yet
     },
     {
       label: "Edit",
@@ -525,15 +513,7 @@ export default function PurchaseEstimation() {
     <div className="space-y-4">
       {showForm ? (
         <PurchaseEstimationForm
-          initialValues={editEstimation || {
-            estimationType: 'order',
-            estimationDate: new Date().toISOString().split('T')[0],
-            fabricPurchases: [],
-            buttonsPurchases: [],
-            packetsPurchases: [],
-            machinesPurchases: [],
-            remarks: "",
-          }}
+          initialValues={editEstimation}
           onSubmit={handleFormSubmit}
           onCancel={() => {
             setShowForm(false);
@@ -600,12 +580,11 @@ export default function PurchaseEstimation() {
           </div>
 
           {filteredEstimations.length > 0 ? (
-            <div className="w-full">
+            <div className="w-full overflow-x-hidden">
               <DataTable
                 columns={columns}
                 data={filteredEstimations}
                 actions={actions}
-                className="text-xs compact-table"
               />
             </div>
           ) : (
@@ -630,5 +609,3 @@ export default function PurchaseEstimation() {
     </div>
   );
 }
-
-

@@ -100,25 +100,3 @@ export const convertEstimationToInvoice = (id, additionalData) =>
 
 export const convertProformaToInvoice = (id, additionalData) => 
   convertDocument(id, 'invoice', additionalData);
-
-// Update your main app.js to include the new routes:
-/*
-import documentRoutes from './routes/documentRoutes.js';
-import { invoiceRouter } from './routes/invoiceRoutes.js';
-
-// Add to your app
-app.use('/api/documents', documentRoutes);
-app.use('/api/invoices', invoiceRouter); // Backward compatibility
-*/
-
-// Add to your frontend router:
-/*
-import Invoices from './pages/Invoices/Invoices';
-import Proforma from './pages/Proforma/Proforma';
-import Estimations from './pages/Estimations/Estimations';
-
-// Add routes:
-<Route path="/invoices" element={<Invoices />} />
-<Route path="/proforma" element={<Proforma />} />
-<Route path="/estimations" element={<Estimations />} />
-*/

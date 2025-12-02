@@ -9,7 +9,10 @@ const transformOrderProductsForProduction = (orderProducts) => {
   return orderProducts.map(p => ({
     productName: p.productDetails?.name || "Unknown Product",
     fabricType: p.productDetails?.fabricType || "N/A",
-    style: p.productDetails?.style || "",
+    // ✅ FIXED: Convert array to comma-separated string
+    style: Array.isArray(p.productDetails?.style)
+      ? p.productDetails.style.join(", ")
+      : (p.productDetails?.style || ""),
     colors: [{
       color: p.productDetails?.color || "N/A",
       sizes: (p.sizes || []).map(s => ({
@@ -33,6 +36,7 @@ export const createPurchase = async (req, res) => {
   try {
     const {
       orderId,
+      purchaseDate,
       fabricPurchases = [],
       accessoriesPurchases = [],
       remarks,
@@ -44,104 +48,122 @@ export const createPurchase = async (req, res) => {
       return res.status(400).json({ message: "orderId is required" });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(orderId)) {
-      return res.status(400).json({ message: "Invalid order ID format" });
-    }
-
-    const order = await Order.findById(orderId);
+    const order = await Order.findOne({ orderId: orderId });
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Allow both FOB and JOB-Works orders
     if (order.orderType !== "FOB" && order.orderType !== "JOB-Works" && order.orderType !== "Own-Orders") {
       return res.status(400).json({ message: "Invalid order type for purchase" });
     }
 
+    // ✅ CHECK: If purchase exists, UPDATE instead of throwing error
+    const existingPurchase = await Purchase.findOne({ order: order._id });
 
-    // Check if purchase already exists for this order
-    const existingPurchase = await Purchase.findOne({ order: orderId });
     if (existingPurchase) {
-      return res.status(400).json({
-        message: "Purchase already exists for this order. Please update the existing purchase instead.",
-        purchaseId: existingPurchase._id
+      console.log("⚠️ Purchase already exists, updating instead:", existingPurchase._id);
+
+      // Update existing purchase
+      existingPurchase.purchaseDate = purchaseDate ? new Date(purchaseDate) : existingPurchase.purchaseDate;
+      existingPurchase.fabricPurchases = fabricPurchases;
+      existingPurchase.accessoriesPurchases = accessoriesPurchases;
+      existingPurchase.remarks = remarks || existingPurchase.remarks;
+
+      const hasPurchaseItems =
+        (fabricPurchases && fabricPurchases.length > 0) ||
+        (accessoriesPurchases && accessoriesPurchases.length > 0);
+
+      existingPurchase.status = hasPurchaseItems ? "Completed" : "Pending";
+
+      const updatedPurchase = await existingPurchase.save();
+
+      // Update order status
+      await Order.findByIdAndUpdate(order._id, {
+        status: hasPurchaseItems ? "Purchase Completed" : "Pending Purchase"
+      });
+
+      return res.status(200).json({
+        message: "Purchase updated successfully",
+        purchase: updatedPurchase,
+        wasUpdated: true  // ✅ Flag to indicate it was an update
       });
     }
 
-    // Validate fabricPurchases structure if provided
+    // Validation for new purchases
     for (const item of fabricPurchases) {
       if (!item.vendor || !item.fabricType || !item.quantity || !item.costPerUnit) {
         return res.status(400).json({
           message: "Each fabric purchase requires vendor, fabricType, quantity, and costPerUnit"
         });
       }
-
       if (item.vendorId && !mongoose.Types.ObjectId.isValid(item.vendorId)) {
         return res.status(400).json({ message: "Invalid supplier ID format" });
       }
     }
 
-    // Validate accessoriesPurchases structure if provided
     for (const item of accessoriesPurchases) {
       if (!item.vendor || !item.productName || !item.accessoryType || !item.quantity || !item.costPerUnit) {
         return res.status(400).json({
           message: "Each accessory purchase requires vendor, productName, accessoryType, quantity, and costPerUnit"
         });
       }
-
       if (item.vendorId && !mongoose.Types.ObjectId.isValid(item.vendorId)) {
         return res.status(400).json({ message: "Invalid supplier ID format" });
       }
     }
 
+    // Create new purchase
     const purchaseProducts = order.products.map(p => ({
-      productName: p.productDetails?.name || "Unknown Product",
-      fabricType: p.productDetails?.fabricType || "N/A",
-      style: p.productDetails?.style || "",
-      colors: [{
+      product: p.product,
+      productDetails: {
+        category: p.productDetails?.category || "",
+        name: p.productDetails?.name || "Unknown Product",
+        type: p.productDetails?.type || [],
+        style: p.productDetails?.style || [],
+        fabric: p.productDetails?.fabric || "N/A",
+        fabricType: p.productDetails?.fabric || "N/A",
         color: p.productDetails?.color || "N/A",
-        sizes: (p.sizes || []).map(s => ({
-          size: s.size,
-          quantity: s.qty
-        }))
-      }],
+      },
+      sizes: (p.sizes || []).map(s => ({
+        size: s.size,
+        qty: s.qty
+      })),
       productTotalQty: (p.sizes || []).reduce((sum, s) => sum + (s.qty || 0), 0)
     }));
-
 
     const hasPurchaseItems =
       (fabricPurchases && fabricPurchases.length > 0) ||
       (accessoriesPurchases && accessoriesPurchases.length > 0);
 
-    // Create new purchase
     const newPurchase = new Purchase({
       order: order._id,
+      orderId: order.orderId,
       orderDate: order.orderDate,
       PoNo: order.PoNo,
+      purchaseDate: (hasPurchaseItems && purchaseDate) ? new Date(purchaseDate) : null,
       orderType: order.orderType,
       buyerCode: order.buyerDetails?.code || "N/A",
       orderStatus: order.status || "Pending Purchase",
       products: purchaseProducts,
       totalQty: order.totalQty || 0,
       fabricPurchases,
-      accessoriesPurchases, // replaces buttonsPurchases and packetsPurchases
+      accessoriesPurchases,
       remarks: remarks || `Purchase for ${order.orderType} order ${order.PoNo}`,
       status: hasPurchaseItems ? "Completed" : "Pending",
     });
 
     const savedPurchase = await newPurchase.save();
-    console.log("✅ Purchase created:", savedPurchase._id, "- Status:", savedPurchase.status);
+    console.log("✅ Purchase created:", savedPurchase._id, "- Status:", savedPurchase.status, "- Date:", savedPurchase.purchaseDate);
 
-    // Link purchase to order
-    await Order.findByIdAndUpdate(orderId, {
+    await Order.findByIdAndUpdate(order._id, {
       purchase: savedPurchase._id,
       status: hasPurchaseItems ? "Purchase Completed" : "Pending Purchase"
     });
 
-    // Only create production if purchase is completed
+
     if (hasPurchaseItems) {
-      // Check if production already exists
-      const existingProduction = await Production.findOne({ order: orderId });
+      // ✅ FIXED: Use order._id instead of orderId string
+      const existingProduction = await Production.findOne({ order: order._id });
 
       if (!existingProduction) {
         console.log("🔄 Creating production for completed purchase...");
@@ -151,7 +173,8 @@ export const createPurchase = async (req, res) => {
 
         // Create production with order data
         const productionData = {
-          order: order._id,
+          order: order._id,  // ✅ MongoDB ObjectId
+          orderId: order.orderId,  // ✅ String for display
           orderDate: order.orderDate,
           PoNo: order.PoNo,
           orderType: order.orderType,
@@ -198,8 +221,8 @@ export const createPurchase = async (req, res) => {
         await newProduction.save();
         console.log("✅ Production created automatically:", newProduction._id);
 
-        // Link production to order
-        await Order.findByIdAndUpdate(orderId, {
+        // ✅ FIXED: Link production to order using order._id
+        await Order.findByIdAndUpdate(order._id, {
           production: newProduction._id,
           status: "Pending Production"
         });
@@ -207,7 +230,6 @@ export const createPurchase = async (req, res) => {
         console.log("⚠️ Production already exists, skipping creation");
       }
     }
-
     res.status(201).json({
       message: hasPurchaseItems
         ? "Purchase created and marked as completed"
@@ -225,9 +247,9 @@ export const createPurchase = async (req, res) => {
 export const getPurchases = async (req, res) => {
   try {
     const purchases = await Purchase.find()
-      .populate("order", "PoNo orderType status buyerDetails")
+      .populate("order", "orderId PoNo orderType status buyerDetails")
       .populate("fabricPurchases.vendorId", "name code")
-      .populate("accessoriesPurchases.vendorId", "name code")  
+      .populate("accessoriesPurchases.vendorId", "name code")
       .sort({ createdAt: -1 });
     res.json(purchases);
   } catch (err) {
@@ -242,6 +264,7 @@ export const updatePurchase = async (req, res) => {
   try {
     const { id } = req.params;
     const {
+      purchaseDate,
       fabricPurchases,
       accessoriesPurchases,
       remarks,
@@ -254,21 +277,38 @@ export const updatePurchase = async (req, res) => {
 
     const wasCompleted = purchase.status === "Completed";
 
-    // Update purchase-specific arrays
+    // ✅ Update purchaseDate only if provided
+    if (purchaseDate !== undefined) {
+      purchase.purchaseDate = purchaseDate ? new Date(purchaseDate) : null;
+    }
+
+    // Update purchase arrays
     if (fabricPurchases !== undefined) purchase.fabricPurchases = fabricPurchases;
     if (accessoriesPurchases !== undefined) purchase.accessoriesPurchases = accessoriesPurchases;
     if (remarks !== undefined) purchase.remarks = remarks;
 
-    // Determine if purchase has items and should be marked as completed
+    // Check if has items
     const hasItems =
       (purchase.fabricPurchases && purchase.fabricPurchases.length > 0) ||
       (purchase.accessoriesPurchases && purchase.accessoriesPurchases.length > 0);
 
-    // Update status based on whether there are purchase items
+    // ✅ If purchase now has items but no date, set to now
+    if (hasItems && !purchase.purchaseDate) {
+      purchase.purchaseDate = new Date();
+      console.log("✅ Auto-setting purchaseDate since items were added");
+    }
+
+    // ✅ If purchase no longer has items, clear the date
+    if (!hasItems && purchase.purchaseDate) {
+      purchase.purchaseDate = null;
+      console.log("⚠️ Clearing purchaseDate since items were removed");
+    }
+
     purchase.status = hasItems ? "Completed" : "Pending";
 
     const updatedPurchase = await purchase.save();
-    console.log("✅ Updated purchase:", updatedPurchase._id, "Status:", updatedPurchase.status);
+    console.log("✅ Updated purchase:", updatedPurchase._id, "Status:", updatedPurchase.status, "Date:", updatedPurchase.purchaseDate);
+
 
     // Get the order for production creation
     const order = await Order.findById(purchase.order);
@@ -301,6 +341,7 @@ export const updatePurchase = async (req, res) => {
 
         const productionData = {
           order: order._id,
+          orderId: order.orderId,
           orderDate: order.orderDate,
           PoNo: order.PoNo,
           orderType: order.orderType,
@@ -382,10 +423,7 @@ export const updatePurchase = async (req, res) => {
 
     res.json({
       purchase: updatedPurchase,
-      production: production || null,
-      message: production
-        ? "Purchase updated and production created/updated"
-        : "Purchase updated - production will be created when completed"
+      message: "Purchase updated successfully"
     });
   } catch (err) {
     console.error("❌ Error in updatePurchase:", err.message);
@@ -398,7 +436,7 @@ export const updatePurchase = async (req, res) => {
 export const getPurchaseById = async (req, res) => {
   try {
     const purchase = await Purchase.findById(req.params.id)
-      .populate("order", "PoNo orderType status buyerDetails")
+      .populate("order", "orderId PoNo orderType status buyerDetails")
       .populate("fabricPurchases.vendorId", "name code")
       .populate("accessoriesPurchases.vendorId", "name code")
     if (!purchase) return res.status(404).json({ message: "Purchase not found" });

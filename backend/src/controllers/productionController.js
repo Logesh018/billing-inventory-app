@@ -44,7 +44,10 @@ export const createProduction = async (req, res) => {
     const productionProducts = order.products.map(p => ({
       productName: p.productDetails?.name || "Unknown Product",
       fabricType: p.productDetails?.fabricType || "N/A",
-      sytle: p.productDetails?.style || "-",
+      // ✅ FIXED: Convert array to comma-separated string
+      style: Array.isArray(p.productDetails?.style)
+        ? p.productDetails.style.join(", ")
+        : (p.productDetails?.style || ""),
       colors: [{
         color: p.productDetails?.color || "N/A",
         sizes: (p.sizes || []).map(s => ({

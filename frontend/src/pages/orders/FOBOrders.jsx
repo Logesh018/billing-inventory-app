@@ -1,10 +1,47 @@
 ﻿import { useEffect, useState } from "react";
-import { getAllOrders, deleteOrder, createOrder, updateOrder } from "../../api/orderApi";
+import { getAllOrders, deleteOrder, createOrder, updateOrder, generateOrderPDF } from "../../api/orderApi";
 import { getAllBuyers } from "../../api/buyerApi";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, FileText } from "lucide-react";
 import DataTable from "../../components/UI/DataTable";
 import OrdersForm from "./OrdersForm";
-import { showConfirm } from "../../utils/toast";
+import { useFormNavigation } from "../../utils/FormExitModal";
+import { showConfirm, showError, showLoading, dismissAndSuccess, dismissAndError } from "../../utils/toast";
+
+// Helper function to render product details cleanly
+const renderProductDetails = (products, key, isArray = false) => {
+  if (!products || products.length === 0)
+    return <span className="text-gray-400 text-[9px]">—</span>;
+
+  return (
+    <div className="space-y-1.5">
+      {products.map((p, i) => {
+        let value = p.productDetails?.[key];
+
+        // Handle array fields like 'type' or 'style'
+        if (isArray) {
+          value = Array.isArray(value) ? value.join(", ") : value || "—";
+        } else {
+          value = value || "—";
+        }
+
+        // Calculate total quantity for the product
+        const productTotalQty = (p.sizes || []).reduce((sum, s) => sum + (s.qty || 0), 0);
+
+        return (
+          <div
+            key={i}
+            className="px-1 py-0 border border-gray-200 rounded text-[8px] font-semibold leading-tight break-words min-h-[20px] flex items-center justify-center"
+          >
+            {value}
+            {key === 'totalQty' &&
+              <div className="font-semibold text-blue-700">{productTotalQty}</div>
+            }
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 export default function FOBOrders() {
   const [orders, setOrders] = useState([]);
@@ -13,6 +50,8 @@ export default function FOBOrders() {
   const [editOrder, setEditOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [generatingPDF, setGeneratingPDF] = useState(null);
+  const { setIsFormOpen } = useFormNavigation()
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,14 +98,16 @@ export default function FOBOrders() {
 
   const handleDelete = async (id) => {
     showConfirm(
-      "Are you sure you want to delete this Own order? This will also delete related purchase/production records.",
+      "Are you sure you want to delete this FOB order? This will also delete related purchase/production records.",
       async () => {
+        const toastId = showLoading("Deleting order...");
         try {
           await deleteOrder(id);
           await fetchOrders();
+          dismissAndSuccess(toastId, "Order deleted successfully!");
         } catch (error) {
           console.error("Error deleting order:", error);
-          alert(`Failed to delete order: ${error.response?.data?.message || error.message}`);
+          dismissAndError(toastId, `Failed to delete order: ${error.response?.data?.message || error.message}`);
         }
       }
     );
@@ -81,6 +122,7 @@ export default function FOBOrders() {
       }
       setShowForm(false);
       setEditOrder(null);
+      setIsFormOpen(false);
       await fetchOrders();
     } catch (error) {
       console.error("Error saving order:", error);
@@ -88,13 +130,59 @@ export default function FOBOrders() {
     }
   };
 
+  // View/Generate PDF - Single unified action
+  const handleViewPDF = async (order) => {
+    try {
+      // If PDF URL exists in the order object, open it immediately
+      if (order.pdfUrl) {
+        console.log("✅ Opening existing PDF:", order.pdfUrl);
+        window.open(order.pdfUrl, '_blank');
+        return;
+      }
+
+      // If no PDF URL, generate it automatically with user feedback
+      console.log("🔄 PDF not found, generating...");
+      setGeneratingPDF(order._id);
+      const toastId = showLoading(`Generating PDF for Order ${order.orderId || order.PoNo}...`);
+
+      const response = await generateOrderPDF(order._id);
+
+      // Open PDF in new tab immediately after generation
+      if (response.pdfUrl) {
+        console.log("✅ PDF generated successfully, opening:", response.pdfUrl);
+        window.open(response.pdfUrl, '_blank');
+      }
+
+      // Refresh orders to get updated status
+      await fetchOrders();
+
+      // Show success message
+      dismissAndSuccess(toastId, "PDF generated and opened successfully!");
+    } catch (error) {
+      console.error("Error viewing/generating PDF:", error);
+      showError(`Failed to view PDF: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setGeneratingPDF(null);
+    }
+  };
+
   const columns = [
+    {
+      key: "serialNo",
+      label: "S No",
+      width: "4%",
+      render: (o) => (
+        <div className="font-mono text-[9px] font-semibold text-gray-700">
+          {o.serialNo || "—"}
+        </div>
+      )
+    },
     {
       key: "orderDate",
       label: "Date",
       width: "5%",
       render: (o) => (
-        <div className="text-[10px] leading-tight">
+        <div className="text-[9px] font-semibold leading-tight">
           {o.orderDate ? new Date(o.orderDate).toLocaleDateString('en-IN', {
             day: '2-digit',
             month: '2-digit',
@@ -104,38 +192,39 @@ export default function FOBOrders() {
       )
     },
     {
+      key: "O ID",
+      label: "O ID",
+      width: "5%",
+      render: (o) => (
+        <div className="font-medium text-[9px] leading-tight break-words">
+          <div className="text-gray-800 font-semibold text-[9px] mt-0.5">{o.orderId || "—"}</div>
+        </div>
+      )
+    },
+    {
       key: "PoNo",
-      label: "PO No",
+      label: "B PoNo",
       width: "8%",
       render: (o) => (
-        <div className="font-medium text-[10px] leading-tight break-words">
-          {o.PoNo || "—"}
+        <div className="font-medium text-[9px] leading-tight break-words">
+          <div className="font-bold text-gray-800">{o.PoNo || "—"}</div>
         </div>
       )
     },
     {
       key: "buyer",
       label: "Buyer",
-      width: "8%",
+      width: "7%",
       render: (o) => (
         <div className="text-[9px] leading-tight break-words" title={o.buyerDetails?.name || o.buyer?.name}>
-          {o.buyerDetails?.name || o.buyer?.name || "—"}
-        </div>
-      )
-    },
-    {
-      key: "buyerCode",
-      label: "Code",
-      width: "5%",
-      render: (o) => (
-        <div className="text-[9px] leading-tight break-words">
-          {o.buyerDetails?.code || "—"}
+          <div className="font-semibold text-gray-800">{o.buyerDetails?.name || o.buyer?.name || "—"}</div>
+          <div className="text-gray-500 font-semibold text-[8px] mt-0.5">{o.buyerDetails?.code || "—"}</div>
         </div>
       )
     },
     {
       key: "orderType",
-      label: "Type",
+      label: "O Type",
       width: "5%",
       render: (o) => (
         <span className={`px-1 py-0.5 rounded text-[9px] font-medium inline-block ${o.orderType === "JOB-Works"
@@ -149,9 +238,92 @@ export default function FOBOrders() {
       )
     },
     {
+      key: "products",
+      label: "Products",
+      width: "8%",
+      render: (o) => renderProductDetails(o.products, 'name'),
+    },
+    {
+      key: "fabric",
+      label: "Fabric",
+      width: "7%",
+      render: (o) => renderProductDetails(o.products, 'fabric'),
+    },
+    {
+      key: "style",
+      label: "P Style",
+      width: "8%",
+      render: (o) => renderProductDetails(o.products, 'style', true),
+    },
+    {
+      key: "color",
+      label: "Color",
+      width: "6%",
+      render: (o) => renderProductDetails(o.products, 'color'),
+    },
+    {
+      key: "sizeQty",
+      label: "Size & Qty",
+      width: "15%",
+      render: (o) => {
+        if (!o.products || o.products.length === 0)
+          return <span className="text-gray-800 text-[9px]">—</span>;
+
+        return (
+          <div className="space-y-1.5">
+            {o.products.map((p, i) => (
+              <div
+                key={i}
+                className="px-0.5 py-1 border border-gray-200 rounded text-gray-800 font-mono text-[8px] leading-tight break-words min-h-[15px] flex items-center"
+              >
+                {p.sizes?.map((s) => `${s.size}:${s.qty}`).join(", ") || "—"}
+              </div>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      key: "totalQty",
+      label: "Total",
+      width: "6%",
+      render: (o) => {
+        if (!o.products || o.products.length === 0) {
+          return (
+            <div className="flex flex-col justify-end">
+              <span className="font-extrabold text-green-600 text-[10px] bg-green-50 p-1 rounded-sm text-center mt-auto">
+                {o.totalQty || 0}
+              </span>
+            </div>
+          );
+        }
+        return (
+          <div className="flex flex-col">
+            <div className="space-y-2 mt-1 mb-1">
+              {o.products.map((p, i) => {
+                const productTotal = (p.sizes || []).reduce((sum, s) => sum + (s.qty || 0), 0);
+                return (
+                  <div
+                    key={i}
+                    className="px-1 pt-1.5 text-center font-bold text-blue-700 text-[9px] leading-tight min-h-[15px] flex items-center justify-center"
+                  >
+                    {productTotal}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className=" font-semibold text-green-600 text-[9px] bg-green-50 rounded-sm text-center">
+              {o.totalQty || 0}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
       key: "status",
       label: "Status",
-      width: "8%",
+      width: "6%",
       render: (o) => {
         const status = o.status || 'Pending';
         const statusStyles = {
@@ -164,15 +336,15 @@ export default function FOBOrders() {
         };
         const shortStatus = {
           "Pending Purchase": "! Purchase",
-          "Purchase Completed": "Purchase ✓",
+          "Purchase Completed": "P-Done",
           "Pending Production": "! Production",
-          "In Production": "Prod→",
-          "Production Completed": "Production ✓",
-          "Completed": "Done",
+          "In Production": "! Production",
+          "Production Completed": "Prod-Done",
+          "Completed": "Completed",
         };
         return (
           <span
-            className={`px-1 py-0.5 rounded text-[9px] leading-tight break-words inline-block ${statusStyles[status] || "bg-gray-400 text-white"}`}
+            className={`px-1 py-0.5 rounded text-[8px] leading-tight break-words inline-block text-center w-full ${statusStyles[status] || "bg-gray-400 text-white"}`}
             title={status}
           >
             {shortStatus[status] || status}
@@ -181,133 +353,33 @@ export default function FOBOrders() {
       }
     },
     {
-      key: "products",
-      label: "Products",
-      width: "12%",
-      render: (o) => {
-        if (!o.products || o.products.length === 0)
-          return <span className="text-gray-400 text-[9px]">—</span>;
-
-        return (
-          <div className="space-y-1">
-            {o.products.map((p, i) => (
-              <div
-                key={i}
-                className="px-1 py-1 border border-gray-300 rounded text-[8px] leading-tight"
-              >
-                <div className="font-medium text-gray-800 break-words">
-                  {p.productDetails?.name || "—"}
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      },
-    },
-    {
-      key: "fabricType",
-      label: "Fabric",
-      width: "8%",
-      render: (o) => {
-        if (!o.products || o.products.length === 0)
-          return <span className="text-gray-400 text-[9px]">—</span>;
-
-        return (
-          <div className="space-y-3">
-            {o.products.map((p, i) => (
-              <div
-                key={i}
-                className="px-1 py-1 border border-gray-300 rounded text-[8px] leading-tight break-words"
-              >
-                {p.productDetails?.fabricType || "—"}
-              </div>
-            ))}
-          </div>
-        );
-      },
-    },
-    {
-      key: "style",
-      label: "Style",
-      width: "8%",
-      render: (o) => {
-        if (!o.products || o.products.length === 0)
-          return <span className="text-gray-400 text-[9px]">—</span>;
-        return (
-          <div className="space-y-3">
-            {o.products.map((p, i) => (
-              <div
-                key={i}
-                className="px-1 py-1 border border-gray-300 rounded text-[8px] leading-tight break-words"
-              >
-                {p.productDetails?.style || "—"}
-              </div>
-            ))}
-          </div>
-        );
-      },
-    },
-    {
-      key: "color",
-      label: "Color",
-      width: "7%",
-      render: (o) => {
-        if (!o.products || o.products.length === 0)
-          return <span className="text-gray-400 text-[9px]">—</span>;
-
-        return (
-          <div className="space-y-3">
-            {o.products.map((p, i) => (
-              <div
-                key={i}
-                className="px-0 py-1 border border-gray-300 rounded text-[9px] leading-tight break-words"
-              >
-                {p.productDetails?.color || "—"}
-              </div>
-            ))}
-          </div>
-        );
-      },
-    },
-    {
-      key: "sizeQty",
-      label: "Size & Qty",
-      width: "15%",
-      render: (o) => {
-        if (!o.products || o.products.length === 0)
-          return <span className="text-gray-400 text-[10px]">—</span>;
-
-        return (
-          <div className="space-y-3">
-            {o.products.map((p, i) => (
-              <div
-                key={i}
-                className="py-1 border border-gray-300 rounded text-gray-600 font-mono font-medium text-[9px] leading-tight break-words"
-              >
-                {p.sizes?.map((s) => `${s.size}:${s.qty}`).join(", ") || "—"}
-              </div>
-            ))}
-          </div>
-        );
-      },
-    },
-    {
-      key: "totalQty",
-      label: "Total",
-      width: "4%",
-      render: (o) => (
-        <span className="font-semibold text-blue-600 text-[10px]">
-          {o.totalQty || 0}
-        </span>
+      key: "pdfUrl",
+      label: "PDF",
+      width: "3%",
+      render: (order) => (
+        <div className="text-center">
+          {order.pdfUrl ? (
+            <FileText className="w-4 h-4 text-green-600 mx-auto" />
+          ) : (
+            <span className="text-gray-400 text-xs">—</span>
+          )}
+        </div>
       )
     },
   ];
 
   const actions = [
     {
+      label: "View PDF",
+      icon: Eye,
+      className: "bg-blue-500 text-white hover:bg-blue-600",
+      onClick: handleViewPDF,
+      disabled: (order) => generatingPDF === order._id,
+    },
+    {
       label: "Edit",
       icon: Edit,
-      className: "bg-blue-500 text-white hover:bg-blue-600",
+      className: "bg-orange-500 text-white hover:bg-orange-600",
       onClick: (order) => {
         setEditOrder(order);
         setShowForm(true);
@@ -347,7 +419,7 @@ export default function FOBOrders() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-xl font-bold text-gray-800">FOB Orders Management</h1>
-              <p className="text-gray-600 text-sm mt-1">Manage Free On Board orders</p>
+              <p className="text-gray-600 text-sm mt-1">Manage FOB orders</p>
             </div>
             <button
               onClick={() => {
@@ -363,6 +435,13 @@ export default function FOBOrders() {
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
               {error}
+            </div>
+          )}
+
+          {generatingPDF && (
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700 mr-2"></div>
+              Generating PDF... This may take a few seconds.
             </div>
           )}
 
@@ -394,5 +473,3 @@ export default function FOBOrders() {
     </div>
   );
 }
-
-

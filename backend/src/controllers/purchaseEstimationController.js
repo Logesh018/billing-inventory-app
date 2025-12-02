@@ -3,14 +3,41 @@ import mongoose from "mongoose";
 import PurchaseEstimation from "../models/PurchaseEstimationSchema.js";
 import Order from "../models/orders.js";
 import Supplier from "../models/supplier.js";
+import Purchase from "../models/purchase.js"; 
 import { pdfService } from "../services/pdfService.js";
 import { cloudinaryService } from "../services/cloudinaryService.js";
 
 const transformOrderProductsForEstimation = (orderProducts) => {
-  return orderProducts.map(p => {
+  console.log('\n🔄 SERVER: Transforming order products for estimation...');
+  
+  return orderProducts.map((p, index) => {
+    console.log(`\n📦 SERVER: Processing product ${index + 1}:`, {
+      productName: p.productDetails?.name || p.productName,
+      fabricType: p.productDetails?.fabric || p.fabricType,
+      style: p.productDetails?.style || p.style
+    });
+
     const productName = p.productDetails?.name || p.productName || "Unknown Product";
-    const fabricType = p.productDetails?.fabricType || p.fabricType || "N/A";
-    const style = p.productDetails?.style || p.style || "";
+
+    // ✅ Use 'fabric' not 'fabricType' - Order schema uses 'fabric'
+    const fabricType =
+      p.productDetails?.fabric ||
+      p.productDetails?.fabricType ||
+      p.fabricType ||
+      "N/A";
+
+    // ✅ CRITICAL FIX: Handle style as array and convert to string
+    let style = p.productDetails?.style || p.style || "";
+    
+    console.log(`   📝 SERVER: Original style value:`, style);
+    console.log(`   📝 SERVER: Style is array?:`, Array.isArray(style));
+    
+    if (Array.isArray(style)) {
+      style = style.join(", "); // Convert ["Cut & Sew", "F/s"] → "Cut & Sew, F/s"
+      console.log(`   ✅ SERVER: Converted style array to string:`, style);
+    }
+    
+    console.log(`   ✅ SERVER: Final style value (string):`, style);
 
     const colorMap = new Map();
     if (p.sizes && Array.isArray(p.sizes)) {
@@ -51,27 +78,34 @@ const transformOrderProductsForEstimation = (orderProducts) => {
       total + (colorGroup.sizes?.reduce((sum, s) => sum + (s.quantity || 0), 0) || 0), 0
     );
 
-    return {
+    const transformedProduct = {
       productName: productName,
       fabricType: fabricType,
-      style: style,
+      style: style, // ✅ Now guaranteed to be a string
       colors: colors,
       productTotalQty: productTotalQty
     };
+
+    console.log(`   🎯 SERVER: Transformed product:`, JSON.stringify(transformedProduct, null, 2));
+
+    return transformedProduct;
   });
 };
+
 
 // @desc    Search Orders by PoNo for dropdown
 // @route   GET /api/purchase-estimations/search/orders
 export const searchOrders = async (req, res) => {
   try {
+    console.log('\n🔍 SERVER: searchOrders called');
     const { q } = req.query;
+    console.log(`📝 SERVER: Search query: "${q}"`);
 
     if (!q || q.length < 2) {
+      console.log('⚠️  SERVER: Query too short, returning empty array');
       return res.status(200).json([]);
     }
 
-    // Search for orders by PoNo
     const orders = await Order.find({
       PoNo: new RegExp(q, 'i')
     })
@@ -79,7 +113,7 @@ export const searchOrders = async (req, res) => {
       .limit(10)
       .lean();
 
-    console.log(`Found ${orders.length} orders for query: "${q}"`);
+    console.log(`✅ SERVER: Found ${orders.length} orders`);
 
     const results = orders.map(order => ({
       _id: order._id,
@@ -92,9 +126,10 @@ export const searchOrders = async (req, res) => {
       status: order.status
     }));
 
+    console.log('📤 SERVER: Sending results:', JSON.stringify(results, null, 2));
     res.status(200).json(results);
   } catch (error) {
-    console.error("❌ Error in searchOrders:", error.message);
+    console.error("❌ SERVER ERROR in searchOrders:", error.message);
     res.status(500).json({
       message: "Error searching orders",
       error: error.message
@@ -106,7 +141,9 @@ export const searchOrders = async (req, res) => {
 // @route   GET /api/purchase-estimations/order/:PoNo
 export const getOrderByPoNo = async (req, res) => {
   try {
+    console.log('\n🔍 SERVER: getOrderByPoNo called');
     const { PoNo } = req.params;
+    console.log(`📝 SERVER: Fetching order with PoNo: "${PoNo}"`);
 
     const order = await Order.findOne({ PoNo })
       .populate("buyer", "name code mobile gst email address")
@@ -114,15 +151,12 @@ export const getOrderByPoNo = async (req, res) => {
       .lean();
 
     if (!order) {
+      console.log('❌ SERVER: Order not found');
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // console.log("📦 Order Products Before Transform:", JSON.stringify(order.products, null, 2));
-
-    // Transform products to estimation format
+    console.log('✅ SERVER: Order found, transforming products...');
     const estimationProducts = transformOrderProductsForEstimation(order.products);
-
-    console.log("✅ Transformed Products:", JSON.stringify(estimationProducts, null, 2));
 
     const orderDetails = {
       _id: order._id,
@@ -135,9 +169,10 @@ export const getOrderByPoNo = async (req, res) => {
       status: order.status
     };
 
+    console.log('📤 SERVER: Sending order details');
     res.status(200).json(orderDetails);
   } catch (error) {
-    console.error("❌ Error in getOrderByPoNo:", error.message);
+    console.error("❌ SERVER ERROR in getOrderByPoNo:", error.message);
     res.status(500).json({
       message: "Error fetching order details",
       error: error.message
@@ -145,50 +180,113 @@ export const getOrderByPoNo = async (req, res) => {
   }
 };
 
-// @desc    Create a new purchase estimation (Order-based or Machine-based)
+// @desc    Create a new purchase estimation
 // @route   POST /api/purchase-estimations
 export const createPurchaseEstimation = async (req, res) => {
   try {
+    console.log('\n🚀 ========== CREATE PURCHASE ESTIMATION START ==========');
+    console.log('📥 SERVER: Received POST /api/purchase-estimations');
+    console.log('📦 SERVER: Request body:', JSON.stringify(req.body, null, 2));
+
     const {
-      estimationType,
       orderId,
       PoNo,
-      fabricPurchases = [],
-      accessoriesPurchases = [],
-      machinesPurchases = [],
-      fabricCostEstimation = [], // NEW
+      purchaseItems = [],
+      fabricCostEstimation = [],
       remarks,
       estimationDate,
     } = req.body;
 
-    console.log("POST /api/purchase-estimations payload:", req.body);
+    console.log('\n📊 SERVER: Extracted data:');
+    console.log(`   orderId: ${orderId}`);
+    console.log(`   PoNo: ${PoNo}`);
+    console.log(`   purchaseItems count: ${purchaseItems.length}`);
+    console.log(`   estimationDate: ${estimationDate}`);
+    console.log(`   remarks: ${remarks}`);
 
-    // Validate estimation type
-    if (!estimationType || !["order", "machine"].includes(estimationType)) {
+    // More detailed validation
+    console.log('\n🔍 SERVER: Starting validation...');
+    
+    if (!purchaseItems || purchaseItems.length === 0) {
+      console.log('❌ SERVER VALIDATION FAILED: purchaseItems is empty or undefined');
+      console.log('   purchaseItems value:', purchaseItems);
       return res.status(400).json({
-        message: "estimationType is required and must be 'order' or 'machine'"
+        message: "At least one purchase item is required"
       });
     }
 
+    console.log(`✅ SERVER: purchaseItems array has ${purchaseItems.length} items`);
+
+    // Check if each purchase item has valid data
+    for (let i = 0; i < purchaseItems.length; i++) {
+      const item = purchaseItems[i];
+      console.log(`\n🔎 SERVER: Validating item ${i + 1}/${purchaseItems.length}:`);
+      console.log('   Item data:', JSON.stringify(item, null, 2));
+
+      if (!item.vendor) {
+        console.log(`❌ SERVER VALIDATION FAILED: Item ${i + 1} - vendor is missing`);
+        return res.status(400).json({
+          message: `Vendor is required for purchase item ${i + 1}`
+        });
+      }
+      console.log(`   ✓ Vendor: "${item.vendor}"`);
+
+      if (!item.items || item.items.length === 0) {
+        console.log(`❌ SERVER VALIDATION FAILED: Item ${i + 1} - has no item rows`);
+        return res.status(400).json({
+          message: `Purchase item ${i + 1} must have at least one item row`
+        });
+      }
+      console.log(`   ✓ Has ${item.items.length} item rows`);
+
+      for (let j = 0; j < item.items.length; j++) {
+        const row = item.items[j];
+        console.log(`   🔎 Row ${j + 1}:`, {
+          itemName: row.itemName,
+          quantity: row.quantity,
+          costPerUnit: row.costPerUnit
+        });
+
+        if (!row.itemName || !row.quantity || !row.costPerUnit) {
+          console.log(`❌ SERVER VALIDATION FAILED: Item ${i + 1}, Row ${j + 1} - missing required fields`);
+          console.log('      Missing:', {
+            itemName: !row.itemName,
+            quantity: !row.quantity,
+            costPerUnit: !row.costPerUnit
+          });
+          return res.status(400).json({
+            message: `Item name, quantity, and cost per unit are required for item ${i + 1}, row ${j + 1}`
+          });
+        }
+        console.log(`   ✓ Row ${j + 1} valid`);
+      }
+
+      if (item.vendorId && !mongoose.Types.ObjectId.isValid(item.vendorId)) {
+        console.log(`❌ SERVER VALIDATION FAILED: Invalid supplier ID format: ${item.vendorId}`);
+        return res.status(400).json({ message: "Invalid supplier ID format" });
+      }
+      if (item.vendorId) {
+        console.log(`   ✓ vendorId: ${item.vendorId}`);
+      }
+    }
+
+    console.log('\n✅ SERVER: All validation checks passed!');
+
     let estimationData = {
-      estimationType,
       estimationDate: estimationDate || Date.now(),
       remarks: remarks || "",
       status: "Draft",
+      purchaseItems,
+      fabricCostEstimation,
     };
 
-    // Handle Order-based estimation
-    if (estimationType === "order") {
-      if (!orderId && !PoNo) {
-        return res.status(400).json({
-          message: "orderId or PoNo is required for order-based estimation"
-        });
-      }
-
-      // Fetch order
+    // If order is referenced, fetch and attach order details
+    if (orderId || PoNo) {
+      console.log('\n🔍 SERVER: Fetching order details...');
       let order;
       if (orderId) {
         if (!mongoose.Types.ObjectId.isValid(orderId)) {
+          console.log('❌ SERVER: Invalid order ID format');
           return res.status(400).json({ message: "Invalid order ID format" });
         }
         order = await Order.findById(orderId).populate("buyer").lean();
@@ -197,48 +295,13 @@ export const createPurchaseEstimation = async (req, res) => {
       }
 
       if (!order) {
+        console.log('❌ SERVER: Order not found');
         return res.status(404).json({ message: "Order not found" });
       }
 
-      // Validate that at least one purchase item exists
-      const hasItems =
-        (fabricPurchases && fabricPurchases.length > 0) ||
-        (accessoriesPurchases && accessoriesPurchases.length > 0);
-
-      if (!hasItems) {
-        return res.status(400).json({
-          message: "At least one purchase item (fabric or accessories) is required for order estimation"
-        });
-      }
-
-      // Validate fabricPurchases
-      for (const item of fabricPurchases) {
-        if (!item.vendor || !item.fabricType || !item.quantity || !item.costPerUnit) {
-          return res.status(400).json({
-            message: "Each fabric purchase requires vendor, fabricType, quantity, and costPerUnit"
-          });
-        }
-        if (item.vendorId && !mongoose.Types.ObjectId.isValid(item.vendorId)) {
-          return res.status(400).json({ message: "Invalid supplier ID format in fabric purchases" });
-        }
-      }
-
-      // Validate accessoriesPurchases
-      for (const item of accessoriesPurchases) {
-        if (!item.vendor || !item.productName || !item.accessoryType || !item.quantity || !item.costPerUnit) {
-          return res.status(400).json({
-            message: "Each accessory purchase requires vendor, productName, accessoryType, quantity, and costPerUnit"
-          });
-        }
-        if (item.vendorId && !mongoose.Types.ObjectId.isValid(item.vendorId)) {
-          return res.status(400).json({ message: "Invalid supplier ID format in accessory purchases" });
-        }
-      }
-
-      // Transform order products
+      console.log(`✅ SERVER: Order found - ${order.PoNo}`);
       const orderProducts = transformOrderProductsForEstimation(order.products);
 
-      // Populate estimation data with order details
       estimationData = {
         ...estimationData,
         order: order._id,
@@ -248,49 +311,53 @@ export const createPurchaseEstimation = async (req, res) => {
         buyerDetails: order.buyerDetails,
         orderProducts: orderProducts,
         totalOrderQty: order.totalQty,
-        fabricPurchases,
-        accessoriesPurchases,
-        fabricCostEstimation, // NEW: Include fabric cost estimation
       };
     }
-    // Handle Machine-based estimation
-    else if (estimationType === "machine") {
-      // Validate machine purchases
-      if (!machinesPurchases || machinesPurchases.length === 0) {
-        return res.status(400).json({
-          message: "At least one machine purchase is required for machine estimation"
-        });
-      }
 
-      for (const item of machinesPurchases) {
-        if (!item.machineName || !item.vendor || item.cost === undefined || item.cost === null) {
-          return res.status(400).json({
-            message: "Each machine purchase requires machineName, vendor, and cost"
-          });
-        }
-        if (item.vendorId && !mongoose.Types.ObjectId.isValid(item.vendorId)) {
-          return res.status(400).json({ message: "Invalid supplier ID format in machine purchases" });
-        }
-      }
+    console.log('\n💾 SERVER: Creating new estimation...');
+    console.log('   Estimation data:', JSON.stringify(estimationData, null, 2));
 
-      estimationData.machinesPurchases = machinesPurchases;
-    }
-
-    // Create new purchase estimation - PESNo will be auto-generated by pre-save hook
+    // Create new purchase estimation
     const newEstimation = new PurchaseEstimation(estimationData);
     const savedEstimation = await newEstimation.save();
 
-    console.log("✅ Purchase Estimation created:", savedEstimation.PESNo, "Type:", savedEstimation.estimationType);
+    console.log("✅ SERVER: Purchase Estimation created successfully!");
+    console.log(`   PESNo: ${savedEstimation.PESNo}`);
+    console.log(`   ID: ${savedEstimation._id}`);
+
+    // ✅ Update the related Purchase document with PESNo
+    if (savedEstimation.order) {
+      console.log('\n🔗 SERVER: Updating related Purchase document...');
+      const purchase = await Purchase.findOne({ order: savedEstimation.order });
+
+      if (purchase) {
+        purchase.purchaseEstimation = savedEstimation._id;
+        purchase.PESNo = savedEstimation.PESNo;
+        purchase.estimationDate = savedEstimation.estimationDate;
+        await purchase.save();
+
+        console.log(`✅ SERVER: Updated Purchase ${purchase.PURNo} with PESNo: ${savedEstimation.PESNo}`);
+      } else {
+        console.log("⚠️  SERVER: No Purchase document found for this order");
+      }
+    }
+
+    console.log('\n📤 SERVER: Sending success response');
+    console.log('🚀 ========== CREATE PURCHASE ESTIMATION END ==========\n');
 
     res.status(201).json({
-      message: `${estimationType === "order" ? "Order" : "Machine"} estimation created successfully`,
+      message: "Purchase estimation created successfully",
       estimation: savedEstimation
     });
   } catch (err) {
-    console.error("❌ Error in createPurchaseEstimation:", err);
+    console.error("\n❌ SERVER FATAL ERROR in createPurchaseEstimation:");
+    console.error("Error name:", err.name);
+    console.error("Error message:", err.message);
+    console.error("Stack trace:", err.stack);
 
     if (err.name === 'ValidationError') {
       const errors = Object.values(err.errors).map(e => e.message);
+      console.error("Validation errors:", errors);
       return res.status(400).json({
         message: "Validation failed",
         errors: errors
@@ -305,13 +372,11 @@ export const createPurchaseEstimation = async (req, res) => {
 // @route   GET /api/purchase-estimations
 export const getPurchaseEstimations = async (req, res) => {
   try {
-    const { estimationType, status, PoNo } = req.query;
+    console.log('\n🔍 SERVER: getPurchaseEstimations called');
+    const { status, PoNo } = req.query;
+    console.log('   Query params:', { status, PoNo });
 
     const filter = {};
-
-    if (estimationType && ["order", "machine"].includes(estimationType)) {
-      filter.estimationType = estimationType;
-    }
 
     if (status && ["Draft", "Finalized"].includes(status)) {
       filter.status = status;
@@ -323,15 +388,13 @@ export const getPurchaseEstimations = async (req, res) => {
 
     const estimations = await PurchaseEstimation.find(filter)
       .populate("order", "PoNo orderType status")
-      .populate("fabricPurchases.vendorId", "name code")
-      .populate("accessoriesPurchases.vendorId", "name code")
-      .populate("machinesPurchases.vendorId", "name code")
+      .populate("purchaseItems.vendorId", "name code")
       .sort({ createdAt: -1 });
 
-    console.log(`✅ Fetched ${estimations.length} estimations`);
+    console.log(`✅ SERVER: Fetched ${estimations.length} estimations`);
     res.json(estimations);
   } catch (err) {
-    console.error("❌ Error in getPurchaseEstimations:", err.message);
+    console.error("❌ SERVER ERROR in getPurchaseEstimations:", err.message);
     res.status(500).json({ message: err.message });
   }
 };
@@ -340,20 +403,44 @@ export const getPurchaseEstimations = async (req, res) => {
 // @route   GET /api/purchase-estimations/:id
 export const getPurchaseEstimationById = async (req, res) => {
   try {
+    console.log('\n🔍 SERVER: getPurchaseEstimationById called');
+    console.log('   ID:', req.params.id);
+
     const estimation = await PurchaseEstimation.findById(req.params.id)
       .populate("order", "PoNo orderType status buyerDetails products")
-      .populate("fabricPurchases.vendorId", "name code mobile")
-      .populate("accessoriesPurchases.vendorId", "name code mobile")
-      .populate("machinesPurchases.vendorId", "name code mobile");
+      .populate("purchaseItems.vendorId", "name code mobile");
 
     if (!estimation) {
+      console.log('❌ SERVER: Estimation not found');
       return res.status(404).json({ message: "Purchase Estimation not found" });
     }
 
+    console.log(`✅ SERVER: Found estimation ${estimation.PESNo}`);
     res.json(estimation);
   } catch (err) {
-    console.error("❌ Error in getPurchaseEstimationById:", err.message);
+    console.error("❌ SERVER ERROR in getPurchaseEstimationById:", err.message);
     res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc    Get next available PESNo
+// @route   GET /api/purchase-estimations/next-pes-no
+export const getNextPESNo = async (req, res) => {
+  try {
+    console.log('\n🔍 SERVER: getNextPESNo called');
+    const { peekNextSequence } = await import("../utils/counterUtils.js");
+    const seqNumber = await peekNextSequence("purchaseEstimationSeq");
+    const PESNo = `PES-${String(seqNumber).padStart(4, "0")}`;
+
+    console.log("✅ SERVER: Peeked next PESNo (not incremented):", PESNo);
+
+    res.status(200).json({ PESNo });
+  } catch (error) {
+    console.error("❌ SERVER ERROR in getNextPESNo:", error.message);
+    res.status(500).json({
+      message: "Error generating PESNo",
+      error: error.message
+    });
   }
 };
 
@@ -361,11 +448,14 @@ export const getPurchaseEstimationById = async (req, res) => {
 // @route   PUT /api/purchase-estimations/:id
 export const updatePurchaseEstimation = async (req, res) => {
   try {
+    console.log('\n🔄 SERVER: updatePurchaseEstimation called');
+    console.log('   ID:', req.params.id);
+    console.log('   Update data:', JSON.stringify(req.body, null, 2));
+
     const { id } = req.params;
     const {
-      fabricPurchases,
-      accessoriesPurchases,
-      machinesPurchases,
+      purchaseItems,
+      fabricCostEstimation,
       remarks,
       estimationDate,
       status,
@@ -373,45 +463,26 @@ export const updatePurchaseEstimation = async (req, res) => {
 
     const estimation = await PurchaseEstimation.findById(id);
     if (!estimation) {
+      console.log('❌ SERVER: Estimation not found');
       return res.status(404).json({ message: "Purchase Estimation not found" });
     }
 
-    // Update based on estimation type
-    if (estimation.estimationType === "order") {
-      // Validate and update order-based purchases
-      if (fabricPurchases !== undefined) {
-        for (const item of fabricPurchases) {
-          if (!item.vendor || !item.fabricType || !item.quantity || !item.costPerUnit) {
-            return res.status(400).json({
-              message: "Each fabric purchase requires vendor, fabricType, quantity, and costPerUnit"
-            });
-          }
+    // Update fields
+    if (purchaseItems !== undefined) {
+      // Validate purchase items
+      for (const item of purchaseItems) {
+        if (!item.vendor || !item.items || item.items.length === 0) {
+          console.log('❌ SERVER: Invalid purchase items in update');
+          return res.status(400).json({
+            message: "Each purchase item requires vendor and at least one item row"
+          });
         }
-        estimation.fabricPurchases = fabricPurchases;
       }
+      estimation.purchaseItems = purchaseItems;
+    }
 
-      if (accessoriesPurchases !== undefined) {
-        for (const item of accessoriesPurchases) {
-          if (!item.vendor || !item.productName || !item.accessoryType || !item.quantity || !item.costPerUnit) {
-            return res.status(400).json({
-              message: "Each accessory purchase requires vendor, productName, accessoryType, quantity, and costPerUnit"
-            });
-          }
-        }
-        estimation.accessoriesPurchases = accessoriesPurchases;
-      }
-    } else if (estimation.estimationType === "machine") {
-      // Validate and update machine purchases
-      if (machinesPurchases !== undefined) {
-        for (const item of machinesPurchases) {
-          if (!item.machineName || !item.vendor || item.cost === undefined) {
-            return res.status(400).json({
-              message: "Each machine purchase requires machineName, vendor, and cost"
-            });
-          }
-        }
-        estimation.machinesPurchases = machinesPurchases;
-      }
+    if (fabricCostEstimation !== undefined) {
+      estimation.fabricCostEstimation = fabricCostEstimation;
     }
 
     if (remarks !== undefined) estimation.remarks = remarks;
@@ -419,14 +490,25 @@ export const updatePurchaseEstimation = async (req, res) => {
     if (status !== undefined) estimation.status = status;
 
     const updatedEstimation = await estimation.save();
-    console.log("✅ Updated purchase estimation:", updatedEstimation.PESNo);
+    console.log("✅ SERVER: Updated purchase estimation:", updatedEstimation.PESNo);
+
+    // ✅ Update the related Purchase document if estimation date changed
+    if (updatedEstimation.order && estimationDate !== undefined) {
+      const purchase = await Purchase.findOne({ order: updatedEstimation.order });
+
+      if (purchase) {
+        purchase.estimationDate = updatedEstimation.estimationDate;
+        await purchase.save();
+        console.log(`✅ SERVER: Updated Purchase ${purchase.PURNo} estimation date`);
+      }
+    }
 
     res.json({
       message: "Purchase Estimation updated successfully",
       estimation: updatedEstimation
     });
   } catch (err) {
-    console.error("❌ Error in updatePurchaseEstimation:", err.message);
+    console.error("❌ SERVER ERROR in updatePurchaseEstimation:", err.message);
 
     if (err.name === 'ValidationError') {
       const errors = Object.values(err.errors).map(e => e.message);
@@ -444,21 +526,40 @@ export const updatePurchaseEstimation = async (req, res) => {
 // @route   DELETE /api/purchase-estimations/:id
 export const deletePurchaseEstimation = async (req, res) => {
   try {
+    console.log('\n🗑️  SERVER: deletePurchaseEstimation called');
+    console.log('   ID:', req.params.id);
+
     const estimation = await PurchaseEstimation.findById(req.params.id);
     if (!estimation) {
+      console.log('❌ SERVER: Estimation not found');
       return res.status(404).json({ message: "Purchase Estimation not found" });
     }
 
     // Delete PDF from Cloudinary if exists
     if (estimation.pdfPublicId) {
       await cloudinaryService.deletePDF(estimation.pdfPublicId);
-      console.log("✅ PDF deleted from Cloudinary:", estimation.pdfPublicId);
+      console.log("✅ SERVER: PDF deleted from Cloudinary:", estimation.pdfPublicId);
     }
 
+    // ✅ Reset PESNo in related Purchase document BEFORE deleting estimation
+    if (estimation.order) {
+      const purchase = await Purchase.findOne({ order: estimation.order });
+
+      if (purchase) {
+        purchase.purchaseEstimation = null;
+        purchase.PESNo = "N/A";
+        purchase.estimationDate = null;
+        await purchase.save();
+        console.log(`✅ SERVER: Reset PESNo to N/A in Purchase ${purchase.PURNo}`);
+      }
+    }
+
+    // Now delete the estimation
     await PurchaseEstimation.findByIdAndDelete(req.params.id);
+    console.log('✅ SERVER: Estimation deleted');
     res.json({ message: "Purchase Estimation deleted successfully" });
   } catch (err) {
-    console.error("❌ Error in deletePurchaseEstimation:", err.message);
+    console.error("❌ SERVER ERROR in deletePurchaseEstimation:", err.message);
     res.status(500).json({ message: err.message });
   }
 };
@@ -467,15 +568,18 @@ export const deletePurchaseEstimation = async (req, res) => {
 // @route   GET /api/purchase-estimations/:id/pdf
 export const getEstimationPDF = async (req, res) => {
   try {
+    console.log('\n📄 SERVER: getEstimationPDF called');
+    console.log('   ID:', req.params.id);
+
     const estimation = await PurchaseEstimation.findById(req.params.id);
 
     if (!estimation) {
+      console.log('❌ SERVER: Estimation not found');
       return res.status(404).json({ message: "Purchase Estimation not found" });
     }
 
-    // If PDF already exists, return it immediately
     if (estimation.pdfUrl) {
-      console.log("✅ PDF already exists, returning URL:", estimation.pdfUrl);
+      console.log("✅ SERVER: PDF already exists, returning URL:", estimation.pdfUrl);
       return res.json({
         message: "PDF retrieved successfully",
         pdfUrl: estimation.pdfUrl,
@@ -483,34 +587,35 @@ export const getEstimationPDF = async (req, res) => {
       });
     }
 
-    // If no PDF exists, return error asking to generate it
+    console.log('⚠️  SERVER: PDF not generated yet');
     return res.status(404).json({
       message: "PDF not generated yet. Please generate it first.",
       needsGeneration: true
     });
   } catch (err) {
-    console.error("❌ Error in getEstimationPDF:", err.message);
+    console.error("❌ SERVER ERROR in getEstimationPDF:", err.message);
     res.status(500).json({ message: err.message });
   }
 };
 
-// @desc    Generate PDF for purchase estimation (separate endpoint)
+// @desc    Generate PDF for purchase estimation
 // @route   POST /api/purchase-estimations/:id/generate-pdf
 export const generateEstimationPDF = async (req, res) => {
   try {
+    console.log('\n📄 SERVER: generateEstimationPDF called');
+    console.log('   ID:', req.params.id);
+
     const estimation = await PurchaseEstimation.findById(req.params.id)
       .populate("order", "PoNo orderType buyerDetails")
-      .populate("fabricPurchases.vendorId", "name code mobile")
-      .populate("accessoriesPurchases.vendorId", "name code mobile")
-      .populate("machinesPurchases.vendorId", "name code mobile");
+      .populate("purchaseItems.vendorId", "name code mobile");
 
     if (!estimation) {
+      console.log('❌ SERVER: Estimation not found');
       return res.status(404).json({ message: "Purchase Estimation not found" });
     }
 
-    // If PDF already exists, just return it (don't regenerate)
     if (estimation.pdfUrl) {
-      console.log("✅ PDF already exists:", estimation.pdfUrl);
+      console.log("✅ SERVER: PDF already exists:", estimation.pdfUrl);
       return res.json({
         message: "PDF already exists",
         pdfUrl: estimation.pdfUrl,
@@ -518,16 +623,12 @@ export const generateEstimationPDF = async (req, res) => {
       });
     }
 
-    console.log("🔄 Generating PDF for estimation:", estimation.PESNo, "Type:", estimation.estimationType);
+    console.log("🔄 SERVER: Generating PDF for estimation:", estimation.PESNo);
 
-    // Prepare document data for PDF service based on estimation type
     const documentData = {
-      documentType: estimation.estimationType === "machine"
-        ? 'machine-purchase-estimation'
-        : 'order-purchase-estimation',
+      documentType: 'purchase-estimation',
       documentNo: estimation.PESNo,
       documentDate: estimation.estimationDate,
-      estimationType: estimation.estimationType,
       businessDetails: {
         name: process.env.BUSINESS_NAME || "Your Business Name",
         address: process.env.BUSINESS_ADDRESS || "Business Address",
@@ -540,43 +641,29 @@ export const generateEstimationPDF = async (req, res) => {
       },
       remarks: estimation.remarks || '',
       status: estimation.status || 'Draft',
+      PoNo: estimation.PoNo,
+      orderDate: estimation.orderDate,
+      orderType: estimation.orderType,
+      buyerDetails: estimation.buyerDetails,
+      orderProducts: estimation.orderProducts,
+      totalOrderQty: estimation.totalOrderQty,
+      purchaseItems: estimation.purchaseItems,
+      fabricCostEstimation: estimation.fabricCostEstimation,
+      grandTotalCost: estimation.grandTotalCost,
+      totalCgst: estimation.totalCgst,
+      totalSgst: estimation.totalSgst,
+      totalIgst: estimation.totalIgst,
+      grandTotalWithGst: estimation.grandTotalWithGst,
     };
 
-    // Add order-specific data if order-based estimation
-    if (estimation.estimationType === "order") {
-      documentData.PoNo = estimation.PoNo;
-      documentData.orderDate = estimation.orderDate;
-      documentData.orderType = estimation.orderType;
-      documentData.buyerDetails = estimation.buyerDetails;
-      documentData.orderProducts = estimation.orderProducts;
-      documentData.totalOrderQty = estimation.totalOrderQty;
-      documentData.fabricPurchases = estimation.fabricPurchases || [];
-      documentData.accessoriesPurchases = estimation.accessoriesPurchases || [];
-      documentData.totalFabricCost = estimation.totalFabricCost || 0;
-      documentData.totalAccessoriesCost = estimation.totalAccessoriesCost || 0;
-      documentData.totalFabricGst = estimation.totalFabricGst || 0;
-      documentData.totalAccessoriesGst = estimation.totalAccessoriesGst || 0;
-    }
-    // Add machine-specific data if machine estimation
-    else if (estimation.estimationType === "machine") {
-      documentData.machinesPurchases = estimation.machinesPurchases || [];
-      documentData.totalMachinesCost = estimation.totalMachinesCost || 0;
-      documentData.totalMachinesGst = estimation.totalMachinesGst || 0;
-    }
-
-    documentData.grandTotalCost = estimation.grandTotalCost || 0;
-    documentData.grandTotalWithGst = estimation.grandTotalWithGst || 0;
-
-    // Generate PDF
     const pdfResult = await pdfService.generateDocumentPDF(documentData);
 
-    // Update estimation with PDF URL
     estimation.pdfUrl = pdfResult.url;
     estimation.pdfPublicId = pdfResult.publicId;
     estimation.status = "Finalized";
     await estimation.save();
 
-    console.log("✅ PDF generated and uploaded:", pdfResult.url);
+    console.log("✅ SERVER: PDF generated and uploaded:", pdfResult.url);
 
     res.json({
       message: "PDF generated successfully",
@@ -584,7 +671,7 @@ export const generateEstimationPDF = async (req, res) => {
       estimation: estimation
     });
   } catch (err) {
-    console.error("❌ Error in generateEstimationPDF:", err.message);
+    console.error("❌ SERVER ERROR in generateEstimationPDF:", err.message);
     res.status(500).json({ message: "Failed to generate PDF: " + err.message });
   }
 };
@@ -593,20 +680,44 @@ export const generateEstimationPDF = async (req, res) => {
 // @route   GET /api/purchase-estimations/search/suppliers
 export const searchSuppliers = async (req, res) => {
   try {
+    console.log('\n🔍 SERVER: searchSuppliers called');
     const { q } = req.query;
+    console.log(`   Search query: "${q}"`);
 
     if (!q || q.length < 2) {
+      console.log('   Query too short, returning empty array');
       return res.status(200).json([]);
     }
 
     const suppliers = await Supplier.searchByName(q);
 
-    console.log(`Found ${suppliers.length} suppliers for query: "${q}"`);
+    console.log(`✅ SERVER: Found ${suppliers.length} suppliers`);
     res.status(200).json(suppliers);
   } catch (error) {
-    console.error("❌ Error in searchSuppliers:", error.message);
+    console.error("❌ SERVER ERROR in searchSuppliers:", error.message);
     res.status(500).json({
       message: "Error searching suppliers",
+      error: error.message
+    });
+  }
+};
+
+export const resetPESCounter = async (req, res) => {
+  try {
+    console.log('\n🔄 SERVER: resetPESCounter called');
+    const { resetSequence } = await import("../utils/counterUtils.js");
+    await resetSequence("purchaseEstimationSeq");
+
+    console.log("✅ SERVER: Reset PES counter to 0");
+
+    res.status(200).json({
+      message: "Counter reset successfully",
+      nextPESNo: "PES-0001"
+    });
+  } catch (error) {
+    console.error("❌ SERVER ERROR in resetPESCounter:", error.message);
+    res.status(500).json({
+      message: "Error resetting counter",
       error: error.message
     });
   }
