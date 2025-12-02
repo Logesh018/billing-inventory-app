@@ -8,7 +8,7 @@ const ProductDetailsSchema = new mongoose.Schema({
   style: [{ type: String }],
   fabric: { type: String, required: true },
   color: { type: String, required: true },
-}, { _id: false }); // _id is false because we don't need unique IDs for this sub-data
+}, { _id: false });
 
 const OrderSchema = new mongoose.Schema({
   orderDate: { type: Date, required: true },

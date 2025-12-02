@@ -1,19 +1,17 @@
 import mongoose from "mongoose";
 
 const ProductSchema = new mongoose.Schema({
-  // Basic Product Information
+ 
   name: { type: String, required: true, trim: true },
   hsn: { type: String, required: false, trim: true },
-
-  // ⭐ NEW STRUCTURE - Matches Order Product Details
-  category: { type: String, trim: true },              // Men, Women, Kids
-  type: [{ type: String, trim: true }],                // ⭐ ARRAY: Multiple types allowed
-  style: [{ type: String, trim: true }],                 // F/S, H/S, 3/4, etc.
-  fabric: { type: String, trim: true },                // Airtex, Single Jercy, etc.
+  category: { type: String, trim: true },              
+  type: [{ type: String, trim: true }],                
+  style: [{ type: String, trim: true }],                 
+  fabric: { type: String, trim: true },                
   color: { type: String, trim: true },
 
-  // DEPRECATED (keep for backward compatibility, but use new fields above)
-  fabricType: { type: String, trim: true },            // Old field - mapped to 'fabric'
+  
+  fabricType: { type: String, trim: true },            
 
   // Additional Product Details
   subcategory: { type: String, trim: true },
@@ -21,7 +19,7 @@ const ProductSchema = new mongoose.Schema({
   gsm: { type: String, trim: true },
   gender: { type: String, enum: ["Male", "Female", "Unisex"] },
 
-  // Fabric Configurations (keeping this for advanced use cases)
+  // Fabric Configurations 
   fabricConfigurations: [{
     fabricType: { type: String, trim: true, required: true },
     availableSizes: [{
@@ -49,7 +47,7 @@ const ProductSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-// ⭐ UPDATED INDEX: Now includes new fields
+
 ProductSchema.index({
   name: 1,
   style: 1,
@@ -58,7 +56,6 @@ ProductSchema.index({
   category: 1
 });
 
-// Text search index
 ProductSchema.index({ name: "text", category: "text", description: "text" });
 
 // Other indexes
@@ -82,17 +79,14 @@ ProductSchema.index(
 
 // Pre-save middleware to format data
 ProductSchema.pre("save", function (next) {
-  // Capitalize first letter of name
   if (this.name) {
     this.name = this.name.charAt(0).toUpperCase() + this.name.slice(1);
   }
 
-  // Uppercase HSN code
   if (this.hsn) {
     this.hsn = this.hsn.toUpperCase();
   }
 
-  // ⭐ NEW: Map fabricType to fabric for backward compatibility
   if (this.fabricType && !this.fabric) {
     this.fabric = this.fabricType;
   }
@@ -100,7 +94,6 @@ ProductSchema.pre("save", function (next) {
     this.fabricType = this.fabric;
   }
 
-  // ⭐ NEW: Ensure type is always an array
   if (this.type && !Array.isArray(this.type)) {
     this.type = [this.type];
   }
@@ -108,7 +101,6 @@ ProductSchema.pre("save", function (next) {
   next();
 });
 
-// ⭐ UPDATED: Static method to search products by name
 ProductSchema.statics.searchByName = function (searchTerm) {
   const regex = new RegExp(searchTerm, 'i');
   return this.find({
@@ -130,7 +122,6 @@ ProductSchema.statics.searchByName = function (searchTerm) {
     .limit(10);
 };
 
-// Method to get configuration for a specific fabric type
 ProductSchema.methods.getConfigurationForFabric = function (fabricType) {
   if (!fabricType) {
     return {
@@ -156,7 +147,7 @@ ProductSchema.methods.getConfigurationForFabric = function (fabricType) {
   };
 };
 
-// ⭐ NEW: Method to check if product matches given attributes
+
 ProductSchema.methods.matchesAttributes = function (attributes) {
   const { name, category, type, style, fabric, color } = attributes;
 
@@ -168,7 +159,6 @@ ProductSchema.methods.matchesAttributes = function (attributes) {
   if (fabric && this.fabric?.toLowerCase() !== fabric.toLowerCase()) matches = false;
   if (color && this.color?.toLowerCase() !== color.toLowerCase()) matches = false;
 
-  // For type (array), check if all provided types are included
   if (type && Array.isArray(type)) {
     const productTypes = this.type || [];
     const allTypesMatch = type.every(t =>
@@ -180,7 +170,6 @@ ProductSchema.methods.matchesAttributes = function (attributes) {
   return matches;
 };
 
-// ⭐ NEW: Static method to find or create product
 ProductSchema.statics.findOrCreateProduct = async function (productData) {
   const { name, category, type, style, fabric, color } = productData;
 
@@ -198,7 +187,6 @@ ProductSchema.statics.findOrCreateProduct = async function (productData) {
   let existingProduct;
 
   if (type && Array.isArray(type) && type.length > 0) {
-    // Find product with exact same types
     existingProduct = await this.findOne({
       ...query,
       type: { $size: type.length, $all: type }

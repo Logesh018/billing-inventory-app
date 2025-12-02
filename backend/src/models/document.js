@@ -42,7 +42,7 @@ const DocumentSchema = new mongoose.Schema({
     company: { type: String },
   },
 
-  // Document Items with Colors and Sizes support
+  // Document Items with Colors and Sizes 
   items: [
     {
       product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
@@ -51,7 +51,6 @@ const DocumentSchema = new mongoose.Schema({
         description: { type: String },
         hsn: { type: String },
       },
-      // NEW: Support for colors and sizes
       colors: [
         {
           colorName: { type: String, required: true }, // e.g., "White", "Black"
@@ -64,7 +63,7 @@ const DocumentSchema = new mongoose.Schema({
           ]
         }
       ],
-      // Keep legacy fields for backward compatibility
+     
       quantity: { type: Number, min: 0 },
       unitPrice: { type: Number, min: 0 },
       discount: { type: Number, default: 0, min: 0 },
@@ -156,7 +155,6 @@ const DocumentSchema = new mongoose.Schema({
     showGST: { type: Boolean, default: true },
   },
 
-  // Metadata
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   sentAt: { type: Date },
   viewedAt: { type: Date },
@@ -243,14 +241,11 @@ DocumentSchema.pre("save", function (next) {
     this.taxDetails.transportationSgst = 0;
   }
 
-  // Grand total includes items + item tax + transportation + transportation tax
   const transportationTax = this.taxDetails.transportationCgst + this.taxDetails.transportationSgst;
   this.grandTotal = subtotalAfterDiscount + this.totalTax + transportCharges + transportationTax;
 
-  // Round to nearest integer (as per "Roundup" in sample invoice)
   this.grandTotal = Math.round(this.grandTotal);
 
-  // Convert amount to words
   try {
     this.amountInWords = numberToWords(this.grandTotal);
   } catch (error) {
@@ -389,9 +384,7 @@ DocumentSchema.methods.convertTo = async function (newDocumentType, additionalDa
   if (this.status === 'Draft' || this.status === 'Sent') {
     this.status = 'Converted';
   }
-
   await this.save();
-
   return savedDocument;
 };
 

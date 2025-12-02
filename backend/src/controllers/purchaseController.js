@@ -9,7 +9,7 @@ const transformOrderProductsForProduction = (orderProducts) => {
   return orderProducts.map(p => ({
     productName: p.productDetails?.name || "Unknown Product",
     fabricType: p.productDetails?.fabricType || "N/A",
-    // ✅ FIXED: Convert array to comma-separated string
+  
     style: Array.isArray(p.productDetails?.style)
       ? p.productDetails.style.join(", ")
       : (p.productDetails?.style || ""),
@@ -17,20 +17,12 @@ const transformOrderProductsForProduction = (orderProducts) => {
       color: p.productDetails?.color || "N/A",
       sizes: (p.sizes || []).map(s => ({
         size: s.size,
-        quantity: s.qty  // Production uses 'quantity', not 'qty'
+        quantity: s.qty  
       }))
     }],
     productTotalQty: (p.sizes || []).reduce((sum, s) => sum + (s.qty || 0), 0)
   }));
 };
-
-// ==========================================
-// Note: This helper is specifically for Production schema
-// Production schema uses a flattened structure with:
-// - productName (not nested productDetails)
-// - colors array with sizes inside
-// - sizes use 'quantity' field (not 'qty')
-// ==========================================
 
 export const createPurchase = async (req, res) => {
   try {
@@ -57,13 +49,11 @@ export const createPurchase = async (req, res) => {
       return res.status(400).json({ message: "Invalid order type for purchase" });
     }
 
-    // ✅ CHECK: If purchase exists, UPDATE instead of throwing error
     const existingPurchase = await Purchase.findOne({ order: order._id });
 
     if (existingPurchase) {
       console.log("⚠️ Purchase already exists, updating instead:", existingPurchase._id);
 
-      // Update existing purchase
       existingPurchase.purchaseDate = purchaseDate ? new Date(purchaseDate) : existingPurchase.purchaseDate;
       existingPurchase.fabricPurchases = fabricPurchases;
       existingPurchase.accessoriesPurchases = accessoriesPurchases;
@@ -85,7 +75,7 @@ export const createPurchase = async (req, res) => {
       return res.status(200).json({
         message: "Purchase updated successfully",
         purchase: updatedPurchase,
-        wasUpdated: true  // ✅ Flag to indicate it was an update
+        wasUpdated: true 
       });
     }
 
@@ -162,19 +152,18 @@ export const createPurchase = async (req, res) => {
 
 
     if (hasPurchaseItems) {
-      // ✅ FIXED: Use order._id instead of orderId string
       const existingProduction = await Production.findOne({ order: order._id });
 
       if (!existingProduction) {
         console.log("🔄 Creating production for completed purchase...");
 
-        // ✅ Use the helper function to properly transform products
+       
         const productionProducts = transformOrderProductsForProduction(order.products);
 
         // Create production with order data
         const productionData = {
-          order: order._id,  // ✅ MongoDB ObjectId
-          orderId: order.orderId,  // ✅ String for display
+          order: order._id,  
+          orderId: order.orderId,  
           orderDate: order.orderDate,
           PoNo: order.PoNo,
           orderType: order.orderType,
@@ -221,7 +210,6 @@ export const createPurchase = async (req, res) => {
         await newProduction.save();
         console.log("✅ Production created automatically:", newProduction._id);
 
-        // ✅ FIXED: Link production to order using order._id
         await Order.findByIdAndUpdate(order._id, {
           production: newProduction._id,
           status: "Pending Production"
@@ -277,7 +265,7 @@ export const updatePurchase = async (req, res) => {
 
     const wasCompleted = purchase.status === "Completed";
 
-    // ✅ Update purchaseDate only if provided
+
     if (purchaseDate !== undefined) {
       purchase.purchaseDate = purchaseDate ? new Date(purchaseDate) : null;
     }
@@ -292,13 +280,12 @@ export const updatePurchase = async (req, res) => {
       (purchase.fabricPurchases && purchase.fabricPurchases.length > 0) ||
       (purchase.accessoriesPurchases && purchase.accessoriesPurchases.length > 0);
 
-    // ✅ If purchase now has items but no date, set to now
+   
     if (hasItems && !purchase.purchaseDate) {
       purchase.purchaseDate = new Date();
       console.log("✅ Auto-setting purchaseDate since items were added");
     }
 
-    // ✅ If purchase no longer has items, clear the date
     if (!hasItems && purchase.purchaseDate) {
       purchase.purchaseDate = null;
       console.log("⚠️ Clearing purchaseDate since items were removed");
@@ -333,7 +320,6 @@ export const updatePurchase = async (req, res) => {
     // Check if production already exists
     let production = await Production.findOne({ order: purchase.order });
 
-    // Only create/update production if purchase is completed
     if (updatedPurchase.status === "Completed") {
       if (!production) {
         console.log("🔄 Creating production for completed purchase...");

@@ -25,7 +25,6 @@ export const createOrder = async (req, res) => {
       products: productsData
     } = req.body;
 
-    // ✅ DEBUG: Log incoming data structure
     console.log("📥 Received order data:");
     console.log("Products array:", JSON.stringify(productsData, null, 2));
     console.log("First product:", productsData[0]);
@@ -37,7 +36,6 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: "PO Number is required" });
     }
 
-    // ✅ Validate products data structure
     if (!Array.isArray(productsData) || productsData.length === 0) {
       return res.status(400).json({ message: "Products array is required" });
     }
@@ -83,7 +81,6 @@ export const createOrder = async (req, res) => {
     const processedProducts = [];
 
     for (const productData of productsData) {
-      // ✅ Validate productData structure
       if (!productData.productDetails) {
         return res.status(400).json({
           message: "Each product must have productDetails"
@@ -109,7 +106,6 @@ export const createOrder = async (req, res) => {
       product = existingProduct;
       console.log(`✅ Using/Created product:`, product._id);
 
-      // ✅ CRITICAL FIX: Ensure productDetails is an OBJECT, not an array
       const productDetails = {
         category: productData.productDetails.category || product.category || "",
         name: productData.productDetails.name || product.name || "",
@@ -123,7 +119,6 @@ export const createOrder = async (req, res) => {
         color: productData.productDetails.color || product.color || "",
       };
 
-      // ✅ Validate sizes
       if (!Array.isArray(productData.sizes) || productData.sizes.length === 0) {
         return res.status(400).json({
           message: `Product "${productDetails.name}" must have at least one size`
@@ -135,7 +130,6 @@ export const createOrder = async (req, res) => {
         qty: parseInt(sizeData.qty) || 0,
       }));
 
-      // ✅ Push correctly structured product
       processedProducts.push({
         product: product._id,
         productDetails: productDetails, // This is an OBJECT
@@ -155,7 +149,6 @@ export const createOrder = async (req, res) => {
       console.log(`  - style field:`, p.productDetails.style);
     });
 
-    // If productDetails is somehow an array, this will catch it:
     processedProducts.forEach((p, i) => {
       if (Array.isArray(p.productDetails)) {
         console.error(`❌ ERROR: Product ${i} has productDetails as ARRAY!`);
@@ -164,7 +157,7 @@ export const createOrder = async (req, res) => {
       }
     });
 
-    // ✅ Create order with validated data
+   
     const order = new Order({
       orderDate: new Date(orderDate),
       PoNo,

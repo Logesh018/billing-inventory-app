@@ -22,7 +22,6 @@ const ProductionSchema = new mongoose.Schema({
   buyerCode: { type: String },
   buyerName: { type: String },
 
-  // 🔴 CHANGE: Removed unique: true (Moved to bottom)
   serialNo: { type: Number },
 
   products: [
@@ -88,7 +87,6 @@ const ProductionSchema = new mongoose.Schema({
   stitchingDetails: [
     {
       productName: { type: String },
-      // Add stitching-specific fields here later
     }
   ],
 
@@ -96,7 +94,6 @@ const ProductionSchema = new mongoose.Schema({
   trimmingDetails: [
     {
       productName: { type: String },
-      // Add trimming-specific fields here later
     }
   ],
 
@@ -181,7 +178,6 @@ const ProductionSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-// ... (Your pre-save middleware remains EXACTLY the same) ...
 ProductionSchema.pre("save", async function (next) {
   if (this.isNew && !this.serialNo) {
     try {
@@ -226,7 +222,6 @@ ProductionSchema.index({ status: 1 });
 ProductionSchema.index({ orderType: 1 });
 ProductionSchema.index({ orderDate: -1 });
 
-// 🔴 CHANGE: Added { unique: true } here instead of in the schema definition
 ProductionSchema.index({ serialNo: 1 }, { unique: true });
 
 export default mongoose.model("Production", ProductionSchema);

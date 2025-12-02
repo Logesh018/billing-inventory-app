@@ -38,7 +38,7 @@ const purchaseOrderSchema = new mongoose.Schema(
     roundOff: { type: Number, default: 0 },
     grandTotal: { type: Number, required: true },
 
-    pdfUrl: { type: String }, // optional: URL to Cloudinary PDF
+    pdfUrl: { type: String }, 
 
   },
   { timestamps: true }

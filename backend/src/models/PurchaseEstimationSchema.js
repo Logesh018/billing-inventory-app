@@ -52,7 +52,7 @@ const purchaseEstimationSchema = new mongoose.Schema(
       {
         productName: { type: String },
         fabricType: { type: String },
-        style: { type: String }, // ✅ FIXED: Changed to String (controller converts array to string)
+        style: { type: String }, 
         colors: [
           {
             color: { type: String },
@@ -69,7 +69,7 @@ const purchaseEstimationSchema = new mongoose.Schema(
     ],
     totalOrderQty: { type: Number, default: 0 },
 
-    // Fabric Cost Estimation (Grouped by Name & Color)
+    // Fabric Cost Estimation 
     fabricCostEstimation: [
       {
         fabricName: { type: String, required: true },
@@ -89,7 +89,7 @@ const purchaseEstimationSchema = new mongoose.Schema(
       }
     ],
 
-    // Purchase Items (unified for fabric, accessories, and others/machines)
+    // Purchase Items 
     purchaseItems: [
       {
         vendor: { type: String, required: true },
@@ -179,7 +179,6 @@ const calculateGST = (amount, gstPercentage, gstType) => {
 
 // Pre-save hook to generate PESNo and calculate totals
 purchaseEstimationSchema.pre("save", async function (next) {
-  // Generate PESNo only for new documents if not already provided
   if (this.isNew && !this.PESNo) {
     try {
       const seqNumber = await getNextSequence("purchaseEstimationSeq");
@@ -198,18 +197,15 @@ purchaseEstimationSchema.pre("save", async function (next) {
   let totalIgst = 0;
 
   this.purchaseItems.forEach((purchaseItem) => {
-    // Calculate total for each row
     purchaseItem.items.forEach((row) => {
       row.totalCost = row.quantity * row.costPerUnit;
     });
 
-    // Calculate item total (sum of all rows)
     purchaseItem.itemTotal = purchaseItem.items.reduce(
       (sum, row) => sum + (row.totalCost || 0),
       0
     );
 
-    // Calculate GST for this item using item-level gstType and row-level gstPercentage
     let itemCgst = 0;
     let itemSgst = 0;
     let itemIgst = 0;

@@ -25,10 +25,7 @@ const PurchaseSchema = new Schema({
   serialNo: { type: Number },
   PURNo: { type: String },
 
-  // ✅ FIXED: Single purchaseDate field (removed duplicate)
   purchaseDate: { type: Date, default: null },
-
-  // ✅ Purchase Estimation Reference
   purchaseEstimation: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "PurchaseEstimation",
@@ -66,7 +63,6 @@ const PurchaseSchema = new Schema({
 
   totalQty: { type: Number, default: 0 },
 
-  // ✅ Unified Purchase Items (like PurchaseEstimation)
   purchaseItems: [
     {
       vendor: { type: String, required: true },
@@ -102,7 +98,6 @@ const PurchaseSchema = new Schema({
           gstPercentage: { type: Number, default: 5 },
           totalCost: { type: Number },
 
-          // ✅ Invoice fields for Purchase (not in PurchaseEstimation)
           invoiceDate: { type: Date, default: null },
           invoiceNo: { type: String, default: "" },
           hsn: { type: String, default: "" },
@@ -117,7 +112,6 @@ const PurchaseSchema = new Schema({
     }
   ],
 
-  // DEPRECATED: Keep for backward compatibility
   fabricPurchases: [
     {
       productName: { type: String, required: true },
@@ -234,26 +228,21 @@ PurchaseSchema.pre("save", async function (next) {
       console.log(`✅ Generated Purchase serial #${seq} (${this.PURNo})`);
     }
 
-    // ✅ FIXED: Don't auto-set purchaseDate for empty purchases
-    // Only set it if explicitly provided OR if purchase has items
     const hasPurchaseItems =
       (this.fabricPurchases && this.fabricPurchases.length > 0) ||
       (this.accessoriesPurchases && this.accessoriesPurchases.length > 0) ||
       (this.purchaseItems && this.purchaseItems.length > 0);
 
-    // If this is a new purchase WITH items but no date, set to now
     if (this.isNew && !this.purchaseDate && hasPurchaseItems) {
       this.purchaseDate = new Date();
       console.log("✅ Auto-set purchaseDate for purchase with items");
     }
 
-    // If updating an existing purchase that now has items but still no date
     if (!this.isNew && !this.purchaseDate && hasPurchaseItems && this.isModified('fabricPurchases', 'accessoriesPurchases', 'purchaseItems')) {
       this.purchaseDate = new Date();
       console.log("✅ Auto-set purchaseDate for updated purchase with items");
     }
 
-    // Calculate totals for purchaseItems (unified structure)
     if (this.purchaseItems && this.purchaseItems.length > 0) {
       let grandTotal = 0;
       let totalCgst = 0;
@@ -261,12 +250,10 @@ PurchaseSchema.pre("save", async function (next) {
       let totalIgst = 0;
 
       this.purchaseItems.forEach((purchaseItem) => {
-        // Calculate total for each row
         purchaseItem.items.forEach((row) => {
           row.totalCost = row.quantity * row.costPerUnit;
         });
 
-        // Calculate item total
         purchaseItem.itemTotal = purchaseItem.items.reduce(
           (sum, row) => sum + (row.totalCost || 0),
           0
@@ -338,7 +325,6 @@ PurchaseSchema.pre("save", async function (next) {
       return acc + ((m.totalCost || 0) * ((m.gstPercentage || 0) / 100));
     }, 0);
 
-    // If using old structure, calculate grand total from old fields
     if (!this.purchaseItems || this.purchaseItems.length === 0) {
       this.grandTotalCost = (this.totalFabricCost || 0) + (this.totalAccessoriesCost || 0) + (this.totalMachinesCost || 0);
       this.grandTotalWithGst = (this.grandTotalCost || 0) + (this.totalFabricGst || 0) + (this.totalAccessoriesGst || 0) + (this.totalMachinesGst || 0);

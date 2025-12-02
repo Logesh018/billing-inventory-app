@@ -2,7 +2,7 @@
 import mongoose from "mongoose";
 
 const CounterSchema = new mongoose.Schema({
-  _id: { type: String, required: true },  // e.g., "orderSeq_FOB", "purchaseSeq"
+  _id: { type: String, required: true },  
   seq: { type: Number, default: 0 },
 });
 

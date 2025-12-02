@@ -19,14 +19,14 @@ const transformOrderProductsForEstimation = (orderProducts) => {
 
     const productName = p.productDetails?.name || p.productName || "Unknown Product";
 
-    // ✅ Use 'fabric' not 'fabricType' - Order schema uses 'fabric'
+    
     const fabricType =
       p.productDetails?.fabric ||
       p.productDetails?.fabricType ||
       p.fabricType ||
       "N/A";
 
-    // ✅ CRITICAL FIX: Handle style as array and convert to string
+    
     let style = p.productDetails?.style || p.style || "";
     
     console.log(`   📝 SERVER: Original style value:`, style);
@@ -81,7 +81,7 @@ const transformOrderProductsForEstimation = (orderProducts) => {
     const transformedProduct = {
       productName: productName,
       fabricType: fabricType,
-      style: style, // ✅ Now guaranteed to be a string
+      style: style, 
       colors: colors,
       productTotalQty: productTotalQty
     };
@@ -325,7 +325,7 @@ export const createPurchaseEstimation = async (req, res) => {
     console.log(`   PESNo: ${savedEstimation.PESNo}`);
     console.log(`   ID: ${savedEstimation._id}`);
 
-    // ✅ Update the related Purchase document with PESNo
+   
     if (savedEstimation.order) {
       console.log('\n🔗 SERVER: Updating related Purchase document...');
       const purchase = await Purchase.findOne({ order: savedEstimation.order });
@@ -492,7 +492,7 @@ export const updatePurchaseEstimation = async (req, res) => {
     const updatedEstimation = await estimation.save();
     console.log("✅ SERVER: Updated purchase estimation:", updatedEstimation.PESNo);
 
-    // ✅ Update the related Purchase document if estimation date changed
+   
     if (updatedEstimation.order && estimationDate !== undefined) {
       const purchase = await Purchase.findOne({ order: updatedEstimation.order });
 
@@ -541,7 +541,7 @@ export const deletePurchaseEstimation = async (req, res) => {
       console.log("✅ SERVER: PDF deleted from Cloudinary:", estimation.pdfPublicId);
     }
 
-    // ✅ Reset PESNo in related Purchase document BEFORE deleting estimation
+   
     if (estimation.order) {
       const purchase = await Purchase.findOne({ order: estimation.order });
 

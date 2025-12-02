@@ -91,12 +91,11 @@ const InvoiceSchema = new mongoose.Schema({
   pdfUrl: { type: String }, // Cloudinary URL
   pdfPublicId: { type: String }, // Cloudinary public ID for deletion
 
-  // Additional Fields
-  notes: { type: String }, // Invoice notes/terms
-  internalNotes: { type: String }, // Internal notes (not shown on PDF)
+  notes: { type: String },
+  internalNotes: { type: String },
   
   // Template and Design
-  template: { type: String, default: "modern" }, // Template name for custom designs
+  template: { type: String, default: "modern" },
   customization: {
     primaryColor: { type: String, default: "#2563eb" },
     secondaryColor: { type: String, default: "#64748b" },
@@ -114,11 +113,9 @@ const InvoiceSchema = new mongoose.Schema({
 
 // Pre-save middleware to calculate totals
 InvoiceSchema.pre("save", function (next) {
-  // Calculate line totals for each item
   this.items.forEach(item => {
     let itemSubtotal = item.quantity * item.unitPrice;
     
-    // Apply discount
     let discountAmount = 0;
     if (item.discountType === "percentage") {
       discountAmount = (itemSubtotal * item.discount) / 100;
@@ -126,15 +123,10 @@ InvoiceSchema.pre("save", function (next) {
       discountAmount = item.discount;
     }
     itemSubtotal -= discountAmount;
-    
-    // Calculate tax
     const taxAmount = (itemSubtotal * item.taxRate) / 100;
-    
-    // Set line total
     item.lineTotal = itemSubtotal + taxAmount;
   });
 
-  // Calculate invoice totals
   this.subtotal = this.items.reduce((sum, item) => {
     return sum + (item.quantity * item.unitPrice);
   }, 0);
@@ -159,8 +151,6 @@ InvoiceSchema.pre("save", function (next) {
     return sum + ((itemSubtotal * item.taxRate) / 100);
   }, 0);
 
- 
-  // This can be customized based on business location and customer location
   this.taxDetails.cgst = this.totalTax / 2;
   this.taxDetails.sgst = this.totalTax / 2;
   this.taxDetails.igst = 0; 

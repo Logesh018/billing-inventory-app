@@ -14,7 +14,7 @@ export const createProduction = async (req, res) => {
       poNumber,
       factoryReceivedDate,
       status,
-      productionDetails, // ✅ NEW: Array of production details per product
+      productionDetails, 
       remarks,
     } = req.body;
 
@@ -44,7 +44,7 @@ export const createProduction = async (req, res) => {
     const productionProducts = order.products.map(p => ({
       productName: p.productDetails?.name || "Unknown Product",
       fabricType: p.productDetails?.fabricType || "N/A",
-      // ✅ FIXED: Convert array to comma-separated string
+     
       style: Array.isArray(p.productDetails?.style)
         ? p.productDetails.style.join(", ")
         : (p.productDetails?.style || ""),
@@ -72,7 +72,7 @@ export const createProduction = async (req, res) => {
       factoryReceivedDate,
       status: status || "Pending Production",
       remarks,
-      productionDetails: productionDetails || [], // ✅ NEW: Save production details array
+      productionDetails: productionDetails || [], 
     };
 
     // If FOB/Own-Orders → require purchaseId and get purchase data
@@ -176,17 +176,17 @@ export const updateProduction = async (req, res) => {
       return res.status(404).json({ message: "Production not found" });
     }
 
-    // ✅ Update production details if provided
+  
     if (req.body.productionDetails) {
       production.productionDetails = req.body.productionDetails;
     }
 
-    // ✅ Update cutting details if provided
+    
     if (req.body.cuttingDetails) {
       production.cuttingDetails = req.body.cuttingDetails;
     }
 
-    // ✅ Update stitching details if provided (for future)
+   
     if (req.body.stitchingDetails) {
       production.stitchingDetails = req.body.stitchingDetails;
     }
@@ -194,7 +194,7 @@ export const updateProduction = async (req, res) => {
     // Update other fields
     Object.assign(production, req.body);
 
-    // ✅ Auto-calculate totals (handled by pre-save hook)
+
     const updatedProduction = await production.save();
     console.log("Updated production:", updatedProduction);
 

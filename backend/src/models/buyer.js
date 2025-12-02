@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const BuyerSchema = new mongoose.Schema({
-  // Category Classification (NEW)
+  // Category Classification 
   buyerCategory: {
     type: String,
     enum: ["Regular", "YAS"],
@@ -116,7 +116,6 @@ const BuyerSchema = new mongoose.Schema({
   },
   creditLimit: { type: Number, default: 0 },
 
-  // Legacy fields
   contactPerson: { type: String, trim: true },
   alternatePhone: { type: String, trim: true },
   businessType: { type: String, trim: true },
@@ -141,7 +140,7 @@ BuyerSchema.index({ gst: 1 });
 BuyerSchema.index({ isActive: 1 });
 BuyerSchema.index({ city: 1 });
 BuyerSchema.index({ state: 1 });
-BuyerSchema.index({ buyerCategory: 1 }); // NEW INDEX
+BuyerSchema.index({ buyerCategory: 1 });
 
 // Validation: yasBuyerType should only be set for YAS buyers
 BuyerSchema.pre("validate", function (next) {
