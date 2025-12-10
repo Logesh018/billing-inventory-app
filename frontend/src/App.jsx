@@ -8,8 +8,10 @@ import { Toaster } from 'react-hot-toast';
 import LoadingSpinner from "./components/UI/LoadingSpinner";
 import "./App.css";
 
+// Eager loaded components (needed immediately)
 import Login from "./pages/auth/Login";
 
+// Lazy loaded components (loaded on demand)
 const DashboardLayout = lazy(() => import("./pages/dashboard/DashboardLayout"));
 const HomePage = lazy(() => import("./components/Sidebar/Sidebarpages/HomePage"));
 
@@ -52,7 +54,7 @@ function RootRedirect() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner message="Checking authentication..." />;
   }
 
   return <Navigate to={user ? "/dashboard" : "/login"} replace />;
@@ -63,9 +65,13 @@ function App() {
     <AuthProvider>
       <FormNavigationProvider>
         <Router>
-          
-          {/* === Background === */}
-          <div className="fixed inset-0 -z-10 bg-gradient-to-br from-white via-gray-50 to-gray-200" />
+          {/* Animated background layer */}
+          <div className="fixed inset-0 -z-10 bg-gradient-to-br from-blue-200 via-purple-200 to-pink-200 bg-[length:200%_200%] animate-subtle-gradient">
+            <div className="absolute top-[-100px] left-[-100px] w-[400px] h-[400px] rounded-full opacity-50 blur-[100px] bg-blue-400 animate-orb-float" />
+            <div className="absolute bottom-[-100px] right-[-100px] w-[400px] h-[400px] rounded-full opacity-50 blur-[100px] bg-pink-400 animate-orb-float"
+              style={{ animationDelay: '10s' }}
+            />
+          </div>
 
           <Toaster position="top-right" />
           <FormExitModal />
