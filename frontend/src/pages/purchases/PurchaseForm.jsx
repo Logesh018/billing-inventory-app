@@ -57,55 +57,38 @@ const PurchaseForm = ({ initialValues, onSubmit, onCancel, submitLabel, isEditMo
   }, [purchaseItems]);
 
   const handleSubmit = () => {
-    const fabricPurchases = [];
-    const accessoriesPurchases = [];  // ✅ Single array for all accessories
-
-    purchaseItems.forEach(item => {
-      item.items.forEach(row => {
-        const rowTotal = (parseFloat(row.quantity) || 0) * (parseFloat(row.costPerUnit) || 0);
-        const gstAmount = rowTotal * ((row.gstPercentage || 0) / 100);
-        const totalWithGst = rowTotal + gstAmount;
-
-        const purchaseData = {
-          productName: row.itemName,
-          vendor: item.vendor,
-          vendorCode: item.vendorCode,
-          vendorId: item.supplierId,
-          purchaseMode: row.purchaseUnit,
-          quantity: parseFloat(row.quantity) || 0,
-          costPerUnit: parseFloat(row.costPerUnit) || 0,
-          totalCost: rowTotal,
-          gstPercentage: row.gstPercentage || 0,
-          totalWithGst: totalWithGst,
-          remarks: ''
-        };
-
-        if (row.type === 'fabric') {
-          purchaseData.fabricType = row.itemName;
-          purchaseData.gsm = row.gsm;
-          purchaseData.colors = [row.color];
-          fabricPurchases.push(purchaseData);
-        } else if (row.type === 'accessories') {
-          // ✅ Determine accessory type based on purchase unit
-          purchaseData.accessoryType = row.purchaseUnit === 'packet' ? 'packets' : 'buttons';
-          purchaseData.size = 'Standard';
-          purchaseData.color = row.color || '';
-          accessoriesPurchases.push(purchaseData);  // ✅ Add to accessoriesPurchases
-        }
-      });
-    });
+    const transformedPurchaseItems = purchaseItems.map(item => ({
+      vendor: item.vendor,
+      vendorCode: item.vendorCode,
+      vendorState: item.vendorState,
+      vendorId: item.supplierId,
+      gstType: item.gstType || 'CGST+SGST',
+      items: item.items.map(row => ({
+        type: row.type,
+        itemName: row.itemName,
+        gsm: row.gsm || '',
+        color: row.color || '',
+        purchaseUnit: row.purchaseUnit,
+        quantity: parseFloat(row.quantity) || 0,
+        costPerUnit: parseFloat(row.costPerUnit) || 0,
+        gstPercentage: row.gstPercentage || 5,
+        invoiceDate: row.invoiceDate || null,
+        invoiceNo: row.invoiceNo || '',
+        hsn: row.hsn || ''
+      }))
+    }));
 
     const submitData = {
       orderId: formData.orderId,
       purchaseDate: formData.purchaseDate || new Date().toISOString(),
-      fabricPurchases,
-      accessoriesPurchases,  // ✅ Send this instead of buttonsPurchases/packetsPurchases
+      purchaseItems: transformedPurchaseItems,  
       remarks: formData.remarks,
     };
-    console.log("📤 Submitting purchase data:", submitData);  // For debugging
+
+    console.log("📤 Submitting purchase data (NEW FORMAT):", submitData);
     onSubmit(submitData);
   };
-
+  
   return (
     <div className="w-full mx-auto bg-white p-5 rounded-2xl">
       <div className="space-y-2">

@@ -5,7 +5,7 @@ import {
   createPurchaseReturn,
   getPurchaseReturns,
   getPurchaseReturnById,
-  updatePurchaseReturnStatus,
+  // updatePurchaseReturnStatus,
   deletePurchaseReturn,
   getNextPURTNo
 } from "../controllers/purchaseReturnController.js";
@@ -80,7 +80,7 @@ router.get("/:id", protect, authorize("purchase", "SuperAdmin"), getPurchaseRetu
  * 
  * Body: { "status": "Approved" | "Rejected" | "Completed" }
  */
-router.patch("/:id/status", protect, authorize("purchase", "SuperAdmin"), updatePurchaseReturnStatus);
+// router.patch("/:id/status", protect, authorize("purchase", "SuperAdmin"), updatePurchaseReturnStatus);
 
 /**
  * @route   DELETE /api/purchase-returns/:id

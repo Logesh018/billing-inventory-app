@@ -166,30 +166,28 @@ export default function Purchase() {
       setIsSubmitting(true);
 
       const hasPurchaseItems =
-        (data.fabricPurchases && data.fabricPurchases.length > 0) ||
-        (data.accessoriesPurchases && data.accessoriesPurchases.length > 0);
+        (data.purchaseItems && data.purchaseItems.length > 0 &&
+          data.purchaseItems.some(item => item.items && item.items.length > 0));
 
       if (!hasPurchaseItems) {
         showWarning("Please add at least one purchase item");
         return;
       }
 
+      // ✅ FIX: Use purchaseItems in payload
       const payload = {
         orderId: data.orderId,
         purchaseDate: data.purchaseDate,
-        fabricPurchases: data.fabricPurchases || [],
-        accessoriesPurchases: data.accessoriesPurchases || [],
+        purchaseItems: data.purchaseItems || [], // ✅ NEW FORMAT
         remarks: data.remarks,
       };
 
       console.log("📤 Submitting purchase payload:", payload);
 
       if (editPurchase && editPurchase._id) {
-        // Explicit update
         await updatePurchase(editPurchase._id, payload);
         showSuccess("Purchase updated successfully!");
       } else {
-        // Let backend decide: create new or update existing
         const response = await createPurchase(payload);
 
         if (response.data.wasUpdated) {

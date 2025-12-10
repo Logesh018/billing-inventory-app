@@ -20,6 +20,7 @@
       font-weight: bold;
       margin-bottom: 15px;
       text-decoration: underline;
+      color: #721c24;
     }
 
     /* ===== Top Info Table ===== */
@@ -50,7 +51,7 @@
     /* ===== Reason Box ===== */
     .reason-box {
       background: #f8d7da;
-      border: 2px solid #000;
+      border: 2px solid #721c24;
       padding: 10px;
       margin-bottom: 12px;
       font-size: 11px;
@@ -58,6 +59,11 @@
     .reason-box .reason-label {
       font-weight: bold;
       color: #721c24;
+    }
+    .reason-box .reason-description {
+      margin-top: 4px;
+      font-style: italic;
+      color: #555;
     }
 
     /* ===== Main Items Table ===== */
@@ -132,6 +138,12 @@
       text-align: center;
       padding: 8px;
     }
+
+    /* Highlight total */
+    .total-row {
+      background: #f8d7da !important;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -139,10 +151,10 @@
   <!-- Header: DEBIT NOTE -->
   <div class="header">DEBIT NOTE</div>
 
-  <!-- Top Info: Bill To | Place of Supply | Debit Note Details -->
+  <!-- Top Info: From | To | Debit Note Details -->
   <table class="info-table">
     <tr>
-      <!-- Bill To (Business) -->
+      <!-- From (Business) -->
       <td style="width: 33%;">
         <span class="section-title">From:</span>
         <strong>{{business.name}}</strong><br>
@@ -152,12 +164,13 @@
         <span class="field-label">GSTIN No:-</span> {{business.gst}}
       </td>
 
-      <!-- Place of Supply (Party) -->
+      <!-- To (Party/Vendor) -->
       <td style="width: 34%;">
-        <span class="section-title">Place of Supply:</span>
+        <span class="section-title">To:</span>
         <strong>{{party.name}}</strong><br>
         {{party.addressLine1}}<br>
         {{party.addressLine2}}<br>
+        <span class="field-label">State:</span> {{party.state}}<br>
         <span class="field-label">GSTIN No:-</span> {{party.gst}}
       </td>
 
@@ -182,7 +195,7 @@
   <!-- Reason for Debit Note -->
   <div class="reason-box">
     <span class="reason-label">Reason for Debit:</span> {{reason}}
-    {{reasonDescription}}
+    <div class="reason-description">{{reasonDescription}}</div>
   </div>
 
   <!-- Main Items + Totals Table -->
@@ -207,7 +220,7 @@
         <td class="right"><strong>₹{{subtotal}}</strong></td>
       </tr>
 
-      <!-- Tax Rows (dynamically generated) -->
+      <!-- Tax Rows (dynamically generated - will show either CGST+SGST or IGST) -->
       {{taxRows}}
 
       <!-- Additional Charges (if any) -->
@@ -220,7 +233,7 @@
       </tr>
 
       <!-- Total Amount Debited -->
-      <tr class="full-border" style="background: #f8d7da;">
+      <tr class="full-border total-row">
         <td class="left" colspan="5"><strong>Total Amount Debited (Roundup)</strong></td>
         <td class="right"><strong>₹{{grandTotal}}</strong></td>
       </tr>
@@ -248,7 +261,7 @@
     </tr>
     <tr>
       <td>
-        <strong>Note:</strong> This debit increases the amount payable by the customer
+        <strong>Note:</strong> This debit note increases the amount payable by the party
       </td>
     </tr>
   </table>

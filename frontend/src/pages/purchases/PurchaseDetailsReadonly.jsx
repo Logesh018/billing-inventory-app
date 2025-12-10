@@ -42,8 +42,8 @@ const PurchaseDetailsReadonly = ({ purchase }) => {
 
   // Check if using new or old structure
   const hasNewStructure = purchase.purchaseItems && purchase.purchaseItems.length > 0;
-  const hasOldStructure = (purchase.fabricPurchases && purchase.fabricPurchases.length > 0) || 
-                          (purchase.accessoriesPurchases && purchase.accessoriesPurchases.length > 0);
+  const hasOldStructure = (purchase.fabricPurchases && purchase.fabricPurchases.length > 0) ||
+    (purchase.accessoriesPurchases && purchase.accessoriesPurchases.length > 0);
 
   return (
     <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4 shadow-sm border-2 border-blue-300">
@@ -51,10 +51,10 @@ const PurchaseDetailsReadonly = ({ purchase }) => {
         <h3 className="text-sm font-semibold text-gray-800 mb-3">
           Original Purchase Details (Read-only)
         </h3>
-        
-        {/* Header Info */}
-        <div className="grid grid-cols-7 gap-3 mb-3">
-          {/* Purchase ID */}
+
+        {/* Header Info - 2 rows with 5 columns each */}
+        <div className="grid grid-cols-5 gap-3 mb-3">
+          {/* Row 1 */}
           <div>
             <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Purchase ID</label>
             <div className="text-xs font-bold text-blue-700">
@@ -62,43 +62,41 @@ const PurchaseDetailsReadonly = ({ purchase }) => {
             </div>
           </div>
 
-          {/* Purchase Date */}
           <div>
             <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Purchase Date</label>
             <div className="text-xs font-medium text-gray-900">
-              {purchase.purchaseDate 
+              {purchase.purchaseDate
                 ? new Date(purchase.purchaseDate).toLocaleDateString('en-IN')
                 : '-'}
             </div>
           </div>
 
-          {/* Order ID */}
           <div>
             <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Order ID</label>
             <div className="text-xs font-bold text-blue-700">
               {purchase.orderId || '-'}
             </div>
           </div>
-          
-          {/* Order Date */}
+
           <div>
             <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Order Date</label>
             <div className="text-xs font-medium text-gray-900">
-              {purchase.orderDate 
+              {purchase.orderDate
                 ? new Date(purchase.orderDate).toLocaleDateString('en-IN')
                 : '-'}
             </div>
           </div>
-          
-          {/* Buyer Code */}
+
           <div>
             <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Buyer Code</label>
             <div className="text-xs font-medium text-gray-900">
               {purchase.buyerCode || '-'}
             </div>
           </div>
+        </div>
 
-          {/* Estimation ID (PESNo) */}
+        {/* Row 2 */}
+        <div className="grid grid-cols-5 gap-3 mb-3">
           <div>
             <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Estimation ID</label>
             <div className={`text-xs font-bold ${purchase.PESNo === 'N/A' ? 'text-gray-500' : 'text-green-700'}`}>
@@ -106,19 +104,15 @@ const PurchaseDetailsReadonly = ({ purchase }) => {
             </div>
           </div>
 
-          {/* Estimation Date */}
           <div>
             <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Estimation Date</label>
             <div className="text-xs font-medium text-gray-900">
-              {purchase.estimationDate 
+              {purchase.estimationDate
                 ? new Date(purchase.estimationDate).toLocaleDateString('en-IN')
                 : '-'}
             </div>
           </div>
-        </div>
 
-        {/* Second Row */}
-        <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Order Type</label>
             <div
@@ -126,14 +120,14 @@ const PurchaseDetailsReadonly = ({ purchase }) => {
                 purchase.orderType === 'JOB-Works'
                   ? 'bg-purple-100 text-purple-800'
                   : purchase.orderType === 'Own-Orders'
-                  ? 'bg-teal-100 text-teal-800'
-                  : 'bg-blue-100 text-blue-800'
+                    ? 'bg-teal-100 text-teal-800'
+                    : 'bg-blue-100 text-blue-800'
               }`}
             >
               {purchase.orderType || '-'}
             </div>
           </div>
-          
+
           <div>
             <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Status</label>
             <div className="text-xs font-medium text-gray-900">
@@ -157,7 +151,7 @@ const PurchaseDetailsReadonly = ({ purchase }) => {
           <div
             className="grid gap-2 mb-1.5 text-[10px] font-medium text-gray-700"
             style={{
-              gridTemplateColumns: '2fr 0.7fr 0.7fr 2fr 0.6fr',
+              gridTemplateColumns: '2fr 0.7fr 0.7fr 2fr 0.6fr 0.6fr',
             }}
           >
             <label>Product</label>
@@ -165,6 +159,7 @@ const PurchaseDetailsReadonly = ({ purchase }) => {
             <label>Color</label>
             <label>Size & Qty</label>
             <label className="text-center">Total Qty</label>
+            <label className="text-center font-bold text-blue-700">Grand Qty</label>
           </div>
 
           {/* Table Body */}
@@ -189,7 +184,7 @@ const PurchaseDetailsReadonly = ({ purchase }) => {
                 key={idx}
                 className={`grid gap-2 py-1.5 text-[10px] ${idx > 0 ? 'border-t border-blue-200' : ''}`}
                 style={{
-                  gridTemplateColumns: '2fr 0.7fr 0.7fr 2fr 0.6fr',
+                  gridTemplateColumns: '2fr 0.7fr 0.7fr 2fr 0.6fr 0.6fr',
                 }}
               >
                 <div className="font-semibold text-gray-900">{productName}</div>
@@ -210,93 +205,107 @@ const PurchaseDetailsReadonly = ({ purchase }) => {
                   )}
                 </div>
                 <div className="font-bold text-blue-600 text-center">{productTotal}</div>
+                {idx === 0 && (
+                  <div
+                    className="text-center text-blue-700 font-bold text-sm"
+                    style={{ gridRow: `span ${sortedProducts.length}` }}
+                  >
+                    {grandTotalQty}
+                  </div>
+                )}
               </div>
             );
           })}
-
-          {/* Grand Total Row */}
-          <div 
-            className="grid border-t border-blue-300 pt-2 mt-2 text-[10px]" 
-            style={{ gridTemplateColumns: '2fr 0.7fr 0.7fr 2fr 0.6fr' }}
-          >
-            <div className="col-span-3"></div>
-            <div className="text-right pr-2 text-gray-700 font-semibold">Grand Qty:</div>
-            <div className="text-center text-blue-700 font-bold">{grandTotalQty}</div>
-          </div>
         </div>
       )}
 
-      {/* Purchase Items Summary - NEW STRUCTURE */}
+      {/* Purchase Details - NEW STRUCTURE */}
       {hasNewStructure && (
         <div className="mt-4 pt-3 border-t border-blue-300">
-          <div className="text-[10px] font-medium text-gray-700 mb-2">Purchased Items Summary</div>
-          <div className="space-y-2">
+          <h4 className="text-xs font-semibold text-gray-700 mb-2">Purchase Details:</h4>
+          
+          <div className="space-y-3">
             {purchase.purchaseItems.map((vendorItem, vIdx) => (
-              <div key={vIdx} className="bg-white rounded-lg p-3 border border-blue-200">
-                <div className="flex items-center justify-between mb-2">
+              <div key={vIdx}>
+                {/* Vendor Header */}
+                <div className="flex items-center justify-between mb-2 pb-1 border-b border-blue-200">
                   <div>
-                    <div className="text-xs font-semibold text-gray-800">
-                      {vendorItem.vendor || 'Vendor'}
-                    </div>
-                    <div className="text-[10px] text-gray-600">
-                      {vendorItem.vendorCode} • {vendorItem.vendorState}
-                    </div>
+                    <span className="text-xs font-semibold text-gray-800">
+                      Vendor: {vendorItem.vendor || 'N/A'}
+                    </span>
+                    <span className="text-[10px] text-gray-600 ml-2">
+                      ({vendorItem.vendorCode}) • {vendorItem.vendorState}
+                    </span>
                   </div>
                   <div className="text-xs font-bold text-green-600">
                     ₹{(vendorItem.itemTotalWithGst || 0).toLocaleString()}
                   </div>
                 </div>
 
+                {/* Items Table */}
                 {vendorItem.items && vendorItem.items.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="grid grid-cols-12 gap-1 text-[9px] font-medium text-gray-600 border-b pb-1">
-                      <div className="col-span-1">Invoice No</div>
-                      <div className="col-span-1">Invoice Date</div>
-                      <div className="col-span-1">HSN</div>
-                      <div className="col-span-3">Item Name</div>
-                      <div className="col-span-1 text-center">GSM</div>
-                      <div className="col-span-1 text-center">Color</div>
-                      <div className="col-span-2 text-right">Qty & Unit</div>
-                      <div className="col-span-2 text-right">Amount</div>
-                    </div>
-                    {vendorItem.items.map((item, iIdx) => (
-                      <div 
-                        key={iIdx} 
-                        className="grid grid-cols-12 gap-1 text-[10px] text-gray-700 py-1"
-                      >
-                        <div className="col-span-1 truncate" title={item.invoiceNo || '-'}>
-                          {item.invoiceNo || '-'}
-                        </div>
-                        <div className="col-span-1 text-gray-600">
-                          {item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit' }) : '-'}
-                        </div>
-                        <div className="col-span-1 text-gray-600">
-                          {item.hsn || '-'}
-                        </div>
-                        <div className="col-span-3 font-medium">
-                          {item.itemName}
-                        </div>
-                        <div className="col-span-1 text-center text-gray-500">
-                          {item.gsm ? `${item.gsm}` : '-'}
-                        </div>
-                        <div className="col-span-1 text-center text-gray-500">
-                          {item.color || '-'}
-                        </div>
-                        <div className="col-span-2 text-right font-semibold text-blue-600">
-                          {item.quantity} {item.purchaseUnit}
-                        </div>
-                        <div className="col-span-2 text-right text-gray-700">
-                          @ ₹{item.costPerUnit} = ₹{(item.quantity * item.costPerUnit).toFixed(2)}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[9px] border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="border border-gray-200 px-2 py-1 text-left font-medium text-gray-700">Item</th>
+                          <th className="border border-gray-200 px-2 py-1 text-left font-medium text-gray-700">Invoice No</th>
+                          <th className="border border-gray-200 px-2 py-1 text-left font-medium text-gray-700">Invoice Date</th>
+                          <th className="border border-gray-200 px-2 py-1 text-left font-medium text-gray-700">HSN</th>
+                          <th className="border border-gray-200 px-2 py-1 text-center font-medium text-gray-700">GSM</th>
+                          <th className="border border-gray-200 px-2 py-1 text-center font-medium text-gray-700">Color</th>
+                          <th className="border border-gray-200 px-2 py-1 text-right font-medium text-gray-700">Qty & Unit</th>
+                          <th className="border border-gray-200 px-2 py-1 text-right font-medium text-gray-700">Rate</th>
+                          <th className="border border-gray-200 px-2 py-1 text-right font-medium text-gray-700">Product Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {vendorItem.items.map((item, iIdx) => (
+                          <tr key={iIdx} className="hover:bg-gray-50">
+                            <td className="border border-gray-200 px-2 py-1 font-medium text-gray-800">
+                              {item.itemName}
+                            </td>
+                            <td className="border border-gray-200 px-2 py-1 text-gray-700">
+                              {item.invoiceNo || '-'}
+                            </td>
+                            <td className="border border-gray-200 px-2 py-1 text-gray-600">
+                              {item.invoiceDate 
+                                ? new Date(item.invoiceDate).toLocaleDateString('en-IN', { 
+                                    day: '2-digit', 
+                                    month: '2-digit',
+                                    year: '2-digit'
+                                  }) 
+                                : '-'}
+                            </td>
+                            <td className="border border-gray-200 px-2 py-1 text-gray-600">
+                              {item.hsn || '-'}
+                            </td>
+                            <td className="border border-gray-200 px-2 py-1 text-center text-gray-600">
+                              {item.gsm || '-'}
+                            </td>
+                            <td className="border border-gray-200 px-2 py-1 text-center text-gray-600">
+                              {item.color || '-'}
+                            </td>
+                            <td className="border border-gray-200 px-2 py-1 text-right font-semibold text-blue-600">
+                              {item.quantity} {item.purchaseUnit}
+                            </td>
+                            <td className="border border-gray-200 px-2 py-1 text-right text-gray-700">
+                              ₹{item.costPerUnit}
+                            </td>
+                            <td className="border border-gray-200 px-2 py-1 text-right font-bold text-gray-800">
+                              ₹{(item.quantity * item.costPerUnit).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
             ))}
           </div>
 
-          {/* Grand Total */}
+          {/* Purchase Grand Total */}
           <div className="mt-3 bg-blue-100 rounded-lg p-3 border border-blue-300">
             <div className="flex justify-between items-center">
               <div className="text-sm font-semibold text-gray-800">Purchase Grand Total:</div>
@@ -308,43 +317,59 @@ const PurchaseDetailsReadonly = ({ purchase }) => {
         </div>
       )}
 
-      {/* Purchase Items Summary - OLD STRUCTURE */}
+      {/* Purchase Details - OLD STRUCTURE */}
       {hasOldStructure && !hasNewStructure && (
         <div className="mt-4 pt-3 border-t border-blue-300">
-          <div className="text-[10px] font-medium text-gray-700 mb-2">Purchased Items Summary (Legacy Format)</div>
-          
+          <h4 className="text-xs font-semibold text-gray-700 mb-2">Purchase Details:</h4>
+          <p className="text-[10px] text-amber-700 bg-amber-50 px-2 py-1 rounded mb-2 border border-amber-200">
+            ⚠️ This is old format purchase document.
+          </p>
+
           {/* Fabric Purchases */}
           {purchase.fabricPurchases && purchase.fabricPurchases.length > 0 && (
             <div className="mb-3">
               <div className="text-[9px] font-semibold text-gray-600 mb-1">Fabric Purchases</div>
-              <div className="space-y-1">
-                {purchase.fabricPurchases.map((fabric, idx) => (
-                  <div key={idx} className="bg-white rounded-lg p-2 border border-blue-200">
-                    <div className="grid grid-cols-12 gap-1 text-[10px]">
-                      <div className="col-span-3 font-medium text-gray-800">
-                        {fabric.productName || fabric.fabricType}
-                      </div>
-                      <div className="col-span-1 text-center text-gray-600">
-                        {fabric.gsm ? `${fabric.gsm} GSM` : '-'}
-                      </div>
-                      <div className="col-span-2 text-center text-gray-600">
-                        {formatArrayField(fabric.colors)}
-                      </div>
-                      <div className="col-span-2 text-right font-semibold text-blue-600">
-                        {fabric.quantity} {fabric.purchaseMode}
-                      </div>
-                      <div className="col-span-2 text-right text-gray-700">
-                        @ ₹{fabric.costPerUnit}
-                      </div>
-                      <div className="col-span-2 text-right font-bold text-green-600">
-                        ₹{(fabric.totalWithGst || 0).toFixed(2)}
-                      </div>
-                    </div>
-                    <div className="text-[9px] text-gray-500 mt-1">
-                      Vendor: {fabric.vendor} ({fabric.vendorCode})
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-[9px] border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border border-gray-200 px-2 py-1 text-left font-medium text-gray-700">Item</th>
+                      <th className="border border-gray-200 px-2 py-1 text-left font-medium text-gray-700">Vendor</th>
+                      <th className="border border-gray-200 px-2 py-1 text-center font-medium text-gray-700">GSM</th>
+                      <th className="border border-gray-200 px-2 py-1 text-center font-medium text-gray-700">Color</th>
+                      <th className="border border-gray-200 px-2 py-1 text-right font-medium text-gray-700">Qty & Unit</th>
+                      <th className="border border-gray-200 px-2 py-1 text-right font-medium text-gray-700">Rate</th>
+                      <th className="border border-gray-200 px-2 py-1 text-right font-medium text-gray-700">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {purchase.fabricPurchases.map((fabric, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="border border-gray-200 px-2 py-1 font-medium text-gray-800">
+                          {fabric.productName || fabric.fabricType}
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-gray-700">
+                          {fabric.vendor} ({fabric.vendorCode})
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-center text-gray-600">
+                          {fabric.gsm || '-'}
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-center text-gray-600">
+                          {formatArrayField(fabric.colors)}
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-right font-semibold text-blue-600">
+                          {fabric.quantity} {fabric.purchaseMode}
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-right text-gray-700">
+                          ₹{fabric.costPerUnit}
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-right font-bold text-gray-800">
+                          ₹{(fabric.totalWithGst || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -353,39 +378,52 @@ const PurchaseDetailsReadonly = ({ purchase }) => {
           {purchase.accessoriesPurchases && purchase.accessoriesPurchases.length > 0 && (
             <div className="mb-3">
               <div className="text-[9px] font-semibold text-gray-600 mb-1">Accessories Purchases</div>
-              <div className="space-y-1">
-                {purchase.accessoriesPurchases.map((accessory, idx) => (
-                  <div key={idx} className="bg-white rounded-lg p-2 border border-blue-200">
-                    <div className="grid grid-cols-12 gap-1 text-[10px]">
-                      <div className="col-span-3 font-medium text-gray-800">
-                        {accessory.productName}
-                      </div>
-                      <div className="col-span-2 text-center text-gray-600">
-                        {accessory.accessoryType}
-                      </div>
-                      <div className="col-span-1 text-center text-gray-600">
-                        {accessory.color || '-'}
-                      </div>
-                      <div className="col-span-2 text-right font-semibold text-blue-600">
-                        {accessory.quantity} {accessory.purchaseMode}
-                      </div>
-                      <div className="col-span-2 text-right text-gray-700">
-                        @ ₹{accessory.costPerUnit}
-                      </div>
-                      <div className="col-span-2 text-right font-bold text-green-600">
-                        ₹{(accessory.totalWithGst || 0).toFixed(2)}
-                      </div>
-                    </div>
-                    <div className="text-[9px] text-gray-500 mt-1">
-                      Vendor: {accessory.vendor} ({accessory.vendorCode})
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-[9px] border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border border-gray-200 px-2 py-1 text-left font-medium text-gray-700">Item</th>
+                      <th className="border border-gray-200 px-2 py-1 text-left font-medium text-gray-700">Vendor</th>
+                      <th className="border border-gray-200 px-2 py-1 text-center font-medium text-gray-700">Type</th>
+                      <th className="border border-gray-200 px-2 py-1 text-center font-medium text-gray-700">Color</th>
+                      <th className="border border-gray-200 px-2 py-1 text-right font-medium text-gray-700">Qty & Unit</th>
+                      <th className="border border-gray-200 px-2 py-1 text-right font-medium text-gray-700">Rate</th>
+                      <th className="border border-gray-200 px-2 py-1 text-right font-medium text-gray-700">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {purchase.accessoriesPurchases.map((accessory, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="border border-gray-200 px-2 py-1 font-medium text-gray-800">
+                          {accessory.productName}
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-gray-700">
+                          {accessory.vendor} ({accessory.vendorCode})
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-center text-gray-600">
+                          {accessory.accessoryType}
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-center text-gray-600">
+                          {accessory.color || '-'}
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-right font-semibold text-blue-600">
+                          {accessory.quantity} {accessory.purchaseMode}
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-right text-gray-700">
+                          ₹{accessory.costPerUnit}
+                        </td>
+                        <td className="border border-gray-200 px-2 py-1 text-right font-bold text-gray-800">
+                          ₹{(accessory.totalWithGst || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
 
-          {/* Grand Total */}
+          {/* Purchase Grand Total */}
           <div className="mt-3 bg-blue-100 rounded-lg p-3 border border-blue-300">
             <div className="flex justify-between items-center">
               <div className="text-sm font-semibold text-gray-800">Purchase Grand Total:</div>

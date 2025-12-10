@@ -111,6 +111,55 @@ const noteSchema = new mongoose.Schema({
     }
   },
 
+   purchaseItems: [
+      {
+        vendor: { type: String, required: true },
+        vendorCode: { type: String },
+        vendorState: { type: String },
+        vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Supplier" },
+  
+        gstType: {
+          type: String,
+          enum: ["CGST+SGST", "IGST"],
+          default: "CGST+SGST"
+        },
+  
+        items: [
+          {
+            type: {
+              type: String,
+              enum: ["fabric", "accessories", "others"],
+              required: true,
+              default: "fabric"
+            },
+            itemName: { type: String, required: true },
+            gsm: { type: String },
+            accessoryType: {
+              type: String,
+              enum: ["buttons", "packets", "other"],
+            },
+            otherType: { type: String },
+            color: { type: String },
+            purchaseUnit: { type: String, required: true },
+            quantity: { type: Number, required: true },
+            costPerUnit: { type: Number, required: true },
+            gstPercentage: { type: Number, default: 5 },
+            totalCost: { type: Number },
+  
+            invoiceDate: { type: Date, default: null },
+            invoiceNo: { type: String, default: "" },
+            hsn: { type: String, default: "" },
+          }
+        ],
+  
+        itemTotal: { type: Number, default: 0 },
+        cgstAmount: { type: Number, default: 0 },
+        sgstAmount: { type: Number, default: 0 },
+        igstAmount: { type: Number, default: 0 },
+        itemTotalWithGst: { type: Number, default: 0 },
+      }
+    ],
+
   // Business Details (Your Company)
   businessDetails: {
     name: {

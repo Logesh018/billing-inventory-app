@@ -17,7 +17,6 @@ export const getPurchaseForReturn = async (req, res) => {
 
     const purchase = await Purchase.findOne({ PURNo })
       .populate("order", "PoNo orderType orderDate")
-      .populate("purchaseItems.vendorId", "name code state")
       .lean();
 
     if (!purchase) {
@@ -25,8 +24,25 @@ export const getPurchaseForReturn = async (req, res) => {
       return res.status(404).json({ message: "Purchase not found" });
     }
 
+    // Manually populate vendorId only if it's a valid ObjectId
+    if (purchase.purchaseItems && purchase.purchaseItems.length > 0) {
+      for (const vendorItem of purchase.purchaseItems) {
+        if (vendorItem.vendorId && mongoose.Types.ObjectId.isValid(vendorItem.vendorId)) {
+          try {
+            const Supplier = mongoose.model("Supplier");
+            const supplier = await Supplier.findById(vendorItem.vendorId).select("name code state").lean();
+            if (supplier) {
+              vendorItem.vendorId = supplier;
+            }
+          } catch (err) {
+            console.warn(`⚠️ SERVER: Failed to populate vendorId for item:`, err.message);
+          }
+        }
+      }
+    }
+
     console.log(`✅ SERVER: Purchase found - ${purchase.PURNo}`);
-    
+
     // Check if return already exists
     const existingReturn = await PurchaseReturn.findOne({ purchase: purchase._id });
     if (existingReturn) {
@@ -88,13 +104,9 @@ export const createPurchaseReturn = async (req, res) => {
       if (!mongoose.Types.ObjectId.isValid(purchaseId)) {
         return res.status(400).json({ message: "Invalid purchase ID format" });
       }
-      purchase = await Purchase.findById(purchaseId)
-        .populate("order")
-        .populate("purchaseItems.vendorId");
+      purchase = await Purchase.findById(purchaseId).populate("order");
     } else {
-      purchase = await Purchase.findOne({ PURNo })
-        .populate("order")
-        .populate("purchaseItems.vendorId");
+      purchase = await Purchase.findOne({ PURNo }).populate("order");
     }
 
     if (!purchase) {
@@ -114,7 +126,7 @@ export const createPurchaseReturn = async (req, res) => {
       });
     }
 
-    // Validate return items against purchase items
+    // Validate return items
     console.log('\n🔍 SERVER: Validating return items...');
     for (const returnItem of returnItems) {
       if (!returnItem.itemName || returnItem.returnQuantity <= 0) {
@@ -122,16 +134,13 @@ export const createPurchaseReturn = async (req, res) => {
           message: "Each return item must have itemName and valid returnQuantity"
         });
       }
+      // ✅ NEW: Validate vendor info
+      if (!returnItem.vendor) {
+        return res.status(400).json({
+          message: "Each return item must have vendor information"
+        });
+      }
     }
-
-    // Get vendor details from first purchase item
-    const firstPurchaseItem = purchase.purchaseItems?.[0];
-    const vendorDetails = {
-      name: firstPurchaseItem?.vendor || "N/A",
-      code: firstPurchaseItem?.vendorCode || "",
-      vendorId: firstPurchaseItem?.vendorId?._id || null,
-      state: firstPurchaseItem?.vendorState || ""
-    };
 
     // Create Purchase Return
     console.log('\n💾 SERVER: Creating purchase return...');
@@ -143,10 +152,8 @@ export const createPurchaseReturn = async (req, res) => {
       order: purchase.order?._id || null,
       PoNo: purchase.PoNo || null,
       orderType: purchase.orderType || null,
-      vendor: vendorDetails,
-      returnItems: returnItems,
+      returnItems: returnItems, // ✅ Now includes vendor info per item
       remarks: remarks || "",
-      status: "Pending",
       createdBy: req.user?._id || null
     };
 
@@ -157,50 +164,151 @@ export const createPurchaseReturn = async (req, res) => {
     console.log(`   PURTNo: ${savedReturn.PURTNo}`);
     console.log(`   ID: ${savedReturn._id}`);
 
-    // Generate Debit Note automatically
+    // ✅ IMPROVED: Generate Debit Note with proper multi-vendor handling
     let debitNote = null;
     if (generateDebitNote) {
       console.log('\n📝 SERVER: Auto-generating Debit Note...');
-      
+
       try {
+        // Import noteService to use its note number generation
+        const { noteService } = await import("../services/noteService.js");
+
+        // Group items by vendor for better understanding
+        const vendorGroups = {};
+        savedReturn.returnItems.forEach(item => {
+          const vendorKey = item.vendor;
+          if (!vendorGroups[vendorKey]) {
+            vendorGroups[vendorKey] = {
+              vendor: item.vendor,
+              vendorCode: item.vendorCode,
+              vendorState: item.vendorState,
+              items: [],
+              totalCgst: 0,
+              totalSgst: 0,
+              totalIgst: 0
+            };
+          }
+          vendorGroups[vendorKey].items.push(item);
+          vendorGroups[vendorKey].totalCgst += item.cgstAmount || 0;
+          vendorGroups[vendorKey].totalSgst += item.sgstAmount || 0;
+          vendorGroups[vendorKey].totalIgst += item.igstAmount || 0;
+        });
+
+        // Get primary vendor (first one) for Note party details
+        const primaryVendor = Object.values(vendorGroups)[0];
+
+        // Determine if inter-state or intra-state
+        const isInterState = primaryVendor.vendorState !== 'Tamil Nadu';
+        console.log(`   Primary Vendor: ${primaryVendor.vendor}`);
+        console.log(`   Vendor State: ${primaryVendor.vendorState}`);
+        console.log(`   GST Type: ${isInterState ? 'IGST' : 'CGST+SGST'}`);
+
+        // ✅ FIX: Generate note number
+        const noteNumber = await noteService.generateNoteNumber('debit');
+        console.log(`   Generated Note Number: ${noteNumber}`);
+
         // Transform return items to debit note items
         const debitNoteItems = savedReturn.returnItems.map(item => ({
-          description: `${item.itemName}${item.gsm ? ` (${item.gsm} GSM)` : ''}${item.color ? ` - ${item.color}` : ''} - RETURN`,
-          hsnCode: "",
+          description: `${item.itemName}${item.gsm ? ` (${item.gsm} GSM)` : ''}${item.color ? ` - ${item.color}` : ''} - RETURN (${item.vendor})`,
+          hsnCode: item.hsn || "",
           quantity: item.returnQuantity,
           rate: item.originalCostPerUnit,
-          amount: item.returnValueWithGst,
+          amount: item.returnValue, // ✅ Base value WITHOUT GST
           taxRate: item.gstPercentage
         }));
+
+        // ✅ IMPORTANT: Use correct tax amounts based on GST type
+        let taxes;
+        if (isInterState) {
+          // IGST only
+          taxes = {
+            cgst: 0,
+            sgst: 0,
+            igst: savedReturn.totalIgst || 0
+          };
+        } else {
+          // CGST + SGST
+          taxes = {
+            cgst: savedReturn.totalCgst || 0,
+            sgst: savedReturn.totalSgst || 0,
+            igst: 0
+          };
+        }
+
+        console.log('   Tax Breakdown:', {
+          cgst: taxes.cgst,
+          sgst: taxes.sgst,
+          igst: taxes.igst,
+          total: taxes.cgst + taxes.sgst + taxes.igst
+        });
+
+        // ✅ FIX: Try to get vendor address from Supplier model
+        let vendorAddress = "Address not available";
+        if (savedReturn.returnItems[0]?.vendorId) {
+          try {
+            const Supplier = mongoose.model("Supplier");
+            const supplier = await Supplier.findById(savedReturn.returnItems[0].vendorId)
+              .select("address city state pincode")
+              .lean();
+
+            if (supplier && supplier.address) {
+              vendorAddress = supplier.address;
+              if (supplier.city) vendorAddress += `, ${supplier.city}`;
+              if (supplier.state) vendorAddress += `, ${supplier.state}`;
+              if (supplier.pincode) vendorAddress += ` - ${supplier.pincode}`;
+            }
+            console.log(`   Vendor Address: ${vendorAddress}`);
+          } catch (err) {
+            console.warn(`⚠️ SERVER: Could not fetch vendor address:`, err.message);
+          }
+        }
 
         // Create Debit Note
         const debitNoteData = {
           noteType: 'debit',
+          noteNumber: noteNumber, // ✅ FIX: Add generated note number
+          noteDate: savedReturn.returnDate || Date.now(),
           referenceType: 'purchase-order',
           referenceNumber: purchase.PURNo,
           referenceDate: purchase.purchaseDate,
           reason: 'goods-returned',
-          reasonDescription: `Purchase return for ${purchase.PURNo}. ${remarks || ''}`,
+          reasonDescription: `Purchase return for ${purchase.PURNo}. ${remarks || ''}`.trim(),
+
+          // Party details (vendor/supplier)
           partyDetails: {
-            name: vendorDetails.name,
-            address: "",
-            gst: "",
-            state: vendorDetails.state || "Tamil Nadu"
+            name: primaryVendor.vendor,
+            address: vendorAddress, // ✅ FIX: Use actual or fallback address
+            gst: primaryVendor.vendorCode || "",
+            state: primaryVendor.vendorState || "Tamil Nadu"
           },
+
+          // Items with return details
           items: debitNoteItems,
+
+          // Financial totals
           subtotal: savedReturn.totalReturnValue,
-          taxes: {
-            cgst: savedReturn.totalCgst,
-            sgst: savedReturn.totalSgst,
-            igst: savedReturn.totalIgst
-          },
+          taxes: taxes,
           roundOff: 0,
           grandTotal: Math.round(savedReturn.totalReturnWithGst),
+
           // Link to Purchase Return
           purchaseReturn: savedReturn._id,
           PURTNo: savedReturn.PURTNo,
-          isAutoGenerated: true
+          isAutoGenerated: true,
+          status: 'issued' // Auto-generated notes are immediately issued
         };
+
+        console.log('📋 Debit Note Data:', {
+          noteNumber: debitNoteData.noteNumber,
+          noteType: debitNoteData.noteType,
+          party: debitNoteData.partyDetails.name,
+          partyAddress: debitNoteData.partyDetails.address,
+          partyState: debitNoteData.partyDetails.state,
+          items: debitNoteData.items.length,
+          subtotal: debitNoteData.subtotal,
+          taxes: debitNoteData.taxes,
+          grandTotal: debitNoteData.grandTotal
+        });
 
         debitNote = new Note(debitNoteData);
         await debitNote.save();
@@ -216,6 +324,7 @@ export const createPurchaseReturn = async (req, res) => {
           console.log("✅ SERVER: Debit Note PDF generated:", pdfResult.url);
         } catch (pdfError) {
           console.error("❌ SERVER: PDF generation failed:", pdfError);
+          // Continue even if PDF generation fails
         }
 
         // Update Purchase Return with Debit Note reference
@@ -226,7 +335,8 @@ export const createPurchaseReturn = async (req, res) => {
         console.log(`✅ SERVER: Linked Debit Note ${debitNote.noteNumber} to Return ${savedReturn.PURTNo}`);
       } catch (debitNoteError) {
         console.error("❌ SERVER: Error creating Debit Note:", debitNoteError);
-        // Continue even if debit note creation fails
+        console.error("Stack trace:", debitNoteError.stack);
+        // Continue even if debit note creation fails - Purchase Return is still saved
       }
     }
 
@@ -268,14 +378,10 @@ export const createPurchaseReturn = async (req, res) => {
 export const getPurchaseReturns = async (req, res) => {
   try {
     console.log('\n🔍 SERVER: getPurchaseReturns called');
-    const { status, PURNo, PoNo } = req.query;
-    console.log('   Query params:', { status, PURNo, PoNo });
+    const { PURNo, PoNo } = req.query;
+    console.log('   Query params:', { PURNo, PoNo });
 
     const filter = {};
-
-    if (status && ["Pending", "Approved", "Rejected", "Completed"].includes(status)) {
-      filter.status = status;
-    }
 
     if (PURNo) {
       filter.PURNo = new RegExp(PURNo, 'i');
@@ -289,7 +395,6 @@ export const getPurchaseReturns = async (req, res) => {
       .populate("purchase", "PURNo purchaseDate")
       .populate("order", "PoNo orderType")
       .populate("debitNote", "noteNumber pdfUrl")
-      .populate("vendor.vendorId", "name code")
       .sort({ createdAt: -1 });
 
     console.log(`✅ SERVER: Fetched ${returns.length} purchase returns`);
@@ -312,10 +417,8 @@ export const getPurchaseReturnById = async (req, res) => {
     const purchaseReturn = await PurchaseReturn.findById(req.params.id)
       .populate("purchase", "PURNo purchaseDate purchaseItems")
       .populate("order", "PoNo orderType orderDate")
-      .populate("debitNote", "noteNumber pdfUrl status")
-      .populate("vendor.vendorId", "name code mobile")
-      .populate("createdBy", "name email")
-      .populate("approvedBy", "name email");
+      .populate("debitNote", "noteNumber pdfUrl")
+      .populate("createdBy", "name email");
 
     if (!purchaseReturn) {
       console.log('❌ SERVER: Purchase return not found');
@@ -327,48 +430,6 @@ export const getPurchaseReturnById = async (req, res) => {
   } catch (err) {
     console.error("❌ SERVER ERROR in getPurchaseReturnById:", err.message);
     res.status(500).json({ message: err.message });
-  }
-};
-
-/**
- * @desc    Update purchase return status
- * @route   PATCH /api/purchase-returns/:id/status
- */
-export const updatePurchaseReturnStatus = async (req, res) => {
-  try {
-    console.log('\n🔄 SERVER: updatePurchaseReturnStatus called');
-    const { id } = req.params;
-    const { status } = req.body;
-
-    if (!["Pending", "Approved", "Rejected", "Completed"].includes(status)) {
-      return res.status(400).json({
-        message: "Invalid status"
-      });
-    }
-
-    const purchaseReturn = await PurchaseReturn.findById(id);
-    if (!purchaseReturn) {
-      return res.status(404).json({ message: "Purchase return not found" });
-    }
-
-    purchaseReturn.status = status;
-
-    if (status === "Approved") {
-      purchaseReturn.approvedBy = req.user?._id || null;
-      purchaseReturn.approvedAt = Date.now();
-    }
-
-    await purchaseReturn.save();
-
-    console.log(`✅ SERVER: Updated return ${purchaseReturn.PURTNo} status to ${status}`);
-
-    res.json({
-      message: "Purchase return status updated successfully",
-      purchaseReturn: purchaseReturn
-    });
-  } catch (err) {
-    console.error("❌ SERVER ERROR in updatePurchaseReturnStatus:", err.message);
-    res.status(400).json({ message: err.message });
   }
 };
 
@@ -394,7 +455,7 @@ export const deletePurchaseReturn = async (req, res) => {
 
     await PurchaseReturn.findByIdAndDelete(req.params.id);
     console.log('✅ SERVER: Purchase return deleted');
-    
+
     res.json({ message: "Purchase return deleted successfully" });
   } catch (err) {
     console.error("❌ SERVER ERROR in deletePurchaseReturn:", err.message);

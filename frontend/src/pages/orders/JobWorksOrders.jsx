@@ -200,7 +200,7 @@ export default function JOBWorksOrders() {
     {
       key: "PoNo",
       label: "B PoNo",
-      width: "7%",
+      width: "8%",
       render: (o) => (
         <div className="font-medium text-[9px] leading-tight break-words">
           <div className="font-bold text-gray-800">{o.PoNo || "—"}</div>

@@ -7,6 +7,9 @@ import OrdersForm from "./OrdersForm";
 import { useFormNavigation } from "../../utils/FormExitModal";
 import { showConfirm, showError, showLoading, dismissAndSuccess, dismissAndError } from "../../utils/toast";
 
+console.log("FOBOrders Mounted");
+
+
 // Helper function to render product details cleanly
 const renderProductDetails = (products, key, isArray = false) => {
   if (!products || products.length === 0)
@@ -451,6 +454,12 @@ export default function FOBOrders() {
                 columns={columns}
                 data={orders}
                 actions={actions}
+                enablePagination={true}
+                enableDateFilter={true}
+                dateFilterField="orderDate"
+                enableSearch={true}
+                searchFields={['PoNo', 'buyerDetails.name']}
+                searchPlaceholder="Search by PO or Buyer..."
               />
             </div>
           ) : (

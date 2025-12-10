@@ -9,7 +9,7 @@ const transformOrderProductsForProduction = (orderProducts) => {
   return orderProducts.map(p => ({
     productName: p.productDetails?.name || "Unknown Product",
     fabricType: p.productDetails?.fabricType || "N/A",
-  
+
     style: Array.isArray(p.productDetails?.style)
       ? p.productDetails.style.join(", ")
       : (p.productDetails?.style || ""),
@@ -17,7 +17,7 @@ const transformOrderProductsForProduction = (orderProducts) => {
       color: p.productDetails?.color || "N/A",
       sizes: (p.sizes || []).map(s => ({
         size: s.size,
-        quantity: s.qty  
+        quantity: s.qty
       }))
     }],
     productTotalQty: (p.sizes || []).reduce((sum, s) => sum + (s.qty || 0), 0)
@@ -31,6 +31,7 @@ export const createPurchase = async (req, res) => {
       purchaseDate,
       fabricPurchases = [],
       accessoriesPurchases = [],
+      purchaseItems = [], // ✅ ADD THIS
       remarks,
     } = req.body;
 
@@ -55,13 +56,19 @@ export const createPurchase = async (req, res) => {
       console.log("⚠️ Purchase already exists, updating instead:", existingPurchase._id);
 
       existingPurchase.purchaseDate = purchaseDate ? new Date(purchaseDate) : existingPurchase.purchaseDate;
+
+      // ✅ FIX: Update all three formats
       existingPurchase.fabricPurchases = fabricPurchases;
       existingPurchase.accessoriesPurchases = accessoriesPurchases;
+      existingPurchase.purchaseItems = purchaseItems; // ✅ NEW FORMAT
       existingPurchase.remarks = remarks || existingPurchase.remarks;
 
+      // ✅ FIX: Check all three formats for items
       const hasPurchaseItems =
         (fabricPurchases && fabricPurchases.length > 0) ||
-        (accessoriesPurchases && accessoriesPurchases.length > 0);
+        (accessoriesPurchases && accessoriesPurchases.length > 0) ||
+        (purchaseItems && purchaseItems.length > 0 &&
+          purchaseItems.some(item => item.items && item.items.length > 0));
 
       existingPurchase.status = hasPurchaseItems ? "Completed" : "Pending";
 
@@ -75,11 +82,11 @@ export const createPurchase = async (req, res) => {
       return res.status(200).json({
         message: "Purchase updated successfully",
         purchase: updatedPurchase,
-        wasUpdated: true 
+        wasUpdated: true
       });
     }
 
-    // Validation for new purchases
+    // Validation for new purchases - support both formats
     for (const item of fabricPurchases) {
       if (!item.vendor || !item.fabricType || !item.quantity || !item.costPerUnit) {
         return res.status(400).json({
@@ -102,6 +109,30 @@ export const createPurchase = async (req, res) => {
       }
     }
 
+    // ✅ ADD: Validation for new purchaseItems format
+    for (const purchaseItem of purchaseItems) {
+      if (!purchaseItem.vendor) {
+        return res.status(400).json({
+          message: "Each purchase item requires a vendor"
+        });
+      }
+      if (purchaseItem.vendorId && !mongoose.Types.ObjectId.isValid(purchaseItem.vendorId)) {
+        return res.status(400).json({ message: "Invalid supplier ID format" });
+      }
+      if (!purchaseItem.items || purchaseItem.items.length === 0) {
+        return res.status(400).json({
+          message: "Each purchase item must have at least one item row"
+        });
+      }
+      for (const row of purchaseItem.items) {
+        if (!row.itemName || !row.purchaseUnit || !row.quantity || !row.costPerUnit) {
+          return res.status(400).json({
+            message: "Each item row requires itemName, purchaseUnit, quantity, and costPerUnit"
+          });
+        }
+      }
+    }
+
     // Create new purchase
     const purchaseProducts = order.products.map(p => ({
       product: p.product,
@@ -121,9 +152,12 @@ export const createPurchase = async (req, res) => {
       productTotalQty: (p.sizes || []).reduce((sum, s) => sum + (s.qty || 0), 0)
     }));
 
+    // ✅ FIX: Check all three formats
     const hasPurchaseItems =
       (fabricPurchases && fabricPurchases.length > 0) ||
-      (accessoriesPurchases && accessoriesPurchases.length > 0);
+      (accessoriesPurchases && accessoriesPurchases.length > 0) ||
+      (purchaseItems && purchaseItems.length > 0 &&
+        purchaseItems.some(item => item.items && item.items.length > 0));
 
     const newPurchase = new Purchase({
       order: order._id,
@@ -138,6 +172,7 @@ export const createPurchase = async (req, res) => {
       totalQty: order.totalQty || 0,
       fabricPurchases,
       accessoriesPurchases,
+      purchaseItems, // ✅ ADD THIS
       remarks: remarks || `Purchase for ${order.orderType} order ${order.PoNo}`,
       status: hasPurchaseItems ? "Completed" : "Pending",
     });
@@ -150,20 +185,17 @@ export const createPurchase = async (req, res) => {
       status: hasPurchaseItems ? "Purchase Completed" : "Pending Purchase"
     });
 
-
+    // Production creation logic remains the same...
     if (hasPurchaseItems) {
       const existingProduction = await Production.findOne({ order: order._id });
 
       if (!existingProduction) {
         console.log("🔄 Creating production for completed purchase...");
-
-       
         const productionProducts = transformOrderProductsForProduction(order.products);
 
-        // Create production with order data
         const productionData = {
-          order: order._id,  
-          orderId: order.orderId,  
+          order: order._id,
+          orderId: order.orderId,
           orderDate: order.orderDate,
           PoNo: order.PoNo,
           orderType: order.orderType,
@@ -218,6 +250,7 @@ export const createPurchase = async (req, res) => {
         console.log("⚠️ Production already exists, skipping creation");
       }
     }
+
     res.status(201).json({
       message: hasPurchaseItems
         ? "Purchase created and marked as completed"
@@ -229,6 +262,7 @@ export const createPurchase = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
 
 // @desc    Get all purchases
 // @route   GET /api/purchases
@@ -255,6 +289,7 @@ export const updatePurchase = async (req, res) => {
       purchaseDate,
       fabricPurchases,
       accessoriesPurchases,
+      purchaseItems, // ✅ ADD THIS
       remarks,
     } = req.body;
 
@@ -265,22 +300,23 @@ export const updatePurchase = async (req, res) => {
 
     const wasCompleted = purchase.status === "Completed";
 
-
     if (purchaseDate !== undefined) {
       purchase.purchaseDate = purchaseDate ? new Date(purchaseDate) : null;
     }
 
-    // Update purchase arrays
+    // ✅ FIX: Update all three formats
     if (fabricPurchases !== undefined) purchase.fabricPurchases = fabricPurchases;
     if (accessoriesPurchases !== undefined) purchase.accessoriesPurchases = accessoriesPurchases;
+    if (purchaseItems !== undefined) purchase.purchaseItems = purchaseItems; // ✅ NEW FORMAT
     if (remarks !== undefined) purchase.remarks = remarks;
 
-    // Check if has items
+    // ✅ FIX: Check all three formats
     const hasItems =
       (purchase.fabricPurchases && purchase.fabricPurchases.length > 0) ||
-      (purchase.accessoriesPurchases && purchase.accessoriesPurchases.length > 0);
+      (purchase.accessoriesPurchases && purchase.accessoriesPurchases.length > 0) ||
+      (purchase.purchaseItems && purchase.purchaseItems.length > 0 &&
+        purchase.purchaseItems.some(item => item.items && item.items.length > 0));
 
-   
     if (hasItems && !purchase.purchaseDate) {
       purchase.purchaseDate = new Date();
       console.log("✅ Auto-setting purchaseDate since items were added");
@@ -295,7 +331,6 @@ export const updatePurchase = async (req, res) => {
 
     const updatedPurchase = await purchase.save();
     console.log("✅ Updated purchase:", updatedPurchase._id, "Status:", updatedPurchase.status, "Date:", updatedPurchase.purchaseDate);
-
 
     // Get the order for production creation
     const order = await Order.findById(purchase.order);
@@ -386,6 +421,7 @@ export const updatePurchase = async (req, res) => {
         console.log("🔄 Updating existing production:", production._id);
 
         if (updatedPurchase.orderType === "FOB" || updatedPurchase.orderType === "Own-Orders") {
+          production.purchaseItems = updatedPurchase.purchaseItems || []; 
           production.fabricPurchases = updatedPurchase.fabricPurchases || [];
           production.accessoriesPurchases = updatedPurchase.accessoriesPurchases || [];
           production.totalFabricCost = updatedPurchase.totalFabricCost || 0;

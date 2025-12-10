@@ -231,9 +231,9 @@ export default function PurchaseEstimation() {
       key: "serialNo",
       label: "S No",
       width: "4%",
-      render: (e, index) => (
+      render: (e) => (
         <div className="font-mono text-[9px] font-semibold text-gray-700">
-          {index + 1}
+          {e.sNo}
         </div>
       )
     },

@@ -53,32 +53,36 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
 
     setLoading(true);
     try {
-      console.log('🔍 CLIENT: Fetching purchase with PURNo:', PURNo.trim());
       const response = await getPurchaseForReturn(PURNo.trim());
-      
-      console.log('📦 CLIENT: Raw response:', response);
-      console.log('📦 CLIENT: Response data:', response.data);
-      
       const purchase = response.data;
-      
-      if (typeof purchase === 'string' && purchase.includes('<!doctype html>')) {
-        console.error('❌ CLIENT: Received HTML instead of JSON - API endpoint not found');
-        alert('Error: Cannot connect to backend API. Please check:\n1. Backend server is running\n2. API routes are registered correctly');
-        setPurchaseData(null);
-        setReturnItems([]);
-        return;
+
+      // ✅ Better HTML detection
+      if (!purchase || typeof purchase !== 'object' || Array.isArray(purchase)) {
+        throw new Error('Invalid response from server');
       }
-      
+
+      if (typeof purchase === 'string' && purchase.includes('<!doctype html>')) {
+        throw new Error('API endpoint not found. Please check backend server.');
+      }
+
       console.log('✅ CLIENT: Fetched purchase:', purchase);
       setPurchaseData(purchase);
 
       // Initialize return items from purchase
       const initialReturnItems = [];
-      
+
       // NEW STRUCTURE: Check purchaseItems first
       if (purchase.purchaseItems && purchase.purchaseItems.length > 0) {
         console.log('📦 CLIENT: Using NEW purchaseItems structure');
         purchase.purchaseItems.forEach(vendorItem => {
+          // ✅ FIX: Extract vendor info from vendorItem
+          const vendorInfo = {
+            vendor: vendorItem.vendor || '',
+            vendorCode: vendorItem.vendorCode || '',
+            vendorId: vendorItem.vendorId?._id || vendorItem.vendorId || null,
+            vendorState: vendorItem.vendorId?.state || vendorItem.state || 'Tamil Nadu'
+          };
+
           vendorItem.items.forEach(item => {
             initialReturnItems.push({
               id: Date.now() + Math.random(),
@@ -95,7 +99,9 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
               returnQuantity: 0,
               returnReason: 'damaged-goods',
               reasonDescription: '',
-              gstPercentage: item.gstPercentage || 5
+              gstPercentage: item.gstPercentage || 5,
+              // ✅ ADD: Vendor information
+              ...vendorInfo
             });
           });
         });
@@ -103,7 +109,16 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
       // OLD STRUCTURE: Fall back to fabricPurchases and accessoriesPurchases
       else {
         console.log('📦 CLIENT: Using OLD fabricPurchases/accessoriesPurchases structure');
-        
+
+        // ⚠️ WARNING: Old structure doesn't have vendor info per item
+        // You'll need to add a vendor selection mechanism or get it from purchase level
+        const defaultVendorInfo = {
+          vendor: purchase.vendor || 'Unknown Vendor',
+          vendorCode: purchase.vendorCode || '',
+          vendorId: purchase.vendorId || null,
+          vendorState: purchase.vendorState || 'Tamil Nadu'
+        };
+
         // Process fabricPurchases
         if (purchase.fabricPurchases && purchase.fabricPurchases.length > 0) {
           purchase.fabricPurchases.forEach(fabric => {
@@ -122,7 +137,9 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
               returnQuantity: 0,
               returnReason: 'damaged-goods',
               reasonDescription: '',
-              gstPercentage: fabric.gstPercentage || 5
+              gstPercentage: fabric.gstPercentage || 5,
+              // ✅ ADD: Vendor information
+              ...defaultVendorInfo
             });
           });
         }
@@ -145,7 +162,9 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
               returnQuantity: 0,
               returnReason: 'damaged-goods',
               reasonDescription: '',
-              gstPercentage: accessory.gstPercentage || 5
+              gstPercentage: accessory.gstPercentage || 5,
+              // ✅ ADD: Vendor information
+              ...defaultVendorInfo
             });
           });
         }
@@ -159,7 +178,8 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
       }
     } catch (error) {
       console.error('❌ CLIENT: Error fetching purchase:', error);
-      alert(error.response?.data?.message || 'Failed to fetch purchase details');
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to fetch purchase details';
+      alert(errorMsg);
       setPurchaseData(null);
       setReturnItems([]);
     } finally {
@@ -183,15 +203,23 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
     let totalValue = 0;
     let totalCgst = 0;
     let totalSgst = 0;
+    let totalIgst = 0;
 
     returnItems.forEach(item => {
       if (item.returnQuantity > 0) {
         const itemValue = item.returnQuantity * item.originalCostPerUnit;
         totalValue += itemValue;
 
-        const gst = (itemValue * item.gstPercentage) / 100;
-        totalCgst += gst / 2;
-        totalSgst += gst / 2;
+        // ✅ FIX: Determine GST type based on vendor state
+        const isIntraState = item.vendorState === 'Tamil Nadu';
+        const gstAmount = (itemValue * item.gstPercentage) / 100;
+
+        if (isIntraState) {
+          totalCgst += gstAmount / 2;
+          totalSgst += gstAmount / 2;
+        } else {
+          totalIgst += gstAmount;
+        }
       }
     });
 
@@ -199,7 +227,8 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
       totalValue: totalValue.toFixed(2),
       totalCgst: totalCgst.toFixed(2),
       totalSgst: totalSgst.toFixed(2),
-      totalWithGst: (totalValue + totalCgst + totalSgst).toFixed(2)
+      totalIgst: totalIgst.toFixed(2),
+      totalWithGst: (totalValue + totalCgst + totalSgst + totalIgst).toFixed(2)
     };
   };
 
@@ -240,6 +269,12 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
         alert(`Return quantity for "${item.itemName}" cannot exceed original quantity (${item.originalQuantity})`);
         return;
       }
+
+      // ✅ VALIDATE: Check vendor info exists
+      if (!item.vendor) {
+        alert(`Vendor information missing for item "${item.itemName}". Please refresh the purchase data.`);
+        return;
+      }
     }
 
     const submitData = {
@@ -254,10 +289,18 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
         purchaseUnit: item.purchaseUnit,
         originalQuantity: item.originalQuantity,
         originalCostPerUnit: item.originalCostPerUnit,
+        invoiceNo: item.invoiceNo,
+        invoiceDate: item.invoiceDate,
+        hsn: item.hsn,
         returnQuantity: parseFloat(item.returnQuantity),
         returnReason: item.returnReason,
         reasonDescription: item.reasonDescription || '',
-        gstPercentage: item.gstPercentage
+        gstPercentage: item.gstPercentage,
+        // ✅ FIX: Include vendor information
+        vendor: item.vendor,
+        vendorCode: item.vendorCode,
+        vendorId: item.vendorId,
+        vendorState: item.vendorState
       })),
       remarks: formData.remarks,
       generateDebitNote: formData.generateDebitNote
@@ -309,7 +352,7 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
           {/* Return Details Section */}
           <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Return Details</h3>
-            
+
             <div className="grid grid-cols-4 gap-3">
               {/* Return Date */}
               <div>
@@ -360,11 +403,10 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
                   type="text"
                   value={isEditMode ? formData.PURTNo : (nextPURTNo || 'Loading...')}
                   readOnly
-                  className={`w-full px-3 py-2 text-sm border rounded-lg ${
-                    nextPURTNo || (isEditMode && formData.PURTNo)
-                      ? 'bg-orange-50 border-orange-300 text-orange-800 font-semibold'
-                      : 'bg-gray-100 border-gray-300 text-gray-500'
-                  }`}
+                  className={`w-full px-3 py-2 text-sm border rounded-lg ${nextPURTNo || (isEditMode && formData.PURTNo)
+                    ? 'bg-orange-50 border-orange-300 text-orange-800 font-semibold'
+                    : 'bg-gray-100 border-gray-300 text-gray-500'
+                    }`}
                   placeholder="Auto-generated"
                 />
               </div>
@@ -416,6 +458,7 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
                 <table className="min-w-full border border-gray-300 text-xs">
                   <thead>
                     <tr className="bg-gray-100">
+                      <th className="border px-2 py-2 text-left font-semibold text-gray-700">Vendor</th>
                       <th className="border px-2 py-2 text-left font-semibold text-gray-700">Invoice No</th>
                       <th className="border px-2 py-2 text-center font-semibold text-gray-700">Invoice Date</th>
                       <th className="border px-2 py-2 text-center font-semibold text-gray-700">HSN</th>
@@ -427,7 +470,6 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
                       <th className="border px-2 py-2 text-center font-semibold text-gray-700">Return Qty</th>
                       <th className="border px-2 py-2 text-center font-semibold text-gray-700">Rate (₹)</th>
                       <th className="border px-2 py-2 text-left font-semibold text-gray-700">Return Reason</th>
-                      <th className="border px-2 py-2 text-left font-semibold text-gray-700">Description</th>
                       <th className="border px-2 py-2 text-right font-semibold text-gray-700">Value (₹)</th>
                       <th className="border px-2 py-2 text-center font-semibold text-gray-700">Action</th>
                     </tr>
@@ -437,6 +479,10 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
                       const itemValue = (item.returnQuantity * item.originalCostPerUnit).toFixed(2);
                       return (
                         <tr key={item.id} className="hover:bg-gray-50">
+                          <td className="border px-2 py-2 text-gray-700 text-[10px]">
+                            <div className="font-semibold">{item.vendor || '—'}</div>
+                            <div className="text-gray-500">{item.vendorCode || ''}</div>
+                          </td>
                           <td className="border px-2 py-2 text-gray-700">{item.invoiceNo || '—'}</td>
                           <td className="border px-2 py-2 text-center text-gray-600">
                             {item.invoiceDate ? new Date(item.invoiceDate).toLocaleDateString('en-IN') : '—'}
@@ -474,15 +520,6 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
                               ))}
                             </select>
                           </td>
-                          <td className="border px-2 py-2">
-                            <input
-                              type="text"
-                              value={item.reasonDescription}
-                              onChange={(e) => handleReturnItemChange(item.id, 'reasonDescription', e.target.value)}
-                              placeholder="Optional..."
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-orange-500"
-                            />
-                          </td>
                           <td className="border px-2 py-2 text-right font-semibold text-orange-600">
                             ₹{itemValue}
                           </td>
@@ -504,16 +541,27 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
                       <td className="border px-2 py-2 text-right text-gray-800">₹{totals.totalValue}</td>
                       <td className="border"></td>
                     </tr>
-                    <tr className="bg-orange-50">
-                      <td colSpan="12" className="border px-2 py-2 text-right">CGST:</td>
-                      <td className="border px-2 py-2 text-right text-gray-600">₹{totals.totalCgst}</td>
-                      <td className="border"></td>
-                    </tr>
-                    <tr className="bg-orange-50">
-                      <td colSpan="12" className="border px-2 py-2 text-right">SGST:</td>
-                      <td className="border px-2 py-2 text-right text-gray-600">₹{totals.totalSgst}</td>
-                      <td className="border"></td>
-                    </tr>
+                    {parseFloat(totals.totalCgst) > 0 && (
+                      <>
+                        <tr className="bg-orange-50">
+                          <td colSpan="12" className="border px-2 py-2 text-right">CGST:</td>
+                          <td className="border px-2 py-2 text-right text-gray-600">₹{totals.totalCgst}</td>
+                          <td className="border"></td>
+                        </tr>
+                        <tr className="bg-orange-50">
+                          <td colSpan="12" className="border px-2 py-2 text-right">SGST:</td>
+                          <td className="border px-2 py-2 text-right text-gray-600">₹{totals.totalSgst}</td>
+                          <td className="border"></td>
+                        </tr>
+                      </>
+                    )}
+                    {parseFloat(totals.totalIgst) > 0 && (
+                      <tr className="bg-orange-50">
+                        <td colSpan="12" className="border px-2 py-2 text-right">IGST:</td>
+                        <td className="border px-2 py-2 text-right text-gray-600">₹{totals.totalIgst}</td>
+                        <td className="border"></td>
+                      </tr>
+                    )}
                     <tr className="bg-orange-100 font-bold text-base">
                       <td colSpan="12" className="border px-2 py-3 text-right">Grand Total:</td>
                       <td className="border px-2 py-3 text-right text-orange-600">₹{totals.totalWithGst}</td>
@@ -609,3 +657,4 @@ const PurchaseReturnForm = ({ initialValues, onSubmit, onCancel, submitLabel, is
 };
 
 export default PurchaseReturnForm;
+

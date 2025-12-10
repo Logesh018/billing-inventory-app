@@ -24,6 +24,24 @@ const purchaseReturnItemSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // ✅ NEW: Add vendor info per item (for multi-vendor support)
+  vendor: {
+    type: String,
+    required: true
+  },
+  vendorCode: {
+    type: String,
+    default: ""
+  },
+  vendorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Supplier",
+    default: null
+  },
+  vendorState: {
+    type: String,
+    default: ""
+  },
   // Original purchase details
   originalQuantity: {
     type: Number,
@@ -32,6 +50,19 @@ const purchaseReturnItemSchema = new mongoose.Schema({
   originalCostPerUnit: {
     type: Number,
     required: true
+  },
+  // Invoice details
+  invoiceNo: {
+    type: String,
+    default: ""
+  },
+  invoiceDate: {
+    type: Date,
+    default: null
+  },
+  hsn: {
+    type: String,
+    default: ""
   },
   // Return details
   returnQuantity: {
@@ -64,6 +95,23 @@ const purchaseReturnItemSchema = new mongoose.Schema({
   gstPercentage: {
     type: Number,
     default: 5
+  },
+  gstType: {
+    type: String,
+    enum: ["CGST+SGST", "IGST"],
+    default: "CGST+SGST"
+  },
+  cgstAmount: {
+    type: Number,
+    default: 0
+  },
+  sgstAmount: {
+    type: Number,
+    default: 0
+  },
+  igstAmount: {
+    type: Number,
+    default: 0
   },
   returnValueWithGst: {
     type: Number,
@@ -119,19 +167,7 @@ const purchaseReturnSchema = new mongoose.Schema({
     default: null
   },
 
-  // Vendor Details (copied from purchase)
-  vendor: {
-    name: { type: String, required: true },
-    code: { type: String, default: "" },
-    vendorId: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: "Supplier",
-      default: null 
-    },
-    state: { type: String, default: "" }
-  },
-
-  // Return Items
+  // Return Items (now includes vendor info per item)
   returnItems: [purchaseReturnItemSchema],
 
   // Financial Summary
@@ -167,28 +203,10 @@ const purchaseReturnSchema = new mongoose.Schema({
     default: null
   },
 
-  // Status
-  status: {
-    type: String,
-    enum: ["Pending", "Approved", "Rejected", "Completed"],
-    default: "Pending"
-  },
-
   // Additional Information
   remarks: {
     type: String,
     default: ""
-  },
-
-  // Approval tracking
-  approvedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    default: null
-  },
-  approvedAt: {
-    type: Date,
-    default: null
   },
 
   // Created by
@@ -245,8 +263,16 @@ purchaseReturnSchema.pre("save", async function (next) {
     item.returnValue = item.returnQuantity * item.originalCostPerUnit;
     totalReturn += item.returnValue;
 
-    // Calculate GST (assume CGST+SGST for now, can be updated based on vendor state)
-    const gstCalc = calculateGST(item.returnValue, item.gstPercentage, "CGST+SGST");
+    // ✅ FIX: Determine GST type based on vendor state
+    const gstType = item.vendorState === "Tamil Nadu" ? "CGST+SGST" : "IGST";
+    item.gstType = gstType;
+
+    // Calculate GST
+    const gstCalc = calculateGST(item.returnValue, item.gstPercentage, gstType);
+    
+    item.cgstAmount = gstCalc.cgst;
+    item.sgstAmount = gstCalc.sgst;
+    item.igstAmount = gstCalc.igst;
     
     totalCgst += gstCalc.cgst;
     totalSgst += gstCalc.sgst;
@@ -265,6 +291,7 @@ purchaseReturnSchema.pre("save", async function (next) {
     totalReturnValue: this.totalReturnValue,
     totalCgst: this.totalCgst,
     totalSgst: this.totalSgst,
+    totalIgst: this.totalIgst,
     totalReturnWithGst: this.totalReturnWithGst
   });
 
@@ -277,9 +304,8 @@ purchaseReturnSchema.index({ purchase: 1 });
 purchaseReturnSchema.index({ PURNo: 1 });
 purchaseReturnSchema.index({ order: 1 });
 purchaseReturnSchema.index({ PoNo: 1 });
-purchaseReturnSchema.index({ status: 1 });
 purchaseReturnSchema.index({ returnDate: -1 });
-purchaseReturnSchema.index({ "vendor.vendorId": 1 });
+purchaseReturnSchema.index({ "returnItems.vendorId": 1 });
 purchaseReturnSchema.index({ debitNote: 1 });
 purchaseReturnSchema.index({ serialNo: 1 });
 
