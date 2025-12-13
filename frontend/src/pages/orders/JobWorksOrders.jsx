@@ -425,10 +425,10 @@ export default function JOBWorksOrders() {
         />
       ) : (
         <>
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center pb-1">
             <div>
               <h1 className="text-xl font-bold text-gray-800">JOB-Works Orders Management</h1>
-              <p className="text-gray-600 text-sm mt-1">Manage Job-Works orders</p>
+              {/* <p className="text-gray-600 text-sm mt-1">Manage Job-Works orders</p> */}
             </div>
             <button
               onClick={() => {

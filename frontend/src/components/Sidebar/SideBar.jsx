@@ -52,9 +52,9 @@ const menuItems = [
     name: "Store Management",
     icon: ShoppingCart,
     subMenu: [
+      { name: "Store Entry", path: "/dashboard/store-entry" },
       { name: "Store Log", path: "/dashboard/store-log" },
-      { name: "Store IN", path: "/dashboard/store-in" },
-      { name: "Store Out", path: "/dashboard/store-out" },
+      { name: "Store Inventory", path: "/dashboard/store-inventory" },
     ],
   },
   {
@@ -155,7 +155,7 @@ export default function Sidebar() {
                   {/* Menu with SubMenu */}
                   <button
                     onClick={() => toggleMenu(item.name)}
-                    className={`flex items-center justify-between w-full px-4 py-2 rounded-lg group transition-colors duration-300 ease-in-out overflow-hidden ${
+                    className={`flex items-center justify-between w-full px-4 py-3 font-semibold rounded-lg group transition-colors duration-300 ease-in-out overflow-hidden ${
                       isActive
                         ? "bg-slate-900 text-green-500"
                         : "text-gray-300 hover:bg-slate-900 hover:text-green-500"

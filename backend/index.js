@@ -24,6 +24,8 @@ import purchaseEstimationRoutes from "./src/routes/purchaseEstimationRoutes.js";
 import purchaseOrderRoutes from "./src/routes/purchaseOrderRoutes.js";
 import noteRoutes from "./src/routes/noteRoutes.js";
 import purchaseReturnRoutes from "./src/routes/purchaseReturnRoutes.js";
+import storeEntryRoutes from "./src/routes/storeEntryRoutes.js";
+import storeLogRoutes from "./src/routes/storeLogRoutes.js";
 
 
 dotenv.config();
@@ -54,6 +56,8 @@ app.use("/api/purchase-estimations", purchaseEstimationRoutes);
 app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/notes", noteRoutes);
 app.use('/api/purchase-returns', purchaseReturnRoutes);
+app.use("/api/store-entries", storeEntryRoutes);
+app.use("/api/store-logs", storeLogRoutes);
 //app.use("/api/invoices", invoiceRouter);
 
 if (process.env.NODE_ENV === "production") {

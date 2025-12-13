@@ -9,6 +9,7 @@ const DataTable = ({
   columns, 
   data, 
   actions = [], 
+  dynamicActions = false, // NEW: Flag to indicate actions is a function
   className = "",
   
   // Pagination props
@@ -71,6 +72,17 @@ const DataTable = ({
   // Use paginated data if pagination enabled, otherwise use filtered data
   const displayData = enablePagination ? paginatedData : filteredData;
 
+  // Helper function to get actions for a row
+  const getRowActions = (row) => {
+    if (dynamicActions && typeof actions === 'function') {
+      return actions(row);
+    }
+    return actions;
+  };
+
+  // Check if we have any actions at all
+  const hasActions = dynamicActions ? true : (Array.isArray(actions) && actions.length > 0);
+
   return (
     <div className="w-full space-y-0">
       {/* Filter Bar - Show if any filter is enabled */}
@@ -116,7 +128,7 @@ const DataTable = ({
                   {column.label}
                 </th>
               ))}
-              {actions.length > 0 && (
+              {hasActions && (
                 <th 
                   style={{ width: '100px' }}
                   className="px-1 py-1.5 text-center text-xs font-semibold text-gray-700 uppercase tracking-tight rounded-tr-lg"
@@ -130,7 +142,7 @@ const DataTable = ({
             {displayData.length === 0 ? (
               <tr>
                 <td
-                  colSpan={columns.length + (actions.length > 0 ? 1 : 0)}
+                  colSpan={columns.length + (hasActions ? 1 : 0)}
                   className="px-4 py-8 text-center"
                 >
                   {hasActiveFilters ? (
@@ -158,47 +170,50 @@ const DataTable = ({
                 </td>
               </tr>
             ) : (
-              displayData.map((row, rowIndex) => (
-                <tr key={rowIndex} className="hover:bg-gray-50 transition-colors">
-                  {columns.map((column, colIndex) => (
-                    <td
-                      key={colIndex}
-                      style={{ width: column.width || 'auto' }}
-                      className="px-1 py-1.5 text-xs text-gray-900 text-center overflow-hidden"
-                    >
-                      {column.render ? column.render(row) : row[column.key] || "-"}
-                    </td>
-                  ))}
-                  {actions.length > 0 && (
-                    <td 
-                      style={{ width: '50px' }}
-                      className="px-1 py-1.5 text-center"
-                    >
-                      <div className="flex justify-center space-x-0.5">
-                        {actions.map((action, actionIndex) => (
-                          <button
-                            key={actionIndex}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              action.onClick(row);
-                            }}
-                            disabled={action.disabled && action.disabled(row)}
-                            className={`flex items-center justify-center w-6 h-6 rounded-full transition-colors ${
-                              action.disabled && action.disabled(row)
-                                ? 'opacity-50 cursor-not-allowed'
-                                : ''
-                            } ${action.className || "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
-                            title={action.label}
-                          >
-                            <action.icon className="w-3 h-3" aria-hidden="true" />
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))
+              displayData.map((row, rowIndex) => {
+                const rowActions = getRowActions(row);
+                return (
+                  <tr key={rowIndex} className="hover:bg-gray-50 transition-colors">
+                    {columns.map((column, colIndex) => (
+                      <td
+                        key={colIndex}
+                        style={{ width: column.width || 'auto' }}
+                        className="px-1 py-1.5 text-xs text-gray-900 text-center overflow-hidden"
+                      >
+                        {column.render ? column.render(row) : row[column.key] || "-"}
+                      </td>
+                    ))}
+                    {hasActions && (
+                      <td 
+                        style={{ width: '50px' }}
+                        className="px-1 py-1.5 text-center"
+                      >
+                        <div className="flex justify-center space-x-0.5">
+                          {Array.isArray(rowActions) && rowActions.map((action, actionIndex) => (
+                            <button
+                              key={actionIndex}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                action.onClick(row);
+                              }}
+                              disabled={action.disabled && action.disabled(row)}
+                              className={`flex items-center justify-center w-6 h-6 rounded-full transition-colors ${
+                                action.disabled && action.disabled(row)
+                                  ? 'opacity-50 cursor-not-allowed'
+                                  : ''
+                              } ${action.className || "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
+                              title={action.label}
+                            >
+                              <action.icon className="w-3 h-3" aria-hidden="true" />
+                            </button>
+                          ))}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -236,7 +251,11 @@ DataTable.propTypes = {
     })
   ).isRequired,
   data: PropTypes.array.isRequired,
-  actions: PropTypes.array,
+  actions: PropTypes.oneOfType([
+    PropTypes.array,
+    PropTypes.func
+  ]),
+  dynamicActions: PropTypes.bool,
   className: PropTypes.string,
   
   // Pagination
@@ -257,6 +276,7 @@ DataTable.propTypes = {
 
 DataTable.defaultProps = {
   actions: [],
+  dynamicActions: false,
   className: "",
   enablePagination: false,
   defaultItemsPerPage: 20,

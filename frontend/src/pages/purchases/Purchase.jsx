@@ -273,7 +273,7 @@ export default function Purchase() {
       label: "S.NO",
       width: "3%",
       render: (p) => (
-        <div className="font-mono text-[9px] font-semibold text-gray-700">
+        <div className="font-mono text-[10px] font-semibold text-gray-700">
           {p.serialNo || "—"}
         </div>
       )
@@ -284,7 +284,7 @@ export default function Purchase() {
       width: "5%",
       render: (p) => (
         <div className="font-medium text-[9px] leading-tight break-words">
-          <div className="text-gray-800 font-semibold text-[9px] mt-0.5">{p.PURNo || "—"}</div>
+          <div className="text-gray-800 font-semibold text-[10px] mt-0.5">{p.PURNo || "—"}</div>
         </div>
       )
     },
@@ -293,7 +293,7 @@ export default function Purchase() {
       label: "P DATE",
       width: "5%",
       render: (p) => (
-        <div className="text-[9px] font-semibold leading-tight">
+        <div className="text-[10px] font-semibold leading-tight">
           {p.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString('en-IN', {
             day: '2-digit',
             month: '2-digit',
@@ -307,7 +307,7 @@ export default function Purchase() {
       label: "ODR ID",
       width: "6%",
       render: (p) => (
-        <div className="font-medium text-[9px] leading-tight break-words">
+        <div className="font-medium text-[10px] leading-tight break-words">
           <div className="text-gray-800 font-semibold text-[9px] mt-0.5">{p.order?.orderId || p.orderId || "—"}</div>
         </div>
       )
@@ -317,7 +317,7 @@ export default function Purchase() {
       label: "O DATE",
       width: "5%",
       render: (p) => (
-        <div className="text-[9px] font-semibold leading-tight">
+        <div className="text-[10px] font-semibold leading-tight">
           {p.order?.orderDate ? new Date(p.order.orderDate).toLocaleDateString('en-IN', {
             day: '2-digit',
             month: '2-digit',
@@ -335,7 +335,7 @@ export default function Purchase() {
       label: "O Type",
       width: "5%",
       render: (p) => (
-        <span className={`px-1 py-0.5 rounded text-[9px] font-medium inline-block ${p.orderType === "JOB-Works"
+        <span className={`px-1 py-0.5 rounded text-[10px] font-medium inline-block ${p.orderType === "JOB-Works"
           ? "bg-purple-100 text-purple-700"
           : p.orderType === "Own-Orders"
             ? "bg-teal-100 text-teal-700"
@@ -350,7 +350,7 @@ export default function Purchase() {
       label: "BUYER ID",
       width: "6%",
       render: (p) => (
-        <div className="text-[9px] leading-tight break-words">
+        <div className="text-[10px] leading-tight break-words">
           <div className="font-semibold text-gray-800">{p.order?.buyerDetails?.code || p.buyerCode || "—"}</div>
         </div>
       )

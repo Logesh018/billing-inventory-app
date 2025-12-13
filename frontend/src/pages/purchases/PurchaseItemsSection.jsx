@@ -57,6 +57,8 @@ const ItemForm = ({
     onUpdateItemForm(item.id, 'supplierId', supplier._id);
     onUpdateItemForm(item.id, 'vendorCode', supplier.code || '');
     onUpdateItemForm(item.id, 'vendorState', supplier.state || '');
+    
+    // Automatically set GST Type based on state, regardless of toggle visibility
     const gstType = supplier.state === 'Tamil Nadu' ? 'CGST+SGST' : 'IGST';
     onUpdateItemForm(item.id, 'gstType', gstType);
 
@@ -70,8 +72,10 @@ const ItemForm = ({
     return quantity * cost;
   };
 
+  // ✅ FIX: Removed "showGstTypeToggle" dependency from calculation logic.
+  // Calculation should depend purely on the gstType data.
   const calculateGST = (amount, gstPercentage, gstType) => {
-    if (showGstTypeToggle && gstType === "CGST+SGST") {
+    if (gstType === "CGST+SGST") {
       const halfGst = (amount * gstPercentage) / 200;
       return {
         cgst: halfGst,
@@ -143,6 +147,8 @@ const ItemForm = ({
           />
         </div>
 
+        {/* State field is always visible based on your original code structure, 
+            but its width/position might vary based on showStateField logic elsewhere if needed. */}
         <div className="w-24">
           <label className="text-xs text-gray-500 block mb-1">State</label>
           <input
@@ -180,7 +186,6 @@ const ItemForm = ({
         <div className="flex items-center gap-1 pb-1.5 border-b border-gray-300 bg-gray-50 px-2 rounded-t">
           <div className="w-8 text-xs text-gray-600 font-medium text-center">S.No</div>
           
-          {/* Purchase-specific fields */}
           {!showGstTypeToggle && (
             <>
               <div className="mr-5 ml-4 w-20 text-xs text-gray-600 font-medium">Inv. Date</div>
@@ -198,6 +203,8 @@ const ItemForm = ({
           <div className="w-14 text-xs text-gray-600 font-medium text-right">₹/Unit</div>
           <div className="w-16 text-xs text-gray-600 font-medium text-right">Total</div>
           <div className=" w-12 text-xs text-gray-600 font-medium text-center">GST%</div>
+          
+          {/* Columns render based on gstType data, not the toggle UI */}
           {item.gstType === 'CGST+SGST' ? (
             <>
               <div className="w-16 text-xs text-gray-600 font-medium text-right">CGST</div>
@@ -221,14 +228,12 @@ const ItemForm = ({
 
         return (
           <div key={row.id} className="flex items-center gap-1 py-1 hover:bg-gray-50 px-2">
-            {/* S.No */}
             <div className="w-8">
               <div className="text-xs bg-gray-100 border border-gray-200 rounded px-1 py-1.5 text-gray-700 font-medium text-center h-8">
                 {rowIndex + 1}
               </div>
             </div>
 
-            {/* Purchase-specific fields: Invoice Date, Invoice No, HSN */}
             {!showGstTypeToggle && (
               <>
                 <div className="w-20">
@@ -260,7 +265,6 @@ const ItemForm = ({
               </>
             )}
 
-            {/* Type */}
             <div className="w-16">
               <select
                 value={row.type}
@@ -273,7 +277,6 @@ const ItemForm = ({
               </select>
             </div>
 
-            {/* Item Name */}
             <div className="w-28">
               <input
                 type="text"
@@ -284,7 +287,6 @@ const ItemForm = ({
               />
             </div>
 
-            {/* GSM */}
             <div className="w-12">
               {row.type === 'fabric' ? (
                 <input
@@ -299,7 +301,6 @@ const ItemForm = ({
               )}
             </div>
 
-            {/* Color */}
             <div className="w-16">
               <input
                 type="text"
@@ -310,7 +311,6 @@ const ItemForm = ({
               />
             </div>
 
-            {/* Unit */}
             <div className="w-14">
               <select
                 value={row.purchaseUnit}
@@ -333,7 +333,6 @@ const ItemForm = ({
               </select>
             </div>
 
-            {/* Quantity */}
             <div className="w-14">
               <input
                 type="number"
@@ -345,7 +344,6 @@ const ItemForm = ({
               />
             </div>
 
-            {/* Cost Per Unit */}
             <div className="w-14">
               <input
                 type="number"
@@ -357,14 +355,12 @@ const ItemForm = ({
               />
             </div>
 
-            {/* Total */}
             <div className="w-16">
               <div className="px-1 py-1.5 text-xs bg-green-50 border border-green-200 rounded text-green-700 font-medium text-right h-8 flex items-center justify-end">
                 ₹{rowTotal.toFixed(showGstTypeToggle ? 0 : 2)}
               </div>
             </div>
 
-            {/* GST% */}
             <div className="w-12">
               {showGstTypeToggle && row.customGstInput ? (
                 <input
@@ -413,7 +409,7 @@ const ItemForm = ({
               )}
             </div>
 
-            {/* CGST & SGST or IGST */}
+            {/* Render Calculated Tax Values */}
             {gstType === 'CGST+SGST' ? (
               <>
                 <div className="w-16">
@@ -435,7 +431,6 @@ const ItemForm = ({
               </div>
             )}
 
-            {/* Total + GST */}
             <div className="w-20">
               <div className={`px-1 py-1.5 text-xs rounded font-medium text-right h-8 flex items-center justify-end ${
                 showGstTypeToggle 
@@ -446,7 +441,6 @@ const ItemForm = ({
               </div>
             </div>
 
-            {/* Remove Button */}
             {item.items.length > 1 && (
               <button
                 type="button"
@@ -461,7 +455,6 @@ const ItemForm = ({
         );
       })}
 
-      {/* Item Grand Total */}
       {item.items.length > 0 && (
         <div className="mt-3 pt-3 border-t border-gray-200 flex justify-end space-x-5 items-center flex-wrap">
           <div className="text-sm">
@@ -485,7 +478,7 @@ const PurchaseItemsSection = ({
   showGstTypeToggle = false,
   purchaseDate = '',
   onPurchaseDateChange = () => {},
-  showPurchaseDate = false // ✅ NEW: Control Purchase Date visibility (like Invoice fields)
+  showPurchaseDate = false 
 }) => {
   const createNewItemRow = () => ({
     id: Date.now() + Math.random(),
@@ -515,7 +508,6 @@ const PurchaseItemsSection = ({
     items: [createNewItemRow()]
   });
 
-  // Initialize with one item form by default
   React.useEffect(() => {
     if (purchaseItems.length === 0) {
       setPurchaseItems([createNewItemForm()]);
@@ -567,12 +559,10 @@ const PurchaseItemsSection = ({
 
   return (
     <div className="space-y-3 w-full p-2">
-      {/* Header with optional Purchase Date and Add Item button */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h3 className="text-lg font-semibold text-gray-800">Purchase Items</h3>
           
-          {/* ✅ Purchase Date Field - Only show if showPurchaseDate is true */}
           {showPurchaseDate && (
             <div className="w-44">
               <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -589,7 +579,6 @@ const PurchaseItemsSection = ({
           )}
         </div>
 
-        {/* Add Item Button */}
         <button
           type="button"
           onClick={addNewItemForm}

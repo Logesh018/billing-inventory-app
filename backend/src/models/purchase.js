@@ -40,6 +40,13 @@ const PurchaseSchema = new Schema({
     default: null
   },
 
+  // Add this field to purchase.js schema
+  storeEntry: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "StoreEntry",
+    default: null
+  },
+
   orderType: { type: String, enum: ["FOB", "JOB-Works", "Own-Orders"], default: null },
   buyerCode: { type: String, default: null },
   orderStatus: { type: String, default: null },

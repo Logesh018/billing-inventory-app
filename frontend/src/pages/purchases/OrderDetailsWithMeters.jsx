@@ -1,8 +1,8 @@
 // OrderDetailsWithMeters.jsx
 import React from 'react';
 
-const OrderDetailsWithMeters = ({ 
-  selectedOrder, 
+const OrderDetailsWithMeters = ({
+  selectedOrder,
   showEstimationFields = false,
   PESNo = "N/A",
   estimationDate = null
@@ -28,48 +28,48 @@ const OrderDetailsWithMeters = ({
   const sortedProducts = [...getProducts()].sort((a, b) => {
     // ✅ Handle both structures for fabric
     const fabricA = (
-      a.fabricType || 
-      a.productDetails?.fabric || 
-      a.fabricName || 
-      ''
-    ).toUpperCase();
-    
-    const fabricB = (
-      b.fabricType || 
-      b.productDetails?.fabric || 
-      b.fabricName || 
-      ''
-    ).toUpperCase();
-    
-    // ✅ Handle both structures for color
-    const colorA = (
-      a.colors?.[0]?.color || 
-      a.productDetails?.color || 
-      ''
-    ).toUpperCase();
-    
-    const colorB = (
-      b.colors?.[0]?.color || 
-      b.productDetails?.color || 
-      ''
-    ).toUpperCase();
-    
-    // ✅ Handle both structures for style
-    const styleA = String(
-      a.style || 
-      a.productDetails?.style || 
-      ''
-    ).toUpperCase();
-    
-    const styleB = String(
-      b.style || 
-      b.productDetails?.style || 
+      a.fabricType ||
+      a.productDetails?.fabric ||
+      a.fabricName ||
       ''
     ).toUpperCase();
 
-    return fabricA.localeCompare(fabricB) || 
-           colorA.localeCompare(colorB) || 
-           styleA.localeCompare(styleB);
+    const fabricB = (
+      b.fabricType ||
+      b.productDetails?.fabric ||
+      b.fabricName ||
+      ''
+    ).toUpperCase();
+
+    // ✅ Handle both structures for color
+    const colorA = (
+      a.colors?.[0]?.color ||
+      a.productDetails?.color ||
+      ''
+    ).toUpperCase();
+
+    const colorB = (
+      b.colors?.[0]?.color ||
+      b.productDetails?.color ||
+      ''
+    ).toUpperCase();
+
+    // ✅ Handle both structures for style
+    const styleA = String(
+      a.style ||
+      a.productDetails?.style ||
+      ''
+    ).toUpperCase();
+
+    const styleB = String(
+      b.style ||
+      b.productDetails?.style ||
+      ''
+    ).toUpperCase();
+
+    return fabricA.localeCompare(fabricB) ||
+      colorA.localeCompare(colorB) ||
+      styleA.localeCompare(styleB);
   });
 
   // ✅ Calculate grand total qty - handle both structures
@@ -83,13 +83,13 @@ const OrderDetailsWithMeters = ({
       );
       return sum + colorTotal;
     }
-    
+
     // Try direct sizes array (for purchases)
     if (prod.sizes && Array.isArray(prod.sizes)) {
       const sizeTotal = prod.sizes.reduce((t, s) => t + (s.qty || s.quantity || 0), 0);
       return sum + sizeTotal;
     }
-    
+
     // Fallback to productTotalQty
     return sum + (prod.productTotalQty || 0);
   }, 0);
@@ -107,14 +107,14 @@ const OrderDetailsWithMeters = ({
             </div>
           </div>
         )}
-        
+
         <div>
           <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Order Date</label>
           <div className="text-xs font-medium text-gray-900">
             {selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleDateString('en-IN') : '-'}
           </div>
         </div>
-        
+
         {/* Buyer Code */}
         <div>
           <label className="block text-[10px] font-medium text-gray-600 mb-0.5">
@@ -144,20 +144,19 @@ const OrderDetailsWithMeters = ({
             </div>
           </div>
         )}
-        
+
         <div>
           <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Order Type</label>
           <div
-            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-              selectedOrder.orderType === 'JOB-Works'
+            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${selectedOrder.orderType === 'JOB-Works'
                 ? 'bg-purple-100 text-purple-800'
                 : 'bg-blue-100 text-blue-800'
-            }`}
+              }`}
           >
             {selectedOrder.orderType || '-'}
           </div>
         </div>
-        
+
         <div>
           <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Status</label>
           <div className="text-xs font-medium text-gray-900">{selectedOrder.status || selectedOrder.orderStatus || '-'}</div>
@@ -171,11 +170,12 @@ const OrderDetailsWithMeters = ({
           <div
             className="grid gap-3 mb-1.5"
             style={{
-              gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr',
+              gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr',
             }}
           >
             <label className="text-[10px] font-medium text-gray-600">Product</label>
             <label className="text-[10px] font-medium text-gray-600">Fabric</label>
+            <label className="text-[10px] font-medium text-gray-600">P Type</label>
             <label className="text-[10px] font-medium text-gray-600">Style</label>
             <label className="text-[10px] font-medium text-gray-600">Color</label>
             <label className="text-[10px] font-medium text-gray-600">Size & Qty</label>
@@ -198,7 +198,7 @@ const OrderDetailsWithMeters = ({
               sizeQtyPairs = prod.colors.flatMap((colorGroup) =>
                 colorGroup.sizes?.map((s) => `${s.size}:${s.quantity || s.qty}`) || []
               );
-            } 
+            }
             // Try direct sizes array (for purchases)
             else if (prod.sizes && Array.isArray(prod.sizes)) {
               productTotal = prod.sizes.reduce((sum, s) => sum + (s.qty || s.quantity || 0), 0);
@@ -210,26 +210,31 @@ const OrderDetailsWithMeters = ({
             }
 
             // ✅ FIXED: Handle fabric from both structures
-            const fabric = 
+            const fabric =
               prod.fabricType ||           // PurchaseEstimation structure
               prod.productDetails?.fabric || // Purchase/Order structure
               prod.fabricName ||            // Alternative field
               '-';
-            
+
+            const pType = formatArrayField(
+              prod.style ||                  // PurchaseEstimation structure (direct)
+              prod.productDetails?.type    // Purchase/Order structure (nested)
+            );
+
             // ✅ FIXED: Handle style from both structures
             const style = formatArrayField(
               prod.style ||                  // PurchaseEstimation structure (direct)
               prod.productDetails?.style     // Purchase/Order structure (nested)
             );
-            
+
             // ✅ FIXED: Handle color from both structures
-            const firstColor = 
+            const firstColor =
               prod.colors?.[0]?.color ||     // Colors array structure
               prod.productDetails?.color ||  // Purchase/Order structure
               '-';
 
             // ✅ FIXED: Handle product name from both structures
-            const productName = 
+            const productName =
               prod.productName ||            // PurchaseEstimation structure
               prod.productDetails?.name ||   // Purchase/Order structure
               '-';
@@ -239,13 +244,14 @@ const OrderDetailsWithMeters = ({
                 key={idx}
                 className={`relative grid gap-3 py-1.5 ${idx > 0 ? 'border-t border-gray-200' : ''}`}
                 style={{
-                  gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr',
+                  gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr',
                 }}
               >
                 <div className="text-[10px] font-semibold text-gray-900">
                   {productName}
                 </div>
                 <div className="text-[10px] text-gray-800">{fabric}</div>
+                <div className="text-[10px] text-gray-800">{pType}</div>
                 <div className="text-[10px] text-gray-800">{style}</div>
                 <div className="text-[10px] text-gray-800">{firstColor}</div>
                 <div className="text-[10px] text-gray-800 font-mono">
@@ -268,8 +274,8 @@ const OrderDetailsWithMeters = ({
           })}
 
           {/* Grand Total Qty Row */}
-          <div 
-            className="grid border-t border-gray-300 pt-2 mt-1" 
+          <div
+            className="grid border-t border-gray-300 pt-2 mt-1"
             style={{ gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 2fr 0.6fr' }}
           >
             <div className="col-span-4"></div>

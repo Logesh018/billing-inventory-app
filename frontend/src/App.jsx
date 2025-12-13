@@ -10,6 +10,9 @@ import "./App.css";
 
 // Eager loaded components (needed immediately)
 import Login from "./pages/auth/Login";
+import StoreLog from "./pages/store/StoreLog";
+import StoreInventory from "./pages/store/StoreInventory";
+
 
 // Lazy loaded components (loaded on demand)
 const DashboardLayout = lazy(() => import("./pages/dashboard/DashboardLayout"));
@@ -30,6 +33,9 @@ const Purchase = lazy(() => import("./pages/purchases/Purchase"));
 const PurchaseReturn = lazy(() => import("./pages/purchases/PurchaseReturn"));
 const PurchaseEstimation = lazy(() => import("./pages/purchases/PurchaseEstimation"));
 const PurchaseOrders = lazy(() => import("./pages/purchases/PurchaseOrder"));
+
+//Store Management
+const StoreEntry = lazy(() => import("./pages/store/StoreEntry"))
 
 // Production Management
 const Productions = lazy(() => import("./pages/productions/Productions"));
@@ -65,13 +71,15 @@ function App() {
     <AuthProvider>
       <FormNavigationProvider>
         <Router>
-          {/* Animated background layer */}
-          <div className="fixed inset-0 -z-10 bg-gradient-to-br from-blue-200 via-purple-200 to-pink-200 bg-[length:200%_200%] animate-subtle-gradient">
+          {/* background layer */}
+          {/* <div className="fixed inset-0 -z-10 bg-gradient-to-br from-blue-200 via-purple-200 to-pink-200 bg-[length:200%_200%] animate-subtle-gradient">
             <div className="absolute top-[-100px] left-[-100px] w-[400px] h-[400px] rounded-full opacity-50 blur-[100px] bg-blue-400 animate-orb-float" />
             <div className="absolute bottom-[-100px] right-[-100px] w-[400px] h-[400px] rounded-full opacity-50 blur-[100px] bg-pink-400 animate-orb-float"
               style={{ animationDelay: '10s' }}
             />
-          </div>
+          </div> */}
+
+          <div className="fixed inset-0 -z-10 bg-gradient-to-br from-white via-gray-50 to-gray-200" />
 
           <Toaster position="top-right" />
           <FormExitModal />
@@ -109,6 +117,11 @@ function App() {
                 <Route path="purchase-return" element={<PurchaseReturn />} />
                 <Route path="purchase-estimations" element={<PurchaseEstimation />} />
                 <Route path="nila-po" element={<PurchaseOrders />} />
+
+                {/* Store Management */}
+                <Route path="store-entry" element={<StoreEntry />} />
+                <Route path="store-log" element={<StoreLog />} />
+                <Route path="store-inventory" element={<StoreInventory/>} />
 
                 {/* Production Management */}
                 <Route path="productions" element={<Productions />} />

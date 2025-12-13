@@ -6,7 +6,8 @@ import {
   getPurchaseById,
   updatePurchase,
   deletePurchase,
-  searchSuppliers, // ADD THIS IMPORT
+  searchSuppliers,
+  getPurchaseByOrderId, getPurchaseByPURNo
 } from "../controllers/purchaseController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
@@ -22,5 +23,8 @@ router.get("/:id", protect, authorize("purchase", "SuperAdmin"), getPurchaseById
 router.put("/:id", protect, authorize("purchase", "SuperAdmin"), updatePurchase);
 router.patch("/:id/complete", protect, authorize("purchase", "SuperAdmin"), completePurchase);
 router.delete("/:id", protect, authorize("purchase", "SuperAdmin"), deletePurchase);
+
+router.get("/by-order/:orderId", protect, getPurchaseByOrderId);
+router.get("/by-purno/:purNo", protect, getPurchaseByPURNo);
 
 export default router;

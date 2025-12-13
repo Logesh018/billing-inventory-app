@@ -4,6 +4,7 @@ import Product from "../models/products.js";
 import Order from "../models/orders.js";
 import Production from "../models/production.js";
 import Supplier from "../models/supplier.js";
+import StoreEntry from "../models/storeEntry.js";
 
 const transformOrderProductsForProduction = (orderProducts) => {
   return orderProducts.map(p => ({
@@ -515,6 +516,13 @@ export const deletePurchase = async (req, res) => {
       return res.status(404).json({ message: "Purchase not found" });
     }
 
+    // 🆕 DELETE ASSOCIATED STORE ENTRY (if exists)
+    const storeEntry = await StoreEntry.findOne({ purchase: purchase._id });
+    if (storeEntry) {
+      await StoreEntry.findByIdAndDelete(storeEntry._id);
+      console.log("✅ Associated store entry deleted:", storeEntry.storeId);
+    }
+
     // Remove associated production if exists
     const production = await Production.findOne({ purchase: purchase._id });
     if (production) {
@@ -532,7 +540,7 @@ export const deletePurchase = async (req, res) => {
     }
 
     await Purchase.findByIdAndDelete(req.params.id);
-    res.json({ message: "Purchase and associated production deleted successfully" });
+    res.json({ message: "Purchase and associated records deleted successfully" });
   } catch (err) {
     console.error("❌ Error in deletePurchase:", err.message);
     res.status(500).json({ message: err.message });
@@ -559,5 +567,82 @@ export const searchSuppliers = async (req, res) => {
       message: "Error searching suppliers",
       error: error.message
     });
+  }
+};
+
+/**
+ * @desc    Get purchase by Order ID
+ * @route   GET /api/purchases/by-order/:orderId
+ * @access  Private
+ */
+export const getPurchaseByOrderId = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    console.log("🔍 Searching purchase for Order ID:", orderId);
+
+    // First find the order
+    const order = await Order.findOne({ orderId });
+    if (!order) {
+      return res.status(404).json({ 
+        message: "Order not found",
+        orderId 
+      });
+    }
+
+    // Then find purchase linked to that order
+    const purchase = await Purchase.findOne({ order: order._id })
+      .populate("order", "orderId PoNo orderType orderDate buyerDetails products totalQty")
+      .populate("purchaseItems.vendorId", "name code")
+      .populate("fabricPurchases.vendorId", "name code")
+      .populate("accessoriesPurchases.vendorId", "name code");
+
+    if (!purchase) {
+      return res.status(404).json({ 
+        message: "No purchase found for this Order ID",
+        orderId,
+        orderExists: true
+      });
+    }
+
+    console.log("✅ Found purchase:", purchase.PURNo, "Status:", purchase.status);
+
+    res.json(purchase);
+  } catch (err) {
+    console.error("❌ Error in getPurchaseByOrderId:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * @desc    Get purchase by Purchase Number (PURNo)
+ * @route   GET /api/purchases/by-purno/:purNo
+ * @access  Private
+ */
+export const getPurchaseByPURNo = async (req, res) => {
+  try {
+    const { purNo } = req.params;
+
+    console.log("🔍 Searching purchase by PURNo:", purNo);
+
+    const purchase = await Purchase.findOne({ PURNo: purNo })
+      .populate("order", "orderId PoNo orderType orderDate buyerDetails products totalQty")
+      .populate("purchaseItems.vendorId", "name code")
+      .populate("fabricPurchases.vendorId", "name code")
+      .populate("accessoriesPurchases.vendorId", "name code");
+
+    if (!purchase) {
+      return res.status(404).json({ 
+        message: "Purchase not found",
+        purNo 
+      });
+    }
+
+    console.log("✅ Found purchase:", purchase.PURNo, "Status:", purchase.status);
+
+    res.json(purchase);
+  } catch (err) {
+    console.error("❌ Error in getPurchaseByPURNo:", err);
+    res.status(500).json({ message: err.message });
   }
 };
