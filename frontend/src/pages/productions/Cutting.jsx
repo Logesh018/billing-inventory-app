@@ -18,7 +18,6 @@ export default function Cutting() {
 
   const isAdmin = user?.role === "Admin" || user?.role === "SuperAdmin";
 
-  // ✅ Use the stage hook for "Cutting"
   const { stageData, getPreviousStage, getNextStage } = useProductionStage("Cutting", productions);
 
   useEffect(() => {
@@ -125,10 +124,7 @@ export default function Cutting() {
         <>
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Cutting Stage</h1>
-              <p className="text-gray-600 text-sm mt-1">
-                Manage cutting operations and move to stitching
-              </p>
+              <h1 className="text-xl font-bold text-gray-800">Cutting</h1>
             </div>
           </div>
 

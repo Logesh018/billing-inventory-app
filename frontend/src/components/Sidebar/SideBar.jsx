@@ -61,7 +61,7 @@ const menuItems = [
     name: "Production Progress",
     icon: Factory,
     subMenu: [
-      { name: "Store IN", path: "/dashboard/productions" },
+      // { name: "Store IN", path: "/dashboard/productions" },
       { name: "Cutting", path: "/dashboard/production/cutting" },
       { name: "Stitching", path: "/dashboard/production/stitching" },
       { name: "Trimming", path: "/dashboard/production/trimming" },

@@ -16,6 +16,7 @@ const StoreLogItemSchema = new Schema({
   takenQty: { type: Number, required: true, min: 0, default: 0 },
   returnedQty: { type: Number, min: 0, default: 0 },
   inHandQty: { type: Number, default: 0 }, // Auto-calculated: takenQty - returnedQty
+  returnDate: { type: Date, default: null }, // Date when material was returned
   remarks: { type: String, default: "" }
 }, { _id: false });
 

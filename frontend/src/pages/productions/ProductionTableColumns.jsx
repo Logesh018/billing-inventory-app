@@ -56,30 +56,6 @@ export const getProductionColumns = () => {
       )
     },
     {
-      key: "status",
-      label: "Status",
-      width: "5%",
-      render: (p) => {
-        const status = p.status === "Pending Production" ? "Pending" : p.status || "Pending";
-        const styles = {
-          "Pending": "bg-red-500 text-white",
-          "Factory Received": "bg-blue-500 text-white",
-          "Cutting": "bg-blue-500 text-white",
-          "Stitching": "bg-yellow-500 text-white",
-          "Trimming": "bg-yellow-600 text-white",
-          "QC": "bg-orange-500 text-white",
-          "Ironing": "bg-purple-500 text-white",
-          "Packing": "bg-indigo-500 text-white",
-          "Production Completed": "bg-green-500 text-white",
-        };
-        return (
-          <span className={`px-1 py-0.5 rounded text-[9px] font-medium inline-block ${styles[status] || "bg-gray-100 text-gray-700"}`}>
-            {status}
-          </span>
-        );
-      }
-    },
-    {
       key: "products",
       label: "Products",
       width: "14%",
@@ -257,6 +233,30 @@ export const getProductionColumns = () => {
           {p.totalQty || 0}
         </span>
       )
+    },
+    {
+      key: "status",
+      label: "Status",
+      width: "5%",
+      render: (p) => {
+        const status = p.status === "Pending Production" ? "Pending" : p.status || "Pending";
+        const styles = {
+          "Pending": "bg-red-500 text-white",
+          "Factory Received": "bg-blue-500 text-white",
+          "Cutting": "bg-blue-500 text-white",
+          "Stitching": "bg-yellow-500 text-white",
+          "Trimming": "bg-yellow-600 text-white",
+          "QC": "bg-orange-500 text-white",
+          "Ironing": "bg-purple-500 text-white",
+          "Packing": "bg-indigo-500 text-white",
+          "Production Completed": "bg-green-500 text-white",
+        };
+        return (
+          <span className={`px-1 py-0.5 rounded text-[9px] font-medium inline-block ${styles[status] || "bg-gray-100 text-gray-700"}`}>
+            {status}
+          </span>
+        );
+      }
     }
   ];
 };

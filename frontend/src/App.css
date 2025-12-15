@@ -15,7 +15,6 @@
   background: transparent;
 }
 
-/* ===== Base Setup ===== */
 body {
   position: relative;
   min-height: 100vh;
@@ -29,7 +28,6 @@ h1 {
   font-family: 'Roboto', sans-serif;
 }
 
-/* Ensure root and main containers are transparent */
 #root {
   background: transparent;
 }
@@ -40,7 +38,7 @@ html {
 }
 
 /* ===== Keyframe Animations ===== */
-@keyframes subtleGradientMove {
+/* @keyframes subtleGradientMove {
   0% {
     background-position: 0% 50%;
   }
@@ -48,9 +46,9 @@ html {
   100% {
     background-position: 100% 50%;
   }
-}
+} */
 
-@keyframes orbFloat {
+/* @keyframes orbFloat {
   0% {
     transform: translate(0, 0) scale(1);
   }
@@ -58,7 +56,7 @@ html {
   100% {
     transform: translate(30px, 30px) scale(1.1);
   }
-}
+} */
 
 @keyframes scrollText {
   0% {

@@ -129,6 +129,7 @@ export const createStoreLog = async (req, res) => {
         unit: item.unit || "kg",
         takenQty: parseFloat(item.takenQty) || 0,
         returnedQty: parseFloat(item.returnedQty) || 0,
+        returnDate: item.returnDate ? new Date(item.returnDate) : null,
         remarks: item.remarks || ""
       })),
       loginTime: loginTime || "",
@@ -372,6 +373,7 @@ export const updateStoreLog = async (req, res) => {
         unit: item.unit || "kg",
         takenQty: parseFloat(item.takenQty) || 0,
         returnedQty: parseFloat(item.returnedQty) || 0,
+        returnDate: item.returnDate ? new Date(item.returnDate) : null,
         remarks: item.remarks || ""
       }));
     }

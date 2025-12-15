@@ -30,6 +30,7 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
         takenQty: 0,
         returnedQty: 0,
         inHandQty: 0,
+        returnDate: '',
         productCount: 0,
         status: 'Out',
         remarks: ''
@@ -69,6 +70,9 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
           takenQty: item.takenQty || 0,
           returnedQty: item.returnedQty || 0,
           inHandQty: item.inHandQty || 0,
+          returnDate: item.returnDate 
+            ? new Date(item.returnDate).toISOString().split('T')[0]
+            : '',
           productCount: logData.productCount || 0,
           status: logData.status || 'Out',
           remarks: item.remarks || ''
@@ -80,6 +84,7 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
             takenQty: 0,
             returnedQty: 0,
             inHandQty: 0,
+            returnDate: '',
             productCount: 0,
             status: 'Out',
             remarks: ''
@@ -195,6 +200,7 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
           takenQty: 0,
           returnedQty: 0,
           inHandQty: 0,
+          returnDate: '',
           productCount: 0,
           status: 'Out',
           remarks: ''
@@ -315,6 +321,7 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
             unit: item.unit || 'kg',
             takenQty: parseFloat(item.takenQty) || 0,
             returnedQty: parseFloat(item.returnedQty) || 0,
+            returnDate: item.returnDate || null,
             remarks: item.remarks || ''
           })),
         remarks: ''
@@ -502,7 +509,7 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
             )}
 
             {/* Available Stock */}
-            {availableStock.length > 0 && (
+            {/* {availableStock.length > 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-gray-800 mb-2 flex items-center">
                   <AlertCircle className="w-4 h-4 mr-2 text-yellow-600" />
@@ -522,7 +529,7 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
                   ))}
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Store Log Form */}
             <div className="flex items-center justify-between mt-6 mb-3">
@@ -540,18 +547,18 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
             <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm space-y-4">
               {/* Worker Details Header */}
               <div className="grid grid-cols-12 gap-2 text-[10px] font-semibold text-gray-600 uppercase border-b pb-2">
-                <div className="col-span-1.5">Log Date</div>
-                <div className="col-span-1">Log ID</div>
+                <div className="col-span-2">Log Date</div>
+                <div className="col-span-2">Log ID</div>
                 <div className="col-span-2">Person Name</div>
                 <div className="col-span-2">Person Role</div>
                 <div className="col-span-2.5">Department</div>
-                <div className="col-span-1.5">Login Time</div>
-                <div className="col-span-1.5">Logout Time</div>
+                {/* <div className="col-span-1.5">Login Time</div>
+                <div className="col-span-1.5">Logout Time</div> */}
               </div>
 
               {/* Worker Details Row */}
               <div className="grid grid-cols-12 gap-2">
-                <div className="col-span-1.5">
+                <div className="col-span-2">
                   <input
                     type="date"
                     value={formData.logDate}
@@ -560,7 +567,7 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
                     required
                   />
                 </div>
-                <div className="col-span-1">
+                <div className="col-span-2">
                   <input
                     type="text"
                     value={isEditMode ? initialValues?.logId : 'Auto'}
@@ -595,7 +602,7 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
                     placeholder="e.g., Cutting"
                   />
                 </div>
-                <div className="col-span-1.5">
+                {/* <div className="col-span-1.5">
                   <input
                     type="time"
                     value={formData.loginTime}
@@ -610,19 +617,21 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
                     onChange={(e) => setFormData({ ...formData, logoutTime: e.target.value })}
                     className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-xs"
                   />
-                </div>
+                </div> */}
               </div>
 
               {/* Material Items Header */}
               <div className="pt-4 border-t">
-                <h4 className="text-xs font-semibold text-gray-700 mb-3">Material Items</h4>
-                <div className="grid grid-cols-12 gap-2 text-[10px] font-semibold text-gray-600 uppercase">
+                {/* <h4 className="text-xs font-semibold text-gray-700 mb-3">Material Items</h4> */}
+                <div className="grid grid-cols-13 gap-2 text-[10px] font-semibold text-gray-600 uppercase">
                   <div className="col-span-0.5"></div>
-                  <div className="col-span-2.5">Item Name</div>
-                  <div className="col-span-1.5">Taken Qty</div>
-                  <div className="col-span-1.5">Return Qty</div>
-                  <div className="col-span-1.5">In Hand</div>
-                  <div className="col-span-1.5">Product Count</div>
+                  <div className="col-span-2">Item Name</div>
+                  <div className="col-span-0.5">Unit</div>
+                  <div className="col-span-1">Taken Qty</div>
+                  <div className="col-span-1 text-[10px]">Return Qty</div>
+                  <div className="col-span-1">In Hand</div>
+                  <div className="col-span-1.5 text-[9px]">Return Date</div>
+                  <div className="col-span-1 text-[9px]">Prod. Count</div>
                   <div className="col-span-1.5">Status</div>
                   <div className="col-span-2">Item Remarks</div>
                   <div className="col-span-0.5"></div>
@@ -632,11 +641,11 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
               {/* Items Rows */}
               <div className="space-y-2">
                 {formData.items.map((item, index) => (
-                  <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                  <div key={index} className="grid grid-cols-13 gap-2 items-center">
                     <div className="col-span-0.5 flex items-center justify-center">
                       <span className="text-xs font-semibold text-gray-700">{index + 1}</span>
                     </div>
-                    <div className="col-span-2.5">
+                    <div className="col-span-2">
                       <select
                         value={item.itemName}
                         onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
@@ -650,7 +659,15 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
                         ))}
                       </select>
                     </div>
-                    <div className="col-span-1.5">
+                    <div className="col-span-0.5">
+                      <input
+                        type="text"
+                        value={item.unit}
+                        readOnly
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs bg-gray-50 text-center"
+                      />
+                    </div>
+                    <div className="col-span-1">
                       <input
                         type="number"
                         value={item.takenQty}
@@ -660,7 +677,7 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
                         step="0.01"
                       />
                     </div>
-                    <div className="col-span-1.5">
+                    <div className="col-span-1">
                       <input
                         type="number"
                         value={item.returnedQty}
@@ -670,7 +687,7 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
                         step="0.01"
                       />
                     </div>
-                    <div className="col-span-1.5">
+                    <div className="col-span-1">
                       <input
                         type="number"
                         value={item.inHandQty}
@@ -679,6 +696,14 @@ const StoreLogForm = ({ initialValues, onSubmit, onCancel, isEditMode }) => {
                       />
                     </div>
                     <div className="col-span-1.5">
+                      <input
+                        type="date"
+                        value={item.returnDate}
+                        onChange={(e) => handleItemChange(index, 'returnDate', e.target.value)}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="col-span-1">
                       <input
                         type="number"
                         value={item.productCount}

@@ -148,7 +148,7 @@ export default function StoreLog() {
     {
       key: "logDate",
       label: "LOG DATE",
-      width: "5%",
+      width: "6%",
       render: (log) => (
         <div className="text-[9px] font-semibold leading-tight">
           {log.logDate ? new Date(log.logDate).toLocaleDateString('en-IN', {
@@ -162,7 +162,7 @@ export default function StoreLog() {
     {
       key: "personName",
       label: "PERSON",
-      width: "8%",
+      width: "9%",
       render: (log) => (
         <div className="text-[9px] leading-tight">
           <div className="font-semibold text-gray-800">{log.personName || "—"}</div>
@@ -175,7 +175,7 @@ export default function StoreLog() {
     {
       key: "items",
       label: "ITEMS",
-      width: "12%",
+      width: "10%",
       render: (log) => {
         if (!log.items || log.items.length === 0) {
           return <span className="text-gray-400 text-[9px]">—</span>;
@@ -223,6 +223,21 @@ export default function StoreLog() {
       )
     },
     {
+      key: "unit",
+      label: "UNIT",
+      width: "5%",
+      render: (item) => (
+        <div className="font-medium text-[9px] leading-tight break-words">
+         {item.items.map((item, i) => (
+              <div key={i} className="text-[8px] leading-tight">
+                {/* <span className="font-semibold text-gray-800">{item.itemName}</span> */}
+                <span className="text-gray-800 font-medium text-[9px] uppercase">{item.unit}</span>
+              </div>
+            ))}
+        </div>
+      )
+    },
+    {
       key: "takenQty",
       label: "TAKEN",
       width: "5%",
@@ -235,7 +250,7 @@ export default function StoreLog() {
     {
       key: "returnedQty",
       label: "RETURNED",
-      width: "5%",
+      width: "6%",
       render: (log) => (
         <div className="text-[9px] font-bold text-blue-600 text-center">
           {log.totalReturnedQty?.toLocaleString() || 0}
@@ -245,33 +260,33 @@ export default function StoreLog() {
     {
       key: "inHandQty",
       label: "IN HAND",
-      width: "5%",
+      width: "6%",
       render: (log) => (
         <div className="text-[9px] font-bold text-green-600 text-center">
           {log.totalInHandQty?.toLocaleString() || 0}
         </div>
       )
     },
-    {
-      key: "loginTime",
-      label: "LOGIN",
-      width: "5%",
-      render: (log) => (
-        <div className="text-[9px] font-semibold text-gray-700 text-center">
-          {log.loginTime || "—"}
-        </div>
-      )
-    },
-    {
-      key: "logoutTime",
-      label: "LOGOUT",
-      width: "5%",
-      render: (log) => (
-        <div className="text-[9px] font-semibold text-gray-700 text-center">
-          {log.logoutTime || "—"}
-        </div>
-      )
-    },
+    // {
+    //   key: "loginTime",
+    //   label: "LOGIN",
+    //   width: "5%",
+    //   render: (log) => (
+    //     <div className="text-[9px] font-semibold text-gray-700 text-center">
+    //       {log.loginTime || "—"}
+    //     </div>
+    //   )
+    // },
+    // {
+    //   key: "logoutTime",
+    //   label: "LOGOUT",
+    //   width: "5%",
+    //   render: (log) => (
+    //     <div className="text-[9px] font-semibold text-gray-700 text-center">
+    //       {log.logoutTime || "—"}
+    //     </div>
+    //   )
+    // },
     {
       key: "productCount",
       label: "PRODUCED",

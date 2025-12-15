@@ -142,7 +142,7 @@ export default function StoreEntry() {
     {
       key: "serialNo",
       label: "S.NO",
-      width: "3%",
+      width: "4%",
       render: (e) => (
         <div className="font-mono text-[9px] font-semibold text-gray-700">
           {e.serialNo || "—"}
@@ -152,7 +152,7 @@ export default function StoreEntry() {
     {
       key: "storeId",
       label: "STORE ID",
-      width: "5%",
+      width: "6%",
       render: (e) => (
         <div className="font-medium text-[9px] leading-tight break-words">
           <div className="text-gray-800 font-semibold text-[9px]">{e.storeId || "—"}</div>
@@ -162,7 +162,7 @@ export default function StoreEntry() {
     {
       key: "storeEntryDate",
       label: "ENTRY DATE",
-      width: "5%",
+      width: "7%",
       render: (e) => (
         <div className="text-[9px] font-semibold leading-tight">
           {e.storeEntryDate ? new Date(e.storeEntryDate).toLocaleDateString('en-IN', {
@@ -176,7 +176,7 @@ export default function StoreEntry() {
     {
       key: "PURNo",
       label: "PUR ID",
-      width: "5%",
+      width: "6%",
       render: (e) => (
         <div className="font-medium text-[9px] leading-tight break-words">
           <div className="text-gray-800 font-semibold text-[9px]">{e.PURNo || "—"}</div>
@@ -186,7 +186,7 @@ export default function StoreEntry() {
     {
       key: "purchaseDate",
       label: "P DATE",
-      width: "5%",
+      width: "6%",
       render: (e) => (
         <div className="text-[9px] font-semibold leading-tight">
           {e.purchaseDate ? new Date(e.purchaseDate).toLocaleDateString('en-IN', {
@@ -210,7 +210,7 @@ export default function StoreEntry() {
     {
       key: "orderDate",
       label: "O DATE",
-      width: "5%",
+      width: "6%",
       render: (e) => (
         <div className="text-[9px] font-semibold leading-tight">
           {e.orderDate ? new Date(e.orderDate).toLocaleDateString('en-IN', {
@@ -224,7 +224,7 @@ export default function StoreEntry() {
     {
       key: "orderType",
       label: "O TYPE",
-      width: "5%",
+      width: "6%",
       render: (e) => (
         <span className={`px-1 py-0.5 rounded text-[9px] font-medium inline-block ${
           e.orderType === "JOB-Works"
@@ -240,7 +240,7 @@ export default function StoreEntry() {
     {
       key: "buyerCode",
       label: "BUYER",
-      width: "5%",
+      width: "6%",
       render: (e) => (
         <div className="text-[9px] font-semibold leading-tight">
           {e.buyerCode || "—"}
@@ -250,7 +250,7 @@ export default function StoreEntry() {
     {
       key: "itemsCount",
       label: "ITEMS",
-      width: "4%",
+      width: "5%",
       render: (e) => (
         <div className="text-center">
           <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-[9px] font-semibold">
@@ -262,7 +262,7 @@ export default function StoreEntry() {
     {
       key: "totalStoreInQty",
       label: "STORE QTY",
-      width: "6%",
+      width: "7%",
       render: (e) => (
         <div className="text-[9px] font-bold text-green-600 text-center">
           {e.totalStoreInQty?.toLocaleString() || "—"}
@@ -272,7 +272,7 @@ export default function StoreEntry() {
     {
       key: "shortage",
       label: "SHORTAGE",
-      width: "5%",
+      width: "6%",
       render: (e) => (
         <div className={`text-[9px] font-bold text-center ${
           e.totalShortage > 0 ? "text-red-600" : "text-gray-400"
@@ -284,7 +284,7 @@ export default function StoreEntry() {
     {
       key: "surplus",
       label: "SURPLUS",
-      width: "5%",
+      width: "6%",
       render: (e) => (
         <div className={`text-[9px] font-bold text-center ${
           e.totalSurplus > 0 ? "text-green-600" : "text-gray-400"
